@@ -32,12 +32,14 @@ try
 	% get setup struct (can edit that of course):
 	settings = Titta.getDefaults('Tobii Pro Spectrum');
 	settings.debugMode				= false;	
-	settings.freq					= 150;
+	settings.freq					= 300;
 	settings.trackingMode			= 'macaque';
 	settings.cal.autoPace            = 0;
 	settings.cal.doRandomPointOrder  = false;
 	settings.cal.pointNotifyFunction = @tittaCalCallback;
 	settings.val.pointNotifyFunction = @tittaCalCallback;
+	settings.cal.pointPos			= [.2 .5; .5 .5; .8 .5;];
+	settings.val.pointPos			= [.5 .5];
 	% customize colors of setup and calibration interface (yes, colors of
 	% everything can be set, so there is a lot here).
 	% 1. setup screen
@@ -146,7 +148,7 @@ try
 		% read in konijntjes image (may want to preload this before the trial
 		% to ensure good timing)
 		stimFName   = ['th' num2str(randi(28)) '.jpg'];
-		stimDir		= '/media/cog1/Main_Data/Monkey_Images/';
+		stimDir		= '/home/cog5/Documents/Monkey-Pictures ';
 		stimFullName= fullfile(stimDir,stimFName);
 		im          = imread(stimFullName);
 		tex         = Screen('MakeTexture',wpntP,im);

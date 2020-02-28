@@ -13,6 +13,7 @@ function tobiidemo2b()
 	% ---- screenManager
 	ptb = mySetup(screen,bgColour,windowed);
 	ptb.audio = audioManager();
+	if IsWin; ptb.audio.device = 6; end
 	ptb.audio.setup();
 	s = screenManager;
 	s.screen = ptb.screen - 1;
@@ -31,7 +32,7 @@ function tobiidemo2b()
 	t = tobiiManager();
 	t.name = 'Tobii Demo 2b';
 	t.trackingMode = 'macaque';
-	t.sampleRate = 600;
+	t.sampleRate = 300;
 	t.calibrationStimulus = 'movie';
 	initialise(t,ptb,s);
 	
@@ -53,9 +54,10 @@ function tobiidemo2b()
 	trackerMessage(t,'STARTVBL',vbl);
 	while ~CloseWin && vbl <= startT + 4
 		draw(m);
+		getSample(t);
+		drawEyePosition(t);
 		finishDrawing(ptb);
 		animate(m);
-		getSample(t);
 		
 		vbl = ptb.flip(vbl);
 
