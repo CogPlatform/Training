@@ -57,10 +57,11 @@ try
 	end
 	ad.setup();
 	
-	pos = [-12 -12; -12 0; 0 -12; 0 0; 12 0; 0 12; 12 12];
+	pos = [-10 -10; -10 0; 0 -10; 0 0; 10 0; 0 10; 10 10];
 	
 	%===========================set up stimuli====================
 	mv = movieStimulus();
+	mv.size = ana.size;
     mv.setup(sM);
 	
 	%===========================prepare===========================
@@ -70,7 +71,10 @@ try
 	breakLoop		= false;
 	ana.trial		= struct();
 	Priority(MaxPriority(sM.win));
-	totalRuns = 0;
+	totalRuns		= 0;
+	rewards			= 0;
+	pfeedback		= 0;
+	nfeedback		= 0;
 	
 	while ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
@@ -90,7 +94,7 @@ try
 		tick = 0;
 		thisResponse = -1;
 		ListenChar(-1);
-		sM.drawCross([],[],0,0);
+		sM.drawCross([],[],thisPos(1),thisPos(2));
 		tStart = flip(sM); vbl = tStart;
 		if ana.rewardStart; rM.timedTTL(2,300); end
 		play(ad);
@@ -116,6 +120,7 @@ try
 			doBreak = checkKeys();
 			if doBreak; break; end
 		end
+		updatePlots();
 		ad.loadSamples();
 		ana.trial(totalRuns).result = thisResponse;
 		ana.trial(totalRuns).tStart = tStart;
@@ -150,11 +155,14 @@ end
 					breakLoop = true;
 					doBreak = true;
 				case {'p'}
+					WaitSecs('YieldSecs',0.1);
 					KbWait(-1);
+					doBreak = true;
 				case {'1','1!','kp_end'}
-					fprintf('===>>> reward given!\n');
+					rewards = rewards + 1;
 					rM.timedTTL(2,300);
 				case {'2','2@','kp_down'}
+					pfeedback = pfeedback + 1;
 					fprintf('===>>> Correct given!\n');
 					drawGreenSpot(sM,5);
 					flip(sM);
@@ -163,6 +171,7 @@ end
 					WaitSecs('YieldSecs',0.5);
 					doBreak = true;
 				case {'3','3#','kp_next'}
+					nfeedback = nfeedback + 1;
 					fprintf('===>>> Incorrect given!\n');
 					drawRedSpot(sM,5);
 					flip(sM);
@@ -172,6 +181,12 @@ end
 					doBreak = true;
 			end
 		end
+	end
+
+	function updatePlots()
+		b = bar(ana.plotAxis1, [1 2 3], [rewards pfeedback nfeedback]);
+		b.Parent.XTickLabel = {'rewards','positive','negative'};
+		drawnow;
 	end
 		
 end
