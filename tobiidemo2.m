@@ -141,14 +141,14 @@ try
 		startT = Screen('Flip',wpntP);
 		% log when fixation dot appeared in eye-tracker time. NB:
 		% system_timestamp of the Tobii data uses the same clock as
-		% PsychToolbox, so startT as returned by Screen('Flip') can be used
+		% PsychToolbox, so startT aSs returned by Screen('Flip') can be used
 		% directly to segment eye tracking data
 		EThndl.sendMessage('FIX ON',startT);
 		
 		% read in konijntjes image (may want to preload this before the trial
 		% to ensure good timing)
 		stimFName   = ['th' num2str(randi(28)) '.jpg'];
-		stimDir		= '/home/cog5/Documents/Monkey-Pictures ';
+		stimDir		= '/home/cog5/Documents/Monkey-Pictures/';
 		stimFullName= fullfile(stimDir,stimFName);
 		im          = imread(stimFullName);
 		tex         = Screen('MakeTexture',wpntP,im);
