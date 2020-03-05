@@ -29,7 +29,7 @@ function tobiidemo()
 		s			= screenManager;
 		s.screen	= sM.screen - 1;
 		s.backgroundColour = bgColour;
-		s.windowed	= [0 0 1600 1080];
+		s.windowed	= [0 0 1500 1050];
 		s.bitDepth	= '8bit';
 		s.blend		= true;
 		s.disableSyncTests = true;
@@ -54,20 +54,22 @@ function tobiidemo()
 	% ---- tobii manager
 	t						= tobiiManager();
 	t.name					= 'Tobii Demo';
-	t.trackingMode			= 'human';
+	t.trackingMode			= 'macaque';
 	t.eyeUsed				= 'both';
-	t.sampleRate			= 300;
-	t.calibrationStimulus	= 'animated';
-	t.calPositions			= [0.2 0.2; 0.5 0.5; 0.8 0.8];
+	t.sampleRate			= 60;
+	t.calibrationStimulus	= 'movie';
+	t.calPositions			= [0.2 0.5; 0.5 0.5; 0.8 0.5];
 	t.valPositions			= [0.5 0.5];
-	t.autoPace				= 1;
+	t.autoPace				= 0;
 	if exist('s','var')
 		initialise(t,sM,s);
 	else
 		initialise(t,sM);
 	end
+	t.settings.cal.paceDuration = 0.8;
 	t.settings.cal.doRandomPointOrder  = false;
 	trackerSetup(t); ShowCursor();
+	if s.isOpen; close(s); end
 	
 	% ---- prepare tracker
 	WaitSecs('YieldSecs',0.5);

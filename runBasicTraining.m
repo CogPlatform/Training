@@ -57,12 +57,19 @@ try
 	end
 	ad.setup();
 	
-	pos = [-10 -10; -10 0; 0 -10; 0 0; 10 0; 0 10; 10 10];
-	
 	%===========================set up stimuli====================
-	mv = movieStimulus();
-	mv.size = ana.size;
-    mv.setup(sM);
+	if strcmpi(ana.stimulus,'Dancing Monkey')
+		stim = movieStimulus();
+		stim.size = ana.size;
+		stim.setup(sM);
+	else
+		stim = imageStimulus();
+		stim.size = ana.size;
+		stim.fileName = ana.imageDir;
+		stim.setup(sM);
+	end
+	
+	pos = [-10 -10; -10 0; 0 -10; 0 0; 10 0; 0 10; 10 10];
 	
 	%===========================prepare===========================
 	tL				= timeLogger();
@@ -80,12 +87,16 @@ try
 		%=========================MAINTAIN INITIAL FIXATION==========================
 		totalRuns = totalRuns + 1;
 		
-		thisPos = pos(randi(7),:);
-		mv.xPositionOut = thisPos(1);
-		mv.yPositionOut = thisPos(2);
-		update(mv);
+		if ana.randomPosition
+			thisPos = pos(randi(7),:);
+		else
+			thisPos = [0, 0];
+		end
+		stim.xPositionOut = thisPos(1);
+		stim.yPositionOut = thisPos(2);
+		update(stim);
 		
-		fprintf('===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,pos(1),pos(2));
+		fprintf('===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
 		
 		sM.drawCross([],[],thisPos(1),thisPos(2));
 		flip(sM);
@@ -97,25 +108,26 @@ try
 		ListenChar(-1);
 		sM.drawCross([],[],thisPos(1),thisPos(2));
 		tStart = flip(sM); vbl = tStart;
-		if ana.rewardStart; rM.timedTTL(2,300); end
+		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		play(ad);
 		
 		while vbl < tStart + ana.playTimes
 			
-			draw(mv); %animate(mv);
-			sM.drawCross([],[],thisPos(1),thisPos(2));
+			draw(stim);
+			sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2));
 			finishDrawing(sM);
             vbl = flip(sM,vbl); tick = tick + 1;
 			doBreak = checkKeys();
 			if doBreak; break; end
-			if ana.rewardDuring && tick == 60;rM.timedTTL(2,300);end
+			if ana.rewardDuring && tick == 60;rM.timedTTL(2,300);rewards=rewards+1;end
 			
 		end
 		
 		tEnd = vbl;
-		if ana.rewardEnd; rM.timedTTL(2,300); end
+		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; end
 		vbl=flip(sM); t = vbl;
 		
+		%inter trial interval
 		while vbl < t + 1
 			
 			vbl=flip(sM);
@@ -160,7 +172,10 @@ end
 					breakLoop = true;
 					doBreak = true;
 				case {'p'}
-					WaitSecs('YieldSecs',0.1);
+					fprintf('===>>> PAUSED!\n');
+					Screen('DrawText', sM.win, '===>>> PAUSED, press key to resume!!!',10,10);
+					flip(sM);
+					WaitSecs('Yieldsecs',0.1);
 					KbWait(-1);
 					doBreak = true;
 				case {'1','1!','kp_end'}
