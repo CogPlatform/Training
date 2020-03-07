@@ -37,7 +37,7 @@ function tobiidemo()
 	
 	% ---- setup our image deck.
 	i=imageStimulus;
-	i.fileName		= '/home/cog5/Documents/Monkey-Pictures/';
+	i.fileName		= '/home/cog2/MatlabFiles/Monkey-Pictures/';
 	
 	% ---- setup movie we can use for fixation spot.
 	f				= movieStimulus;
@@ -54,9 +54,9 @@ function tobiidemo()
 	% ---- tobii manager
 	t						= tobiiManager();
 	t.name					= 'Tobii Demo';
-	t.trackingMode			= 'macaque';
+	t.trackingMode			= 'human';
 	t.eyeUsed				= 'both';
-	t.sampleRate			= 60;
+	t.sampleRate			= 300;
 	t.calibrationStimulus	= 'movie';
 	t.calPositions			= [0.2 0.5; 0.5 0.5; 0.8 0.5];
 	t.valPositions			= [0.5 0.5];
@@ -135,7 +135,15 @@ function tobiidemo()
 					doBreak = true;
 				case {'p'}
 					WaitSecs('YieldSecs',0.1);
+					fprintf('--->>> Entering paused mode...\n');
+					Screen('DrawText','--->>> PAUSED, key to exit...', 20,20,[1 1 1]);
+					flip(sM);
 					KbWait(-1);
+					doBreak = true;
+				case {'c'}
+					WaitSecs('YieldSecs',0.1);
+					fprintf('--->>> Entering calibration mode...\n');
+					trackerSetup(t);
 					doBreak = true;
 				case {'1','1!','kp_end'}
 					if kTimer < vbl
