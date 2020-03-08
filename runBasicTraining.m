@@ -29,7 +29,9 @@ else
 end
 
 cla(ana.plotAxis1);
+cla(ana.plotAxis2);
 
+%==========================TRY==========================
 try
 	PsychDefaultSetup(2);
 	Screen('Preference', 'SkipSyncTests', 1);
@@ -82,6 +84,9 @@ try
 	rewards			= 0;
 	pfeedback		= 0;
 	nfeedback		= 0;
+    
+    halfisi			= sM.screenVals.halfisi;
+	Priority(MaxPriority(sM.win));
 	
 	while ~breakLoop
 		%=========================MAINTAIN INITIAL FIXATION==========================
@@ -140,26 +145,40 @@ try
 		updatePlots();
 		ad.loadSamples();
 		ana.trial(totalRuns).result = thisResponse;
+        ana.trial(totalRuns).rewards = rewards;
+        ana.trial(totalRuns).positive = pfeedback;
+        ana.trial(totalRuns).negative = nfeedback;
 		ana.trial(totalRuns).tStart = tStart;
 		ana.trial(totalRuns).tEnd = tEnd;
 		ana.trial(totalRuns).tick = tick;
-	end % while ~breakLoop
+	end %=====================================while ~breakLoop
 	
 	%===============================Clean up============================
 	fprintf('===>>> basicTraining Finished Trials: %i\n',totalRuns);
-	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
+    Screen('DrawText', sM.win, '===>>> FINISHED!!!');
 	Screen('Flip',sM.win);
-	WaitSecs('YieldSecs', 2);
+	WaitSecs('YieldSecs', 1);
 	close(sM);
+    
+	if exist(ana.ResultDir,'dir') > 0
+        cd(ana.ResultDir);
+	end
+    
+    if ~isempty(ana.nameExp) || ~strcmpi(ana.nameExp,'debug')
+        ana.plotAxis1 = [];
+        ana.plotAxis2 = [];
+        fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
+        save([ana.nameExp '.mat'],'ana');
+    end
+    
 	ListenChar(0);ShowCursor;Priority(0);
 	clear ana seq eL sM tL cM
 
 catch ME
+    getReport(ME)
 	assignin('base','ana',ana)
-	if exist('eL','var'); close(eL); end
 	if exist('sM','var'); close(sM); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
-	getReport(ME)
 end
 
 	function doBreak = checkKeys()
