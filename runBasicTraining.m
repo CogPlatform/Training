@@ -71,7 +71,7 @@ try
 		stim.setup(sM);
 	end
 	
-	pos = [-10 -10; -10 0; 0 -10; 0 0; 10 0; 0 10; 10 10];
+	pos = str2num(ana.positions);
 	
 	%===========================prepare===========================
 	tL				= timeLogger();
@@ -93,7 +93,7 @@ try
 		totalRuns = totalRuns + 1;
 		
 		if ana.randomPosition
-			thisPos = pos(randi(7),:);
+			thisPos = pos(randi(length(pos)),:);
 		else
 			thisPos = [0, 0];
 		end
@@ -175,6 +175,7 @@ try
 	clear ana seq eL sM tL cM
 
 catch ME
+    flip(sM);
     getReport(ME)
 	assignin('base','ana',ana)
 	if exist('sM','var'); close(sM); end
@@ -185,7 +186,7 @@ end
 		doBreak = false;
 		[keyIsDown, ~, keyCode] = KbCheck(-1);
 		if keyIsDown == 1
-			rchar = KbName(keyCode);
+			rchar = KbName(keyCode);if iscell(rchar); rchar=rchar{1}; end
 			switch lower(rchar)
 				case {'q','0'}
 					breakLoop = true;
