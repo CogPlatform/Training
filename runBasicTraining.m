@@ -49,11 +49,11 @@ try
 		Screen('Preference', 'DefaultFontName', 'DejaVu Sans');
 	end
 	
-	ad = audioManager();ad.close();
+	ad = audioManager(); ad.close();
 	if IsLinux
 		ad.device = [];
 	elseif IsWin 
-		ad.device = 6;
+		ad.device = [];
 	end
 	ad.setup();
 	

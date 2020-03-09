@@ -19,10 +19,11 @@ function tobiidemo()
 	sM = screenManager('backgroundColour',bgColour,'screen',screen,'windowed',windowed);
 	sM.bitDepth		= '8bit';
 	sM.blend		= true;
+    sM.disableSyncTests=true;
 	sv				= sM.open();
 	sM.audio		= audioManager();
 	ad				= sM.audio;
-	if IsWin; ad.device = 6; end
+	if IsWin; ad.device = []; end
 	ad.setup();
 	% ---- second screen for calibration
 	if length(Screen('Screens')) > 1
