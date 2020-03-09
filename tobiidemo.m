@@ -9,7 +9,6 @@ function tobiidemo()
 	bgColour = [0.25 0.25 0.25 1];
 	screen = max(Screen('Screens'));
 	windowed=[];
-	
 	rewardAtStart		= true;
 	rewardAtEnd			= true;
 	pin					= 2;
@@ -21,36 +20,17 @@ function tobiidemo()
 	sM.blend		= true;
     sM.disableSyncTests=true;
 	sv				= sM.open();
-	sM.audio		= audioManager();
-	ad				= sM.audio;
-	if IsWin; ad.device = []; end
-	ad.setup();
-	% ---- second screen for calibration
-	if length(Screen('Screens')) > 1
+	sM.audio		= audioManager('device',[]); ad	= sM.audio; ad.setup();
+	%if IsWin; ad.device = 6; end
+	if length(Screen('Screens')) > 1 % ---- second screen for calibration
 		s			= screenManager;
 		s.screen	= sM.screen - 1;
 		s.backgroundColour = bgColour;
 		s.windowed	= [0 0 1500 1050];
 		s.bitDepth	= '8bit';
-		s.blend		= true;
+		s.blend		= sM.blend;
 		s.disableSyncTests = true;
 	end
-	
-	% ---- setup our image deck.
-	i=imageStimulus;
-	i.fileName		= '/home/cog2/MatlabFiles/Monkey-Pictures/';
-	
-	% ---- setup movie we can use for fixation spot.
-	f				= movieStimulus;
-	f.size			= 2;
-	
-	% ---- our metastimulus combines both together
-	m				= metaStimulus;
-	m.stimuli{1}	= i;
-	m.stimuli{2}	= f;
-	setup(m,sM);
-	show(m);
-	m.stimuli{2}.hide();
 
 	% ---- tobii manager
 	t						= tobiiManager();
@@ -71,6 +51,22 @@ function tobiidemo()
 	t.settings.cal.doRandomPointOrder  = false;
 	trackerSetup(t); ShowCursor();
 	if s.isOpen; close(s); end
+	
+	% ---- setup our image deck.
+	i=imageStimulus;
+	i.fileName		= [sM.paths.parent pathsep 'Pictures/'];
+	
+	% ---- setup movie we can use for fixation spot.
+	f				= movieStimulus;
+	f.size			= 2;
+	
+	% ---- our metastimulus combines both together
+	m				= metaStimulus;
+	m.stimuli{1}	= i;
+	m.stimuli{2}	= f;
+	setup(m,sM);
+	show(m);
+	m.stimuli{2}.hide();
 	
 	% ---- prepare tracker
 	WaitSecs('YieldSecs',0.5);
