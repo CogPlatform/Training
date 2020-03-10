@@ -55,10 +55,15 @@ function tobiidemo()
 	% ---- tobii manager
 	t						= tobiiManager();
 	t.name					= 'Tobii Demo';
-	t.trackingMode			= 'human';
+    t.model                 = 'Tobii TX300'; %'Tobii Pro Spectrum'
+    if ~isempty(regexpi(t.trackingMode,'Spectrum','ONCE'))
+        t.trackingMode			= 'human';
+    else
+        t.trackingMode			= 'Default';
+    end
 	t.eyeUsed				= 'both';
 	t.sampleRate			= 300;
-	t.calibrationStimulus	= 'movie';
+	t.calibrationStimulus	= 'animated';
 	t.calPositions			= [0.2 0.5; 0.5 0.5; 0.8 0.5];
 	t.valPositions			= [0.5 0.5];
 	t.autoPace				= 0;
@@ -67,7 +72,7 @@ function tobiidemo()
 	else
 		initialise(t,sM);
 	end
-	t.settings.cal.paceDuration = 0.8;
+	t.settings.cal.paceDuration = 0.5;
 	t.settings.cal.doRandomPointOrder  = false;
 	trackerSetup(t); ShowCursor();
 	if s.isOpen; close(s); end
