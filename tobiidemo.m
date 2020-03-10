@@ -9,8 +9,6 @@ function tobiidemo()
 	bgColour = [0.25 0.25 0.25 1];
 	screen = max(Screen('Screens'));
 	windowed=[];
-	rewardAtStart		= true;
-	rewardAtEnd			= true;
 	pin					= 2;
 	ttlTime				= 300;
 

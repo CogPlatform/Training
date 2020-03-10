@@ -71,15 +71,11 @@ try
 		stim.setup(sM);
 	end
 	
-	pos = str2num(ana.positions);
+	pos = ana.positions;
 	
 	%===========================prepare===========================
-	tL				= timeLogger();
-	tL.screenLog.beforeDisplay = GetSecs();
-	tL.screenLog.stimTime(1) = 1;
 	breakLoop		= false;
 	ana.trial		= struct();
-	Priority(MaxPriority(sM.win));
 	totalRuns		= 0;
 	rewards			= 0;
 	pfeedback		= 0;
