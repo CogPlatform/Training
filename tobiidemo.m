@@ -11,6 +11,7 @@ function tobiidemo()
 	windowed=[];
 	pin					= 2;
 	ttlTime				= 300;
+	trialTime = 2;
 
 	% ---- screenManager
 	sM = screenManager('backgroundColour',bgColour,'screen',screen,'windowed',windowed);
@@ -53,23 +54,34 @@ function tobiidemo()
 	t.settings.cal.paceDuration = 0.5;
 	t.settings.cal.doRandomPointOrder  = false;
 	trackerSetup(t); ShowCursor();
-	if s.isOpen; close(s); end
+	drawnow;
+    
+	% ---- fixation values.
+	t.resetFixation();
+    t.fixation.X            = 0;
+    t.fixation.Y            = 0;
+	t.fixation.initTime		= 1;
+	t.fixation.fixTime		= 1;
+	t.fixation.radius       = 10;
 	
 	% ---- setup our image deck.
 	i=imageStimulus;
 	i.fileName		= [sM.paths.parent pathsep 'Pictures/'];
+    i.size          = 10;
 	
 	% ---- setup movie we can use for fixation spot.
 	f				= movieStimulus;
 	f.size			= 2;
 	
 	% ---- our metastimulus combines both together
-	m				= metaStimulus;
-	m.stimuli{1}	= i;
-	m.stimuli{2}	= f;
-	setup(m,sM);
-	show(m);
-	m.stimuli{2}.hide();
+	stim				= metaStimulus;
+	stim.stimuli{1}	= i;
+	stim.stimuli{2}	= f;
+	setup(stim,sM);
+	show(stim);
+	stim.stimuli{2}.hide();
+	
+	pos = [-10 -10; -10 0; 0 -10; 0 0; 10 0; 0 10; 10 10];
 	
 	% ---- prepare tracker
 	WaitSecs('YieldSecs',0.5);
@@ -83,36 +95,95 @@ function tobiidemo()
 	
 	while ~breakLoop
 		totalRuns = totalRuns + 1;
-		fprintf('===>>> BasicTraining START Run = %i | %s\n', totalRuns, sM.fullName);
-		tick = 0;
+		
+		thisPos = pos(randi(length(pos)),:);
+		i.xPositionOut = thisPos(1);
+		i.yPositionOut = thisPos(2);
+		update(stim);
+		
+		t.resetFixation();
+		t.fixation.X = thisPos(1);
+		t.fixation.Y = thisPos(2);
+		
+		fprintf('===>>> tobiidemo START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
+
 		kTimer = 0; % this is the timer to stop too many key events
+		
+		%=====================INITIATE FIXATION
 		%ListenChar(-1);
-		ad.play();
+		trackerMessage(t,['TRIALID' num2str(totalRuns)]);
+		trackerMessage(t,'INITIATEFIX');
+		fixated = '';
+		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
+			drawCross(sM,[],[],thisPos(1),thisPos(2));
+			finishDrawing(sM);
+			flip(sM);
+			getSample(t);
+			fixated=testSearchHoldFixation(eL,'fix','breakfix');
+			doBreak = checkKeys();
+			if doBreak; break; end
+		end
+		if strcmpi(fixated,'breakfix')
+			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', totalRuns);
+			trackerMessage(t,'TRIAL_RESULT -100');
+			trackerMessage(t,'MSG:BreakInitialFix');
+			resetFixation(t);
+            Screen('Flip',sM.win); %flip the buffer
+			WaitSecs('YieldSecs',0.2);
+			continue
+		end
+		
+		%=====================SHOW STIMULUS
+		
 		if rewardAtStart; rM.timedTTL(pin,ttlTime); end
-		vbl = flip(sM); startT = vbl;
-		while vbl < startT + 4
-			draw(m);
+		ad.play();
+		vbl = flip(sM); startT = vbl + sv.ifi; tick = 1;
+		while vbl < startT + trialTime
+			draw(stim);
 			getSample(t);
 			drawEyePosition(t);
 			finishDrawing(sM);
-			animate(m);
+			animate(stim);
 			vbl = sM.flip(vbl); tick = tick + 1;
 			if tick == 1; trackerMessage(t,'STARTVBL',vbl); end
-			doBreak = checkKeys();
-			if doBreak; break; end
-		end 
-		if rewardAtEnd; rM.timedTTL(pin,ttlTime); end
-		
-		vbl=flip(sM); startT = vbl;
-		trackerMessage(t,'ENDVBL',vbl);
-		while vbl < startT + 1
-			vbl=flip(sM);
+			getSample(t);
+			if ~isFixated(eL)
+				fixated = 'breakfix';
+				break %break the while loop
+			end
 			doBreak = checkKeys();
 			if doBreak; break; end
 		end
 		
+		if strcmpi(fixated,'breakfix')
+			drawRedSpot(sM,5);
+			vbl=flip(sM); endT = vbl;
+			trackerMessage(t,'ENDVBL',vbl);
+			trackerMessage(eL,'TRIAL_RESULT -1');
+			trackerMessage(eL,'MSG:BreakFix');
+			beep(ad,'low');
+			while vbl < endT + 5
+				drawGreenSpot(sM,5);
+				vbl=flip(sM);
+				doBreak = checkKeys();
+				if doBreak; break; end
+			end
+		else
+			drawGreenSpot(sM,5);
+			vbl=flip(sM); endT = vbl;
+			if rewardAtEnd; rM.timedTTL(pin,ttlTime); end
+			beep(ad,'high');
+			trackerMessage(t,'ENDVBL',vbl);
+			trackerMessage(t,'TRIAL_RESULT 1');
+			while vbl < endT + 1
+				drawGreenSpot(sM,5);
+				vbl=flip(sM);
+				doBreak = checkKeys();
+				if doBreak; break; end
+			end
+		end
+		
 		ad.loadSamples();
-		update(m);
 		
 	end
 
@@ -120,7 +191,7 @@ function tobiidemo()
 	stopRecording(t);
 	WaitSecs('Yieldsecs',0.5)
 	ListenChar(0); Priority(0); ShowCursor;
-	reset(m);
+	reset(stim);
 	saveData(t);
 	close(t); close(sM);
 	

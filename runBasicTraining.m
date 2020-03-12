@@ -59,6 +59,50 @@ try
 	end
 	ad.setup();
 	
+	%===========================tobii manager=====================
+	t						= tobiiManager();
+	t.name					= 'Tobii Demo';
+    t.model                 = ana.tracker;
+	t.trackingMode			= ana.trackingMode;
+	t.eyeUsed				= 'both';
+	t.sampleRate			= ana.sampleRate;
+	t.calibrationStimulus	= ana.calStim;
+	t.calPositions			= ana.calPos;
+	t.valPositions			= ana.valPos;
+	t.autoPace				= 0;
+	if ~ana.useTracker
+		t.isDummy = true;
+	end
+	
+	if length(Screen('Screens')) > 1 && ~t.isDummy % ---- second screen for calibration
+		s			= screenManager;
+		s.screen	= sM.screen - 1;
+		s.backgroundColour = bgColour;
+		s.windowed	= [0 0 1500 1050];
+		s.bitDepth	= '8bit';
+		s.blend		= sM.blend;
+		s.disableSyncTests = true;
+	end
+	
+	if exist('s','var')
+		initialise(t,sM,s);
+	else
+		initialise(t,sM);
+	end
+	t.settings.cal.paceDuration = 0.5;
+	t.settings.cal.doRandomPointOrder  = false;
+	trackerSetup(t); ShowCursor();
+	drawnow;
+    
+	% ---- fixation values.
+	t.resetFixation();
+    t.fixation.X            = 0;
+    t.fixation.Y            = 0;
+	t.fixation.initTime		= ana.initTime;
+	t.fixation.fixTime		= ana.fixTime;
+	t.fixation.radius       = ana.radius;
+	t.fixation.strict		= ana.strict;
+	
 	%===========================set up stimuli====================
 	if strcmpi(ana.stimulus,'Dancing Monkey')
 		stim = movieStimulus();
@@ -97,6 +141,10 @@ try
 		stim.yPositionOut = thisPos(2);
 		update(stim);
 		
+		t.resetFixation();
+		t.fixation.X = thisPos(1);
+		t.fixation.Y = thisPos(2);
+		
 		fprintf('===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
 		
 		sM.drawCross([],[],thisPos(1),thisPos(2));
@@ -113,11 +161,12 @@ try
 		play(ad);
 		
 		while vbl < tStart + ana.playTimes
-			
 			draw(stim);
-			sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2));
+			sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2))
+			drawEyePosition(t);
 			finishDrawing(sM);
             vbl = flip(sM,vbl); tick = tick + 1;
+			getSample(t);
 			doBreak = checkKeys();
 			if doBreak; break; end
 			if ana.rewardDuring && tick == 60;rM.timedTTL(2,300);rewards=rewards+1;end
@@ -126,10 +175,10 @@ try
 		
 		tEnd = vbl;
 		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; end
-		vbl=flip(sM); t = vbl;
+		vbl=flip(sM); tTemp = vbl;
 		
 		%inter trial interval
-		while vbl < t + 1
+		while vbl < tTemp + 1
 			
 			vbl=flip(sM);
 			doBreak = checkKeys();
@@ -184,7 +233,10 @@ end
 		if keyIsDown == 1
 			rchar = KbName(keyCode);if iscell(rchar); rchar=rchar{1}; end
 			switch lower(rchar)
-				case {'q','0'}
+				case {'q','0','escape'}
+					Screen('DrawText', sM.win, '===>>> EXIT!!!',10,10);
+					flip(sM);
+					fprintf('===>>> EXIT!\n');
 					breakLoop = true;
 					doBreak = true;
 				case {'p'}
