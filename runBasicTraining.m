@@ -3,7 +3,7 @@ function runBasicTraining(ana)
 global rM
 
 if ~exist('rM','var') || isempty(rM)
-	 rM = arduinoManager();
+	rM = arduinoManager();
 end
 open(rM) %open our reward manager
 
@@ -38,7 +38,7 @@ try
 	%===================open our screen====================
 	sM = screenManager();
 	sM.screen = ana.screenID;
-    if ismac; sM.disableSyncTests = true; end
+	if ismac; sM.disableSyncTests = true; end
 	sM.pixelsPerCm = ana.pixelsPerCm;
 	sM.distance = ana.distance;
 	sM.blend = 1;
@@ -54,7 +54,7 @@ try
 	ad = audioManager(); ad.close();
 	if IsLinux
 		ad.device = [];
-	elseif IsWin 
+	elseif IsWin
 		ad.device = [];
 	end
 	ad.setup();
@@ -62,7 +62,7 @@ try
 	%===========================tobii manager=====================
 	t						= tobiiManager();
 	t.name					= 'Tobii Demo';
-    t.model                 = ana.tracker;
+	t.model                 = ana.tracker;
 	t.trackingMode			= ana.trackingMode;
 	t.eyeUsed				= 'both';
 	t.sampleRate			= ana.sampleRate;
@@ -70,7 +70,7 @@ try
 	t.calPositions			= ana.calPos;
 	t.valPositions			= ana.valPos;
 	t.autoPace				= 0;
-	if ~ana.useTracker
+	if ~ana.useTracker || ana.isDummy
 		t.isDummy = true;
 	end
 	
@@ -93,11 +93,11 @@ try
 	t.settings.cal.doRandomPointOrder  = false;
 	trackerSetup(t); ShowCursor();
 	drawnow;
-    
+	
 	% ---- fixation values.
 	t.resetFixation();
-    t.fixation.X            = 0;
-    t.fixation.Y            = 0;
+	t.fixation.X            = 0;
+	t.fixation.Y            = 0;
 	t.fixation.initTime		= ana.initTime;
 	t.fixation.fixTime		= ana.fixTime;
 	t.fixation.radius       = ana.radius;
@@ -124,8 +124,8 @@ try
 	rewards			= 0;
 	pfeedback		= 0;
 	nfeedback		= 0;
-    
-    halfisi			= sM.screenVals.halfisi;
+	
+	halfisi			= sM.screenVals.halfisi;
 	Priority(MaxPriority(sM.win));
 	
 	while ~breakLoop
@@ -165,12 +165,11 @@ try
 			sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2))
 			drawEyePosition(t);
 			finishDrawing(sM);
-            vbl = flip(sM,vbl); tick = tick + 1;
+			vbl = flip(sM,vbl); tick = tick + 1;
 			getSample(t);
 			doBreak = checkKeys();
 			if doBreak; break; end
 			if ana.rewardDuring && tick == 60;rM.timedTTL(2,300);rewards=rewards+1;end
-			
 		end
 		
 		tEnd = vbl;
@@ -190,9 +189,9 @@ try
 		updatePlots();
 		ad.loadSamples();
 		ana.trial(totalRuns).result = thisResponse;
-        ana.trial(totalRuns).rewards = rewards;
-        ana.trial(totalRuns).positive = pfeedback;
-        ana.trial(totalRuns).negative = nfeedback;
+		ana.trial(totalRuns).rewards = rewards;
+		ana.trial(totalRuns).positive = pfeedback;
+		ana.trial(totalRuns).negative = nfeedback;
 		ana.trial(totalRuns).tStart = tStart;
 		ana.trial(totalRuns).tEnd = tEnd;
 		ana.trial(totalRuns).tick = tick;
@@ -200,28 +199,28 @@ try
 	
 	%===============================Clean up============================
 	fprintf('===>>> basicTraining Finished Trials: %i\n',totalRuns);
-    Screen('DrawText', sM.win, '===>>> FINISHED!!!');
+	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 1);
 	close(sM);
-    
+	
 	if exist(ana.ResultDir,'dir') > 0
-        cd(ana.ResultDir);
+		cd(ana.ResultDir);
 	end
-    
-    if ~isempty(ana.nameExp) || ~strcmpi(ana.nameExp,'debug')
-        ana.plotAxis1 = [];
-        ana.plotAxis2 = [];
-        fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
-        save([ana.nameExp '.mat'],'ana');
-    end
-    
+	
+	if ~isempty(ana.nameExp) || ~strcmpi(ana.nameExp,'debug')
+		ana.plotAxis1 = [];
+		ana.plotAxis2 = [];
+		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
+		save([ana.nameExp '.mat'],'ana');
+	end
+	
 	ListenChar(0);ShowCursor;Priority(0);
 	clear ana seq eL sM tL cM
-
+	
 catch ME
-    flip(sM);
-    getReport(ME)
+	flip(sM);
+	getReport(ME)
 	assignin('base','ana',ana)
 	if exist('sM','var'); close(sM); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
@@ -281,5 +280,5 @@ end
 		b.Parent.XTickLabel = {'positive','negative'};
 		drawnow;
 	end
-		
+
 end
