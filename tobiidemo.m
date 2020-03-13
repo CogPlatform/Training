@@ -6,9 +6,9 @@ if ~exist('rM','var') || isempty(rM)
 end
 open(rM) %open our reward manager
 
-bgColour				= [0.25 0.25 0.25 1];
+bgColour			= [0.25 0.25 0.25 1];
 screen				= max(Screen('Screens'));
-windowed				= [0 0 1000 1000];
+windowed			= [];
 pin					= 2;
 ttlTime				= 300;
 trialTime			= 2;
@@ -16,26 +16,27 @@ trialTime			= 2;
 % ---- screenManager
 sM = screenManager('backgroundColour',bgColour,'screen',screen,'windowed',windowed);
 sM.bitDepth				= '8bit';
-sM.blend					= true;
-sM.disableSyncTests	=true;
-sv							= sM.open();
-sM.audio					= audioManager('device',[]); ad	= sM.audio; ad.setup();
+sM.blend				= true;
+sM.disableSyncTests		= true;
+sv						= sM.open();
+sM.audio				= audioManager('device',[]); ad	= sM.audio; ad.setup();
 %if IsWin; ad.device = 6; end
 if length(Screen('Screens')) > 1 % ---- second screen for calibration
 	s					= screenManager;
 	s.screen			= sM.screen - 1;
-	s.backgroundColour = bgColour;
-	s.windowed		= [0 0 1500 1050];
-	s.bitDepth		= '8bit';
-	s.blend			= sM.blend;
-	s.disableSyncTests = true;
+	s.backgroundColour	= bgColour;
+	s.windowed			= [0 0 1500 1050];
+	s.bitDepth			= '8bit';
+	s.blend				= sM.blend;
+	s.disableSyncTests	= true;
 end
 
 % ---- tobii manager
-eT						= tobiiManager();
+eT					= tobiiManager();
 eT.name				= 'Tobii Demo';
 eT.isDummy			= true;
-eT.model           = 'Tobii TX300'; %'Tobii Pro Spectrum'
+eT.verbose			= false;
+eT.model			= 'Tobii TX300'; %'Tobii Pro Spectrum'
 if ~isempty(regexpi(eT.trackingMode,'Spectrum','ONCE'))
 	eT.trackingMode	= 'human';
 else
@@ -47,7 +48,8 @@ eT.calibrationStimulus	= 'animated';
 eT.calPositions		= [0.2 0.5; 0.5 0.5; 0.8 0.5];
 eT.valPositions		= [0.5 0.5];
 eT.autoPace			= 0;
-if exist('s','var')
+eT.verbose			= true;
+if exist('s','var') && ~eT.isDummy
 	initialise(eT,sM,s);
 else
 	initialise(eT,sM);
@@ -59,23 +61,23 @@ drawnow;
 
 % ---- fixation values.
 eT.resetFixation();
-eT.fixation.X            = 0;
-eT.fixation.Y            = 0;
-eT.fixation.initTime		= 1;
-eT.fixation.fixTime		= 1;
-eT.fixation.radius       = 10;
+eT.fixation.X			= 0;
+eT.fixation.Y			= 0;
+eT.fixation.initTime	= 3;
+eT.fixation.fixTime		= 0.6;
+eT.fixation.radius		= 10;
 
 % ---- setup our image deck.
-i=imageStimulus;
+i				= imageStimulus;
 i.fileName		= [sM.paths.parent pathsep 'Pictures/'];
 i.size			= 10;
 
 % ---- setup movie we can use for fixation spot.
-f					= movieStimulus;
+f				= movieStimulus;
 f.size			= 2;
 
 % ---- our metastimulus combines both together
-stim				= metaStimulus;
+stim			= metaStimulus;
 stim.stimuli{1}	= i;
 stim.stimuli{2}	= f;
 setup(stim,sM);
@@ -101,28 +103,30 @@ while ~breakLoop
 	i.xPositionOut = thisPos(1);
 	i.yPositionOut = thisPos(2);
 	update(stim);
-	
-	eT.resetFixation();
+	ad.loadSamples();
 	eT.fixation.X = thisPos(1);
 	eT.fixation.Y = thisPos(2);
+	resetFixation(eT);
 	
 	fprintf('===>>> tobiidemo START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
 	
 	kTimer = 0; % this is the timer to stop too many key events
 	
 	%=====================INITIATE FIXATION
-	%ListenChar(-1);
+	ListenChar(-1);
+	resetFixation(eT);
 	trackerMessage(eT,['TRIALID' num2str(totalRuns)]);
 	trackerMessage(eT,'INITIATEFIX');
 	fixated = '';
 	while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 		drawCross(sM,[],[],thisPos(1),thisPos(2));
+		drawEyePosition(eT,true);
 		finishDrawing(sM);
 		flip(sM);
 		getSample(eT);
-		fixated=testSearchHoldFixation(eL,'fix','breakfix');
+		fixated = testSearchHoldFixation(eT,'fix','breakfix');
 		doBreak = checkKeys();
-		if doBreak; break; end
+		if doBreak; fixated='breakfix'; break; end
 	end
 	if strcmpi(fixated,'breakfix')
 		fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', totalRuns);
@@ -135,57 +139,47 @@ while ~breakLoop
 	end
 	
 	%=====================SHOW STIMULUS
-	
-	if rewardAtStart; rM.timedTTL(pin,ttlTime); end
+	resetFixation(eT);
 	ad.play();
+	timedTTL(rM);
 	vbl = flip(sM); startT = vbl + sv.ifi; tick = 1;
 	while vbl < startT + trialTime
 		draw(stim);
-		getSample(eT);
-		drawEyePosition(eT);
+		drawEyePosition(eT,true);
 		finishDrawing(sM);
 		animate(stim);
 		vbl = sM.flip(vbl); tick = tick + 1;
 		if tick == 1; trackerMessage(eT,'STARTVBL',vbl); end
 		getSample(eT);
-		if ~isFixated(eT)
-			fixated = 'breakfix';
-			break %break the while loop
-		end
+		if ~isFixated(eT); fixated = 'breakfix'; break; end
 		doBreak = checkKeys();
 		if doBreak; break; end
 	end
 	
+	%=====================CHECK RESPONSE
 	if strcmpi(fixated,'breakfix')
 		drawRedSpot(sM,5);
 		vbl=flip(sM); endT = vbl;
 		trackerMessage(eT,'ENDVBL',vbl);
-		trackerMessage(eL,'TRIAL_RESULT -1');
-		trackerMessage(eL,'MSG:BreakFix');
+		trackerMessage(eT,'TRIAL_RESULT -1');
+		trackerMessage(eT,'MSG:BreakFix');
 		beep(ad,'low');
 		while vbl < endT + 5
-			drawGreenSpot(sM,5);
+			drawRedSpot(sM,5);
 			vbl=flip(sM);
-			doBreak = checkKeys();
-			if doBreak; break; end
 		end
 	else
 		drawGreenSpot(sM,5);
 		vbl=flip(sM); endT = vbl;
-		if rewardAtEnd; rM.timedTTL(pin,ttlTime); end
 		beep(ad,'high');
 		trackerMessage(eT,'ENDVBL',vbl);
 		trackerMessage(eT,'TRIAL_RESULT 1');
-		while vbl < endT + 1
+		timedTTL(rM);
+		while vbl < endT + 0.8
 			drawGreenSpot(sM,5);
 			vbl=flip(sM);
-			doBreak = checkKeys();
-			if doBreak; break; end
 		end
-	end
-	
-	ad.loadSamples();
-	
+	end	
 end
 
 sM.flip();

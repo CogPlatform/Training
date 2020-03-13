@@ -82,12 +82,14 @@ function VEPTest()
 	while trialn <= maxTrials && endExp == 0
 		trialtick = 1;
 		trackerMessage(t,sprintf('TRIALID %i',trialn))
-		drawPhotoDiodeSquare(ptb,[0 0 0 1]);
+		drawPhotoDiodeSquare(ptb,[0 0 0 1]);drawCross(ptb,1,[1 1 0]);
+		flip(ptb); WaitSecs(0.25);
+		drawPhotoDiodeSquare(ptb,[0 0 0 1]);drawCross(ptb,1,[1 1 0]);
 		vbl = flip(ptb); tstart=vbl;
 		ptb.audio.play();
 		while vbl < tstart + trialLength
 			draw(b);
-			drawCross(ptb,2,[1 1 0]);
+			drawCross(ptb,1,[1 1 0]);
 			ptb.drawPhotoDiodeSquare([1 1 1 1]);
 			finishDrawing(ptb);
 			animate(b);
@@ -96,23 +98,22 @@ function VEPTest()
 			if trialtick == 1; lM.strobeServer(1); trackerMessage(t,'STARTVBL',tstart); end
 			trialtick = trialtick + 1;
 		end
-		if endExp == 0
+		if endExp == false
             drawPhotoDiodeSquare(ptb,[0 0 0 1]);
 			vbl = flip(ptb); endt = vbl;
-			lM.strobeServer(1);lM.strobeServer(1);
+			lM.strobeServer(255);
             rM.timedTTL(2,300);
 			trackerMessage(t,'END_RT',vbl);
 			trackerMessage(t,'TRIAL_RESULT 1')
 			trackerMessage(t,sprintf('Ending trial %i @ %i',trialn,int64(round(vbl*1e6))))
-			resetFixation(t);
-			update(b);
             while vbl < endt + ITDelay
                 drawPhotoDiodeSquare(ptb,[0 0 0 1]);
-                % ---- handle keyboard
-                [~, ~, keyCode] = KbCheck(-1);
-                if keyCode(stopkey); endExp = 1; break; end
                 vbl = ptb.flip();
-            end
+				doBreak = checkKeys();
+				if doBreak; break; end
+			end
+			resetFixation(t);
+			update(b);
 			trialn = trialn + 1;
 		else
 			drawPhotoDiodeSquare(ptb,[0 0 0 1]);
@@ -130,6 +131,38 @@ function VEPTest()
 	ListenChar(0); Priority(0); ShowCursor;
 	ptb.flip();
 	close(ptb);
+	
+	function doBreak = checkKeys()
+		doBreak = false;
+		[keyIsDown, ~, keyCode] = KbCheck(-1);
+		if keyIsDown == 1
+			rchar = KbName(keyCode);
+			if iscell(rchar);rchar = rchar{1}; end
+			fprintf('Key = %s\n',rchar)
+			switch lower(rchar)
+				case {'q','0'}
+					endExp = true;
+					doBreak = true;
+				case {'p'}
+					WaitSecs('YieldSecs',0.1);
+					fprintf('--->>> Entering paused mode...\n');
+					Screen('DrawText','--->>> PAUSED, key to exit...', 20,20,[1 1 1]);
+					flip(sM);
+					KbWait(-1);
+					doBreak = true;
+				case {'c'}
+					WaitSecs('YieldSecs',0.1);
+					fprintf('--->>> Entering calibration mode...\n');
+					trackerSetup(eT);
+					doBreak = true;
+				case {'1','1!','kp_end'}
+					if kTimer < vbl
+						kTimer = vbl + 0.2;
+						rM.timedTTL(2,300);
+					end
+			end
+		end
+	end
 end
 
 function ptb = mySetup(screen, bgColour, win)
