@@ -38,7 +38,7 @@ try
 	%===================open our screen====================
 	sM = screenManager();
 	sM.screen = ana.screenID;
-	if ismac; sM.disableSyncTests = true; end
+	if ismac || ispc; sM.disableSyncTests = true; end
 	sM.pixelsPerCm = ana.pixelsPerCm;
 	sM.distance = ana.distance;
 	sM.blend = 1;
@@ -60,21 +60,22 @@ try
 	ad.setup();
 	
 	%===========================tobii manager=====================
-	t						= tobiiManager();
-	t.name					= 'Tobii Demo';
-	t.model                 = ana.tracker;
-	t.trackingMode			= ana.trackingMode;
-	t.eyeUsed				= 'both';
-	t.sampleRate			= ana.sampleRate;
-	t.calibrationStimulus	= ana.calStim;
-	t.calPositions			= ana.calPos;
-	t.valPositions			= ana.valPos;
-	t.autoPace				= 0;
+	eT						= tobiiManager();
+	eT.name					= 'Tobii Demo';
+	eT.model                = ana.tracker;
+	eT.trackingMode			= ana.trackingMode;
+	eT.eyeUsed				= 'both';
+	eT.sampleRate			= ana.sampleRate;
+	eT.calibrationStimulus	= ana.calStim;
+	eT.calPositions			= ana.calPos;
+	eT.valPositions			= ana.valPos;
+	eT.autoPace				= 0;
+	eT.verbose				= true;
 	if ~ana.useTracker || ana.isDummy
-		t.isDummy = true;
+		eT.isDummy = true;
 	end
 	
-	if length(Screen('Screens')) > 1 && ~t.isDummy % ---- second screen for calibration
+	if length(Screen('Screens')) > 1 && ~eT.isDummy % ---- second screen for calibration
 		s			= screenManager;
 		s.screen	= sM.screen - 1;
 		s.backgroundColour = bgColour;
@@ -85,23 +86,23 @@ try
 	end
 	
 	if exist('s','var')
-		initialise(t,sM,s);
+		initialise(eT,sM,s);
 	else
-		initialise(t,sM);
+		initialise(eT,sM);
 	end
-	t.settings.cal.paceDuration = 0.5;
-	t.settings.cal.doRandomPointOrder  = false;
-	trackerSetup(t); ShowCursor();
+	eT.settings.cal.paceDuration = 0.5;
+	eT.settings.cal.doRandomPointOrder  = false;
+	trackerSetup(eT); ShowCursor();
 	drawnow;
 	
 	% ---- fixation values.
-	t.resetFixation();
-	t.fixation.X            = 0;
-	t.fixation.Y            = 0;
-	t.fixation.initTime		= ana.initTime;
-	t.fixation.fixTime		= ana.fixTime;
-	t.fixation.radius       = ana.radius;
-	t.fixation.strict		= ana.strict;
+	eT.resetFixation();
+	eT.fixation.X            = 0;
+	eT.fixation.Y            = 0;
+	eT.fixation.initTime		= ana.initTime;
+	eT.fixation.fixTime		= ana.fixTime;
+	eT.fixation.radius       = ana.radius;
+	eT.fixation.strict		= ana.strict;
 	
 	%===========================set up stimuli====================
 	if strcmpi(ana.stimulus,'Dancing Monkey')
@@ -141,50 +142,77 @@ try
 		stim.yPositionOut = thisPos(2);
 		update(stim);
 		
-		t.resetFixation();
-		t.fixation.X = thisPos(1);
-		t.fixation.Y = thisPos(2);
+		eT.resetFixation();
+		eT.fixation.X = thisPos(1);
+		eT.fixation.Y = thisPos(2);
 		
 		fprintf('===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
-		
+		ListenChar(-1);
 		sM.drawCross([],[],thisPos(1),thisPos(2));
 		flip(sM);
-		WaitSecs(0.5);
+		WaitSecs(0.1);
 		
+		%=====================INITIATE FIXATION
+		trackerMessage(eT,['TRIALID' num2str(totalRuns)]);
+		trackerMessage(eT,'INITIATEFIX');
+		fixated = '';
+		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
+			drawCross(sM,[],[],thisPos(1),thisPos(2));
+			finishDrawing(sM);
+			flip(sM);
+			getSample(eT);
+			fixated=testSearchHoldFixation(eT,'fix','breakfix');
+			doBreak = checkKeys();
+			if doBreak; break; end
+		end
+		if strcmpi(fixated,'breakfix')
+			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', totalRuns);
+			trackerMessage(eT,'TRIAL_RESULT -100');
+			trackerMessage(eT,'MSG:BreakInitialFix');
+			Screen('Flip',sM.win); %flip the buffer
+			WaitSecs('YieldSecs',0.5);
+			continue
+		end
+		
+		%=====================SHOW STIMULUS
 		tick = 0;
 		kTimer = 0; % this is the timer to stop too many key events
 		thisResponse = -1;
-		ListenChar(-1);
 		sM.drawCross([],[],thisPos(1),thisPos(2));
 		tStart = flip(sM); vbl = tStart;
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		play(ad);
-		
 		while vbl < tStart + ana.playTimes
 			draw(stim);
 			sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2))
-			drawEyePosition(t);
+			drawEyePosition(eT);
 			finishDrawing(sM);
 			vbl = flip(sM,vbl); tick = tick + 1;
-			getSample(t);
+			getSample(eT);
+			if ~isFixated(eT)
+				fixated = 'breakfix';
+				break %break the while loop
+			end
 			doBreak = checkKeys();
 			if doBreak; break; end
 			if ana.rewardDuring && tick == 60;rM.timedTTL(2,300);rewards=rewards+1;end
 		end
 		
-		tEnd = vbl;
-		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; end
-		vbl=flip(sM); tTemp = vbl;
-		
-		%inter trial interval
-		while vbl < tTemp + 1
-			
-			vbl=flip(sM);
-			doBreak = checkKeys();
-			if doBreak; break; end
-			
+		if strcmpi(fixated,'breakfix')
+			vbl=flip(sM); endT = vbl;
+			trackerMessage(eT,'ENDVBL',vbl);
+			trackerMessage(eT,'TRIAL_RESULT -1');
+			trackerMessage(eT,'MSG:BreakFix');
+			incorrect()
+		else
+			drawGreenSpot(sM,5);
+			vbl=flip(sM); endT = vbl;
+			if rewardAtEnd; rM.timedTTL(pin,ttlTime); end
+			beep(ad,'high');
+			trackerMessage(eT,'ENDVBL',vbl);
+			trackerMessage(eT,'TRIAL_RESULT 1');
+			correct();
 		end
-		
 		ListenChar(0);
 		updatePlots();
 		ad.loadSamples();
@@ -216,7 +244,7 @@ try
 	end
 	
 	ListenChar(0);ShowCursor;Priority(0);
-	clear ana seq eL sM tL cM
+	clear ana seq eT sM tL cM
 	
 catch ME
 	flip(sM);
@@ -252,23 +280,9 @@ end
 						rewards = rewards + 1;
 					end
 				case {'2','2@','kp_down'}
-					fprintf('===>>> Correct given!\n');
-					drawGreenSpot(sM,5);
-					flip(sM);
-					thisResponse = 1;
-					rM.timedTTL(2,300); beep(ad,'high');
-					WaitSecs('YieldSecs',0.5);
-					doBreak = true;
-					pfeedback = pfeedback + 1;
+					correct();
 				case {'3','3#','kp_next'}
-					fprintf('===>>> Incorrect given!\n');
-					drawRedSpot(sM,5);
-					flip(sM);
-					thisResponse = 0;
-					beep(ad,'low');
-					WaitSecs('YieldSecs',5);
-					doBreak = true;
-					nfeedback = nfeedback + 1;
+					incorrect();
 			end
 		end
 	end
@@ -279,6 +293,28 @@ end
 		b = bar(ana.plotAxis2, [1 2], [pfeedback nfeedback]);
 		b.Parent.XTickLabel = {'positive','negative'};
 		drawnow;
+	end
+
+	function correct()
+		fprintf('===>>> Correct given!\n');
+		drawGreenSpot(sM,5);
+		flip(sM);
+		thisResponse = 1;
+		rM.timedTTL(2,300); beep(ad,'high');
+		WaitSecs('YieldSecs',0.5);
+		doBreak = true;
+		pfeedback = pfeedback + 1;
+	end
+
+	function incorrect()
+		fprintf('===>>> Incorrect given!\n');
+		drawRedSpot(sM,5);
+		flip(sM);
+		thisResponse = 0;
+		beep(ad,'low');
+		WaitSecs('YieldSecs',5);
+		doBreak = true;
+		nfeedback = nfeedback + 1;
 	end
 
 end

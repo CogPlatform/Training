@@ -32,38 +32,38 @@ if length(Screen('Screens')) > 1 % ---- second screen for calibration
 end
 
 % ---- tobii manager
-t						= tobiiManager();
-t.name				= 'Tobii Demo';
-t.isDummy			= true;
-t.model           = 'Tobii TX300'; %'Tobii Pro Spectrum'
-if ~isempty(regexpi(t.trackingMode,'Spectrum','ONCE'))
-	t.trackingMode	= 'human';
+eT						= tobiiManager();
+eT.name				= 'Tobii Demo';
+eT.isDummy			= true;
+eT.model           = 'Tobii TX300'; %'Tobii Pro Spectrum'
+if ~isempty(regexpi(eT.trackingMode,'Spectrum','ONCE'))
+	eT.trackingMode	= 'human';
 else
-	t.trackingMode	= 'Default';
+	eT.trackingMode	= 'Default';
 end
-t.eyeUsed			= 'both';
-t.sampleRate		= 300;
-t.calibrationStimulus	= 'animated';
-t.calPositions		= [0.2 0.5; 0.5 0.5; 0.8 0.5];
-t.valPositions		= [0.5 0.5];
-t.autoPace			= 0;
+eT.eyeUsed			= 'both';
+eT.sampleRate		= 300;
+eT.calibrationStimulus	= 'animated';
+eT.calPositions		= [0.2 0.5; 0.5 0.5; 0.8 0.5];
+eT.valPositions		= [0.5 0.5];
+eT.autoPace			= 0;
 if exist('s','var')
-	initialise(t,sM,s);
+	initialise(eT,sM,s);
 else
-	initialise(t,sM);
+	initialise(eT,sM);
 end
-t.settings.cal.paceDuration = 0.5;
-t.settings.cal.doRandomPointOrder  = false;
-trackerSetup(t); ShowCursor();
+eT.settings.cal.paceDuration = 0.5;
+eT.settings.cal.doRandomPointOrder  = false;
+trackerSetup(eT); ShowCursor();
 drawnow;
 
 % ---- fixation values.
-t.resetFixation();
-t.fixation.X            = 0;
-t.fixation.Y            = 0;
-t.fixation.initTime		= 1;
-t.fixation.fixTime		= 1;
-t.fixation.radius       = 10;
+eT.resetFixation();
+eT.fixation.X            = 0;
+eT.fixation.Y            = 0;
+eT.fixation.initTime		= 1;
+eT.fixation.fixTime		= 1;
+eT.fixation.radius       = 10;
 
 % ---- setup our image deck.
 i=imageStimulus;
@@ -87,8 +87,8 @@ pos = [-10 -10; -10 0; 0 -10; 0 0; 10 0; 0 10; 10 10];
 % ---- prepare tracker
 WaitSecs('YieldSecs',0.5);
 Priority(MaxPriority(sM.win)); %bump our priority to maximum allowed
-startRecording(t); WaitSecs('YieldSecs',0.5);
-trackerMessage(t,'!!! Starting Demo...')
+startRecording(eT); WaitSecs('YieldSecs',0.5);
+trackerMessage(eT,'!!! Starting Demo...')
 
 % ---- prepare variables
 breakLoop	= false;
@@ -102,9 +102,9 @@ while ~breakLoop
 	i.yPositionOut = thisPos(2);
 	update(stim);
 	
-	t.resetFixation();
-	t.fixation.X = thisPos(1);
-	t.fixation.Y = thisPos(2);
+	eT.resetFixation();
+	eT.fixation.X = thisPos(1);
+	eT.fixation.Y = thisPos(2);
 	
 	fprintf('===>>> tobiidemo START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
 	
@@ -112,23 +112,23 @@ while ~breakLoop
 	
 	%=====================INITIATE FIXATION
 	%ListenChar(-1);
-	trackerMessage(t,['TRIALID' num2str(totalRuns)]);
-	trackerMessage(t,'INITIATEFIX');
+	trackerMessage(eT,['TRIALID' num2str(totalRuns)]);
+	trackerMessage(eT,'INITIATEFIX');
 	fixated = '';
 	while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 		drawCross(sM,[],[],thisPos(1),thisPos(2));
 		finishDrawing(sM);
 		flip(sM);
-		getSample(t);
+		getSample(eT);
 		fixated=testSearchHoldFixation(eL,'fix','breakfix');
 		doBreak = checkKeys();
 		if doBreak; break; end
 	end
 	if strcmpi(fixated,'breakfix')
 		fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', totalRuns);
-		trackerMessage(t,'TRIAL_RESULT -100');
-		trackerMessage(t,'MSG:BreakInitialFix');
-		resetFixation(t);
+		trackerMessage(eT,'TRIAL_RESULT -100');
+		trackerMessage(eT,'MSG:BreakInitialFix');
+		resetFixation(eT);
 		Screen('Flip',sM.win); %flip the buffer
 		WaitSecs('YieldSecs',0.2);
 		continue
@@ -141,14 +141,14 @@ while ~breakLoop
 	vbl = flip(sM); startT = vbl + sv.ifi; tick = 1;
 	while vbl < startT + trialTime
 		draw(stim);
-		getSample(t);
-		drawEyePosition(t);
+		getSample(eT);
+		drawEyePosition(eT);
 		finishDrawing(sM);
 		animate(stim);
 		vbl = sM.flip(vbl); tick = tick + 1;
-		if tick == 1; trackerMessage(t,'STARTVBL',vbl); end
-		getSample(t);
-		if ~isFixated(eL)
+		if tick == 1; trackerMessage(eT,'STARTVBL',vbl); end
+		getSample(eT);
+		if ~isFixated(eT)
 			fixated = 'breakfix';
 			break %break the while loop
 		end
@@ -159,7 +159,7 @@ while ~breakLoop
 	if strcmpi(fixated,'breakfix')
 		drawRedSpot(sM,5);
 		vbl=flip(sM); endT = vbl;
-		trackerMessage(t,'ENDVBL',vbl);
+		trackerMessage(eT,'ENDVBL',vbl);
 		trackerMessage(eL,'TRIAL_RESULT -1');
 		trackerMessage(eL,'MSG:BreakFix');
 		beep(ad,'low');
@@ -174,8 +174,8 @@ while ~breakLoop
 		vbl=flip(sM); endT = vbl;
 		if rewardAtEnd; rM.timedTTL(pin,ttlTime); end
 		beep(ad,'high');
-		trackerMessage(t,'ENDVBL',vbl);
-		trackerMessage(t,'TRIAL_RESULT 1');
+		trackerMessage(eT,'ENDVBL',vbl);
+		trackerMessage(eT,'TRIAL_RESULT 1');
 		while vbl < endT + 1
 			drawGreenSpot(sM,5);
 			vbl=flip(sM);
@@ -189,12 +189,12 @@ while ~breakLoop
 end
 
 sM.flip();
-stopRecording(t);
+stopRecording(eT);
 WaitSecs('Yieldsecs',0.5)
 ListenChar(0); Priority(0); ShowCursor;
 reset(stim);
-saveData(t);
-close(t); close(sM);
+saveData(eT);
+close(eT); close(sM);
 
 	function doBreak = checkKeys()
 		doBreak = false;
@@ -215,7 +215,7 @@ close(t); close(sM);
 				case {'c'}
 					WaitSecs('YieldSecs',0.1);
 					fprintf('--->>> Entering calibration mode...\n');
-					trackerSetup(t);
+					trackerSetup(eT);
 					doBreak = true;
 				case {'1','1!','kp_end'}
 					if kTimer < vbl
