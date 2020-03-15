@@ -35,9 +35,9 @@ end
 eT					= tobiiManager();
 eT.name				= 'Tobii Demo';
 eT.isDummy			= true;
-eT.verbose			= false;
+eT.verbose			= true;
 eT.model			= 'Tobii TX300'; %'Tobii Pro Spectrum'
-if ~isempty(regexpi(eT.trackingMode,'Spectrum','ONCE'))
+if ~isempty(regexpi(eT.model,'Spectrum','ONCE'))
 	eT.trackingMode	= 'human';
 else
 	eT.trackingMode	= 'Default';
@@ -69,7 +69,7 @@ eT.fixation.radius		= 10;
 
 % ---- setup our image deck.
 i				= imageStimulus;
-i.fileName		= [sM.paths.parent pathsep 'Pictures/'];
+i.fileName		= [sM.paths.parent filesep 'Pictures/'];
 i.size			= 10;
 
 % ---- setup movie we can use for fixation spot.
@@ -108,21 +108,22 @@ while ~breakLoop
 	eT.fixation.Y = thisPos(2);
 	resetFixation(eT);
 	
-	fprintf('===>>> tobiidemo START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
+	fprintf('\n===>>> tobiidemo START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
 	
 	kTimer = 0; % this is the timer to stop too many key events
 	
 	%=====================INITIATE FIXATION
 	ListenChar(-1);
 	resetFixation(eT);
-	trackerMessage(eT,['TRIALID' num2str(totalRuns)]);
+	trackerMessage(eT,['TRIALID ' num2str(totalRuns)]);
 	trackerMessage(eT,'INITIATEFIX');
 	fixated = '';
+	tick = 0;
 	while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 		drawCross(sM,[],[],thisPos(1),thisPos(2));
 		drawEyePosition(eT,true);
 		finishDrawing(sM);
-		flip(sM);
+		flip(sM); tick = tick + 1;
 		getSample(eT);
 		fixated = testSearchHoldFixation(eT,'fix','breakfix');
 		doBreak = checkKeys();
@@ -142,7 +143,7 @@ while ~breakLoop
 	resetFixation(eT);
 	ad.play();
 	timedTTL(rM);
-	vbl = flip(sM); startT = vbl + sv.ifi; tick = 1;
+	vbl = flip(sM); startT = vbl + sv.ifi; tick = 0;
 	while vbl < startT + trialTime
 		draw(stim);
 		drawEyePosition(eT,true);
