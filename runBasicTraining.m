@@ -51,13 +51,14 @@ try
 		Screen('Preference', 'DefaultFontName', 'Liberation Sans');
 	end
 	
-	ad = audioManager(); ad.close();
+	PsychPortAudio('Close');
+	sM.audio = audioManager(); sM.audio.close();
 	if IsLinux
-		ad.device = [];
+		sM.audio.device = [];
 	elseif IsWin
-		ad.device = [];
+		sM.audio.device = [];
 	end
-	ad.setup();
+	sM.audio.setup();
 	
 	%===========================tobii manager=====================
 	eT						= tobiiManager();
@@ -79,7 +80,7 @@ try
 		s			= screenManager;
 		s.screen	= sM.screen - 1;
 		s.backgroundColour = sM.backgroundColour;
-		s.windowed	= [0 0 1500 1050];
+		s.windowed	= [];
 		s.bitDepth	= '8bit';
 		s.blend		= sM.blend;
 		s.disableSyncTests = true;
@@ -92,6 +93,7 @@ try
 	end
 	eT.settings.cal.paceDuration = 0.5;
 	eT.settings.cal.doRandomPointOrder  = false;
+	ana.cal=[];
 	cal = trackerSetup(eT, ana.cal); ShowCursor();
 	if ~isempty('cal')
 		cal.comment='tobii demo calibration';
@@ -190,7 +192,7 @@ try
 		sM.drawCross(1,[],thisPos(1),thisPos(2));
 		tStart = flip(sM); vbl = tStart;
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
-		play(ad);
+		play(sM.audio);
 		while vbl < tStart + ana.playTimes
 			draw(stim);
 			sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2));
@@ -218,13 +220,13 @@ try
 			trackerMessage(eT,'TRIAL_RESULT 1');
 			if ~doBreak; correct(); end
 		elseif ~doBreak
-			if ana.rewardStart; rM.timedTTL(2,300); beep(ad,'high'); end
+			if ana.rewardEnd; rM.timedTTL(2,300); beep(sM.audio,'high'); end
 			WaitSecs('YieldSecs',1);
 			flip(sM);
 		end
 		ListenChar(0);
 		updatePlots();
-		ad.loadSamples();
+		sM.audio.loadSamples();
 		ana.trial(totalRuns).result = thisResponse;
 		ana.trial(totalRuns).rewards = rewards;
 		ana.trial(totalRuns).positive = pfeedback;
@@ -256,7 +258,6 @@ try
 	clear ana seq eT sM tL cM
 	
 catch ME
-	flip(sM);
 	getReport(ME)
 	assignin('base','ana',ana)
 	if exist('sM','var'); close(sM); end
@@ -309,7 +310,7 @@ end
 		drawGreenSpot(sM,5);
 		flip(sM);
 		thisResponse = 1;
-		if ana.rewardStart; rM.timedTTL(2,300); beep(ad,'high'); end
+		if ana.rewardEnd; rM.timedTTL(2,300); beep(sM.audio,'high'); end
 		WaitSecs('YieldSecs',0.5);
 		flip(sM);
 		WaitSecs('YieldSecs',0.25);
@@ -322,7 +323,7 @@ end
 		drawRedSpot(sM,5);
 		flip(sM);
 		thisResponse = 0;
-		beep(ad,'low');
+		beep(sM.audio,'low');
 		WaitSecs('YieldSecs',2);
 		flip(sM);
 		WaitSecs('YieldSecs',3);
