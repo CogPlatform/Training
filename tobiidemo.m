@@ -1,5 +1,5 @@
-function tobiidemo()
-
+function tobiidemo(cal)
+if ~exist('cal','var'); cal = []; end
 global rM
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager;
@@ -12,6 +12,8 @@ windowed			= [];
 pin					= 2;
 ttlTime				= 300;
 trialTime			= 2;
+rewardAtEnd			= true;
+rewardAtStart		= true;
 
 % ---- screenManager
 sM = screenManager('backgroundColour',bgColour,'screen',screen,'windowed',windowed);
@@ -34,18 +36,18 @@ end
 % ---- tobii manager
 eT					= tobiiManager();
 eT.name				= 'Tobii Demo';
-eT.isDummy			= true;
+eT.isDummy			= false;
 eT.verbose			= true;
 eT.model			= 'Tobii TX300'; %'Tobii Pro Spectrum'
 if ~isempty(regexpi(eT.model,'Spectrum','ONCE'))
 	eT.trackingMode	= 'human';
 else
-	eT.trackingMode	= 'Default';
+	eT.trackingMode	= 'Infant';
 end
 eT.eyeUsed			= 'both';
 eT.sampleRate		= 300;
 eT.calibrationStimulus	= 'animated';
-eT.calPositions		= [0.2 0.5; 0.5 0.5; 0.8 0.5];
+eT.calPositions		= [0.2 0.5; 0.8 0.5];
 eT.valPositions		= [0.5 0.5];
 eT.autoPace			= 0;
 eT.verbose			= true;
@@ -56,16 +58,18 @@ else
 end
 eT.settings.cal.paceDuration = 0.5;
 eT.settings.cal.doRandomPointOrder  = false;
-trackerSetup(eT); ShowCursor();
+cal = trackerSetup(eT,cal); ShowCursor();
+if ~isempty('cal','var');assignin('base','cal',cal); end
 drawnow;
 
 % ---- fixation values.
 eT.resetFixation();
 eT.fixation.X			= 0;
 eT.fixation.Y			= 0;
-eT.fixation.initTime	= 3;
+eT.fixation.initTime	= 4;
 eT.fixation.fixTime		= 0.6;
 eT.fixation.radius		= 10;
+eT.fixation.strict		= false;
 
 % ---- setup our image deck.
 i				= imageStimulus;
@@ -84,7 +88,7 @@ setup(stim,sM);
 show(stim);
 stim.stimuli{2}.hide();
 
-pos = [-10 -10; -10 0; 0 -10; 0 0; 10 0; 0 10; 10 10];
+pos = [-11 0; 0 0; 11 0];
 
 % ---- prepare tracker
 WaitSecs('YieldSecs',0.5);

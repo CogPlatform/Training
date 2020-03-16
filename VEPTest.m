@@ -58,7 +58,7 @@ function VEPTest()
 	t.settings.val.pointPos = [0.5 0.5];
 	
 	trackerSetup(t); ShowCursor();
-	if exist('s','var') && ~t.isDummy;try Screen('Close',s.win);end;end
+	if exist('s','var') && ~t.isDummy; try Screen('Close',s.win);end;end %#ok<*TRYNC>
     WaitSecs('YieldSecs',1);
 	
 	% ---- prepare tracker

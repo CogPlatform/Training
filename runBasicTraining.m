@@ -48,7 +48,7 @@ try
 	
 	if IsLinux
 		Screen('Preference', 'TextRenderer', 1);
-		Screen('Preference', 'DefaultFontName', 'DejaVu Sans');
+		Screen('Preference', 'DefaultFontName', 'Liberation Sans');
 	end
 	
 	ad = audioManager(); ad.close();
@@ -70,7 +70,7 @@ try
 	eT.calPositions			= ana.calPos;
 	eT.valPositions			= ana.valPos;
 	eT.autoPace				= 0;
-	eT.verbose				= true;
+	if ~ana.isDummy; eT.verbose	= true; end
 	if ~ana.useTracker || ana.isDummy
 		eT.isDummy = true;
 	end
@@ -78,7 +78,7 @@ try
 	if length(Screen('Screens')) > 1 && ~eT.isDummy % ---- second screen for calibration
 		s			= screenManager;
 		s.screen	= sM.screen - 1;
-		s.backgroundColour = bgColour;
+		s.backgroundColour = sM.backgroundColour;
 		s.windowed	= [0 0 1500 1050];
 		s.bitDepth	= '8bit';
 		s.blend		= sM.blend;
@@ -148,70 +148,75 @@ try
 		
 		fprintf('===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
 		ListenChar(-1);
-		sM.drawCross([],[],thisPos(1),thisPos(2));
-		flip(sM);
 		WaitSecs(0.1);
 		
 		%=====================INITIATE FIXATION
 		trackerMessage(eT,['TRIALID' num2str(totalRuns)]);
 		trackerMessage(eT,'INITIATEFIX');
-		fixated = '';
-		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-			drawCross(sM,[],[],thisPos(1),thisPos(2));
+		fixated = ''; doBreak = false;
+		if ana.useTracker
+			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
+				drawCross(sM,1,[],thisPos(1),thisPos(2));
+				finishDrawing(sM);
+				flip(sM);
+				getSample(eT);
+				fixated=testSearchHoldFixation(eT,'fix','breakfix');
+				doBreak = checkKeys();
+				if doBreak; break; end
+			end
+			if strcmpi(fixated,'breakfix')
+				fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', totalRuns);
+				trackerMessage(eT,'TRIAL_RESULT -100');
+				trackerMessage(eT,'MSG:BreakInitialFix');
+				Screen('Flip',sM.win); %flip the buffer
+				WaitSecs('YieldSecs',0.5);
+				continue
+			end
+		else
+			drawCross(sM,1,[],thisPos(1),thisPos(2));
 			finishDrawing(sM);
 			flip(sM);
-			getSample(eT);
-			fixated=testSearchHoldFixation(eT,'fix','breakfix');
-			doBreak = checkKeys();
-			if doBreak; break; end
-		end
-		if strcmpi(fixated,'breakfix')
-			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', totalRuns);
-			trackerMessage(eT,'TRIAL_RESULT -100');
-			trackerMessage(eT,'MSG:BreakInitialFix');
-			Screen('Flip',sM.win); %flip the buffer
-			WaitSecs('YieldSecs',0.5);
-			continue
+			WaitSecs(0.5);
 		end
 		
 		%=====================SHOW STIMULUS
 		tick = 0;
 		kTimer = 0; % this is the timer to stop too many key events
-		thisResponse = -1;
-		sM.drawCross([],[],thisPos(1),thisPos(2));
+		thisResponse = -1; doBreak = false;
+		sM.drawCross(1,[],thisPos(1),thisPos(2));
 		tStart = flip(sM); vbl = tStart;
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		play(ad);
 		while vbl < tStart + ana.playTimes
 			draw(stim);
-			sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2))
-			drawEyePosition(eT);
+			sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2));
+			if ana.drawEye; drawEyePosition(eT,true); end
 			finishDrawing(sM);
 			vbl = flip(sM,vbl); tick = tick + 1;
 			getSample(eT);
-			if ~isFixated(eT)
+			if ana.useTracker && ~isFixated(eT)
 				fixated = 'breakfix';
-				break %break the while loop
+				break %break the while loop	
 			end
 			doBreak = checkKeys();
 			if doBreak; break; end
 			if ana.rewardDuring && tick == 60;rM.timedTTL(2,300);rewards=rewards+1;end
 		end
 		
-		if strcmpi(fixated,'breakfix')
-			vbl=flip(sM); endT = vbl;
+		vbl=flip(sM); tEnd = vbl;
+		if strcmpi(fixated,'breakfix') || thisResponse == 0
 			trackerMessage(eT,'ENDVBL',vbl);
 			trackerMessage(eT,'TRIAL_RESULT -1');
 			trackerMessage(eT,'MSG:BreakFix');
-			incorrect()
-		else
-			drawGreenSpot(sM,5);
-			vbl=flip(sM); endT = vbl;
-			if rewardAtEnd; rM.timedTTL(pin,ttlTime); end
-			beep(ad,'high');
+			if ~doBreak; incorrect(); end
+		elseif thisResponse == 1
 			trackerMessage(eT,'ENDVBL',vbl);
 			trackerMessage(eT,'TRIAL_RESULT 1');
-			correct();
+			if ~doBreak; correct(); end
+		elseif ~doBreak
+			if ana.rewardStart; rM.timedTTL(2,300); beep(ad,'high'); end
+			WaitSecs('YieldSecs',1);
+			flip(sM);
 		end
 		ListenChar(0);
 		updatePlots();
@@ -300,8 +305,10 @@ end
 		drawGreenSpot(sM,5);
 		flip(sM);
 		thisResponse = 1;
-		rM.timedTTL(2,300); beep(ad,'high');
+		if ana.rewardStart; rM.timedTTL(2,300); beep(ad,'high'); end
 		WaitSecs('YieldSecs',0.5);
+		flip(sM);
+		WaitSecs('YieldSecs',0.25);
 		doBreak = true;
 		pfeedback = pfeedback + 1;
 	end
@@ -312,7 +319,9 @@ end
 		flip(sM);
 		thisResponse = 0;
 		beep(ad,'low');
-		WaitSecs('YieldSecs',5);
+		WaitSecs('YieldSecs',2);
+		flip(sM);
+		WaitSecs('YieldSecs',3);
 		doBreak = true;
 		nfeedback = nfeedback + 1;
 	end
