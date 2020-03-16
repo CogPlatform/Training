@@ -38,37 +38,39 @@ eT					= tobiiManager();
 eT.name				= 'Tobii Demo';
 eT.isDummy			= false;
 eT.verbose			= true;
-eT.model			= 'Tobii TX300'; %'Tobii Pro Spectrum'
+eT.model			= 'Tobii TX300'; %'Tobii Pro Spectrum' 'Tobii TX300'
 if ~isempty(regexpi(eT.model,'Spectrum','ONCE'))
 	eT.trackingMode	= 'human';
 else
-	eT.trackingMode	= 'Infant';
+	eT.trackingMode	= 'Default';
 end
 eT.eyeUsed			= 'both';
 eT.sampleRate		= 300;
 eT.calibrationStimulus	= 'animated';
 eT.calPositions		= [0.2 0.5; 0.8 0.5];
 eT.valPositions		= [0.5 0.5];
-eT.autoPace			= 0;
+eT.autoPace			= 1;
 eT.verbose			= true;
 if exist('s','var') && ~eT.isDummy
 	initialise(eT,sM,s);
 else
 	initialise(eT,sM);
 end
-eT.settings.cal.paceDuration = 0.5;
+eT.settings.cal.paceDuration = 0.75;
 eT.settings.cal.doRandomPointOrder  = false;
-cal = trackerSetup(eT,cal); ShowCursor();
-if ~isempty('cal','var');assignin('base','cal',cal); end
-drawnow;
+cal = trackerSetup(eT, cal); ShowCursor();
+if ~isempty('cal')
+	cal.comment='tobii demo calibration';
+	assignin('base','cal',cal); 
+end
 
 % ---- fixation values.
 eT.resetFixation();
 eT.fixation.X			= 0;
 eT.fixation.Y			= 0;
-eT.fixation.initTime	= 4;
+eT.fixation.initTime	= 3;
 eT.fixation.fixTime		= 0.6;
-eT.fixation.radius		= 10;
+eT.fixation.radius		= 9;
 eT.fixation.strict		= false;
 
 % ---- setup our image deck.
@@ -88,6 +90,7 @@ setup(stim,sM);
 show(stim);
 stim.stimuli{2}.hide();
 
+pos = [-10 -10; -10 0; 0 -10; 0 0; 10 0; 0 10; 10 10];
 pos = [-11 0; 0 0; 11 0];
 
 % ---- prepare tracker
@@ -146,7 +149,7 @@ while ~breakLoop
 	%=====================SHOW STIMULUS
 	resetFixation(eT);
 	ad.play();
-	timedTTL(rM);
+	if rewardAtStart; timedTTL(rM,pin,ttlTime); end
 	vbl = flip(sM); startT = vbl + sv.ifi; tick = 0;
 	while vbl < startT + trialTime
 		draw(stim);
@@ -179,7 +182,7 @@ while ~breakLoop
 		beep(ad,'high');
 		trackerMessage(eT,'ENDVBL',vbl);
 		trackerMessage(eT,'TRIAL_RESULT 1');
-		timedTTL(rM);
+		if rewardAtEnd; timedTTL(rM,pin,ttlTime); end
 		while vbl < endT + 0.8
 			drawGreenSpot(sM,5);
 			vbl=flip(sM);

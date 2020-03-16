@@ -92,8 +92,12 @@ try
 	end
 	eT.settings.cal.paceDuration = 0.5;
 	eT.settings.cal.doRandomPointOrder  = false;
-	trackerSetup(eT); ShowCursor();
-	drawnow;
+	cal = trackerSetup(eT, ana.cal); ShowCursor();
+	if ~isempty('cal')
+		cal.comment='tobii demo calibration';
+		assignin('base','cal',cal); 
+		ana.outcal = cal;
+	end
 	
 	% ---- fixation values.
 	eT.resetFixation();
