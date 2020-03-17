@@ -1,7 +1,6 @@
 function runBasicTraining(ana)
 
 global rM
-
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager();
 end
@@ -9,7 +8,7 @@ open(rM) %open our reward manager
 
 fprintf('\n--->>> runBasicTraining Started: ana UUID = %s!\n',ana.uuid);
 
-%===================Initiate out metadata===================
+%===================Initiate our metadata===================
 ana.date = datestr(datetime);
 ana.version = Screen('Version');
 ana.computer = Screen('Computer');
@@ -46,11 +45,6 @@ try
 	sM.open; % OPEN THE SCREEN
 	fprintf('\n--->>> BasicTraining Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
-	if IsLinux
-		Screen('Preference', 'TextRenderer', 1);
-		Screen('Preference', 'DefaultFontName', 'Liberation Sans');
-	end
-	
 	PsychPortAudio('Close');
 	sM.audio = audioManager(); sM.audio.close();
 	if IsLinux
@@ -75,7 +69,6 @@ try
 	if ~ana.useTracker || ana.isDummy
 		eT.isDummy = true;
 	end
-	
 	if length(Screen('Screens')) > 1 && ~eT.isDummy % ---- second screen for calibration
 		s					= screenManager;
 		s.screen			= sM.screen - 1;
@@ -85,7 +78,6 @@ try
 		s.blend				= sM.blend;
 		s.disableSyncTests	= true;
 	end
-	
 	if exist('s','var')
 		initialise(eT,sM,s);
 	else
@@ -97,7 +89,7 @@ try
 	cal = trackerSetup(eT, ana.cal); ShowCursor();
 	if ~isempty('cal')
 		cal.comment='tobii demo calibration';
-		assignin('base','cal',cal); 
+		assignin('base','cal',cal); %put our calibration ready to save manually
 		ana.outcal = cal;
 	end
 	
@@ -293,8 +285,10 @@ end
 					end
 				case {'2','2@','kp_down'}
 					correct();
+					doBreak = true;
 				case {'3','3#','kp_next'}
 					incorrect();
+					doBreak = true;
 			end
 		end
 	end
@@ -316,7 +310,6 @@ end
 		WaitSecs('YieldSecs',0.5);
 		flip(sM);
 		WaitSecs('YieldSecs',0.25);
-		doBreak = true;
 		pfeedback = pfeedback + 1;
 	end
 
@@ -329,7 +322,6 @@ end
 		WaitSecs('YieldSecs',3.5);
 		flip(sM);
 		WaitSecs('YieldSecs',1.5);
-		doBreak = true;
 		nfeedback = nfeedback + 1;
 	end
 
