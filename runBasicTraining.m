@@ -70,20 +70,20 @@ try
 	eT.calibrationStimulus	= ana.calStim;
 	eT.calPositions			= ana.calPos;
 	eT.valPositions			= ana.valPos;
-	eT.autoPace				= 0;
+	eT.autoPace				= ana.autoPace;
 	if ~ana.isDummy; eT.verbose	= true; end
 	if ~ana.useTracker || ana.isDummy
 		eT.isDummy = true;
 	end
 	
 	if length(Screen('Screens')) > 1 && ~eT.isDummy % ---- second screen for calibration
-		s			= screenManager;
-		s.screen	= sM.screen - 1;
-		s.backgroundColour = sM.backgroundColour;
-		s.windowed	= [];
-		s.bitDepth	= '8bit';
-		s.blend		= sM.blend;
-		s.disableSyncTests = true;
+		s					= screenManager;
+		s.screen			= sM.screen - 1;
+		s.backgroundColour	= sM.backgroundColour;
+		s.windowed			= [];
+		s.bitDepth			= '8bit';
+		s.blend				= sM.blend;
+		s.disableSyncTests	= true;
 	end
 	
 	if exist('s','var')
@@ -91,7 +91,7 @@ try
 	else
 		initialise(eT,sM);
 	end
-	eT.settings.cal.paceDuration = 0.5;
+	eT.settings.cal.paceDuration = ana.paceDuration;
 	eT.settings.cal.doRandomPointOrder  = false;
 	ana.cal=[];
 	cal = trackerSetup(eT, ana.cal); ShowCursor();
@@ -103,11 +103,11 @@ try
 	
 	% ---- fixation values.
 	eT.resetFixation();
-	eT.fixation.X            = 0;
-	eT.fixation.Y            = 0;
-	eT.fixation.initTime		= ana.initTime;
+	eT.fixation.X			= 0;
+	eT.fixation.Y			= 0;
+	eT.fixation.initTime	= ana.initTime;
 	eT.fixation.fixTime		= ana.fixTime;
-	eT.fixation.radius       = ana.radius;
+	eT.fixation.radius		= ana.radius;
 	eT.fixation.strict		= ana.strict;
 	
 	%===========================set up stimuli====================
@@ -125,6 +125,9 @@ try
 	pos = ana.positions;
 	
 	%===========================prepare===========================
+	Priority(MaxPriority(sM.win)); %bump our priority to maximum allowed
+	startRecording(eT); WaitSecs('YieldSecs',1);
+	trackerMessage(eT,'!!! Starting Demo...')
 	breakLoop		= false;
 	ana.trial		= struct();
 	totalRuns		= 0;
@@ -132,11 +135,8 @@ try
 	pfeedback		= 0;
 	nfeedback		= 0;
 	
-	halfisi			= sM.screenVals.halfisi;
-	Priority(MaxPriority(sM.win));
-	
 	while ~breakLoop
-		%=========================MAINTAIN INITIAL FIXATION==========================
+		%=========================TRIAL SETUP==========================
 		totalRuns = totalRuns + 1;
 		
 		if ana.randomPosition
@@ -152,7 +152,7 @@ try
 		eT.fixation.X = thisPos(1);
 		eT.fixation.Y = thisPos(2);
 		
-		fprintf('===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
+		fprintf('\n===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
 		ListenChar(-1);
 		WaitSecs(0.1);
 		
@@ -163,6 +163,7 @@ try
 		if ana.useTracker
 			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 				drawCross(sM,1,[],thisPos(1),thisPos(2));
+				if ana.drawEye; drawEyePosition(eT,true); end
 				finishDrawing(sM);
 				flip(sM);
 				getSample(eT);
@@ -170,6 +171,7 @@ try
 				doBreak = checkKeys();
 				if doBreak; break; end
 			end
+			ListenChar(0);
 			if strcmpi(fixated,'breakfix')
 				fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', totalRuns);
 				trackerMessage(eT,'TRIAL_RESULT -100');
@@ -215,7 +217,7 @@ try
 			trackerMessage(eT,'TRIAL_RESULT -1');
 			trackerMessage(eT,'MSG:BreakFix');
 			if ~doBreak; incorrect(); end
-		elseif thisResponse == 1
+		elseif strcmpi(fixated,'fix') || thisResponse == 1
 			trackerMessage(eT,'ENDVBL',vbl);
 			trackerMessage(eT,'TRIAL_RESULT 1');
 			if ~doBreak; correct(); end
@@ -324,9 +326,9 @@ end
 		flip(sM);
 		thisResponse = 0;
 		beep(sM.audio,'low');
-		WaitSecs('YieldSecs',2);
+		WaitSecs('YieldSecs',3.5);
 		flip(sM);
-		WaitSecs('YieldSecs',3);
+		WaitSecs('YieldSecs',1.5);
 		doBreak = true;
 		nfeedback = nfeedback + 1;
 	end
