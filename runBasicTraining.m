@@ -297,6 +297,7 @@ end
 		b = bar(ana.plotAxis1, rewards);
 		b.Parent.XTickLabel = {''};
 		b = bar(ana.plotAxis2, [1 2], [pfeedback nfeedback]);
+		title(ana.plotAxis2,sprintf('Responses [correct rate = %.2f]',(pfeedback+nfeedback)/pfeedback));
 		b.Parent.XTickLabel = {'positive','negative'};
 		drawnow;
 	end
@@ -307,9 +308,9 @@ end
 		flip(sM);
 		thisResponse = 1;
 		if ana.rewardEnd; rM.timedTTL(2,300); beep(sM.audio,'high'); end
-		WaitSecs('YieldSecs',0.5);
+		WaitSecs('YieldSecs',ana.ITI/2);
 		flip(sM);
-		WaitSecs('YieldSecs',0.25);
+		WaitSecs('YieldSecs',ana.ITI/2);
 		pfeedback = pfeedback + 1;
 	end
 
@@ -319,9 +320,9 @@ end
 		flip(sM);
 		thisResponse = 0;
 		beep(sM.audio,'low');
-		WaitSecs('YieldSecs',3.5);
+		WaitSecs('YieldSecs',ana.timeOut/2);
 		flip(sM);
-		WaitSecs('YieldSecs',1.5);
+		WaitSecs('YieldSecs',ana.timeOut/2);
 		nfeedback = nfeedback + 1;
 	end
 
