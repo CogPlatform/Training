@@ -12,6 +12,7 @@ fprintf('\n--->>> runBasicTraining Started: ana UUID = %s!\n',ana.uuid);
 ana.date = datestr(datetime);
 ana.version = Screen('Version');
 ana.computer = Screen('Computer');
+ana.gpu = opengl('data');
 
 %===================experiment parameters===================
 ana.screenID = max(Screen('Screens'));%-1;
@@ -37,7 +38,12 @@ try
 	%===================open our screen====================
 	sM = screenManager();
 	sM.screen = ana.screenID;
-	if ismac || ispc; sM.disableSyncTests = true; end
+	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
+		sM.disableSyncTests = true; 
+	end
+	if ana.debug
+		sM.windowed = [0 0 1200 1000]; sM.debug = true;
+	end
 	sM.pixelsPerCm = ana.pixelsPerCm;
 	sM.distance = ana.distance;
 	sM.blend = 1;
@@ -214,7 +220,7 @@ try
 			trackerMessage(eT,'TRIAL_RESULT 1');
 			if ~doBreak; correct(); end
 		elseif ~doBreak
-			if ana.rewardEnd; rM.timedTTL(2,300); beep(sM.audio,'high'); end
+			if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1;beep(sM.audio,'high'); end
 			WaitSecs('YieldSecs',1);
 			flip(sM);
 		end
@@ -277,6 +283,11 @@ end
 					WaitSecs('Yieldsecs',0.1);
 					KbWait(-1);
 					doBreak = true;
+				case {'c'}
+					WaitSecs('YieldSecs',0.1);
+					fprintf('--->>> Entering calibration mode...\n');
+					trackerSetup(eT,eT.calibration);
+					doBreak = true;
 				case {'1','1!','kp_end'}
 					if kTimer < vbl
 						kTimer = vbl + 0.2;
@@ -297,32 +308,41 @@ end
 		b = bar(ana.plotAxis1, rewards);
 		b.Parent.XTickLabel = {''};
 		b = bar(ana.plotAxis2, [1 2], [pfeedback nfeedback]);
-		title(ana.plotAxis2,sprintf('Responses [correct rate = %.2f]',(pfeedback+nfeedback)/pfeedback));
+		title(ana.plotAxis2,sprintf('Responses [correct rate = %.2f]',...
+			(1/((pfeedback+nfeedback)/pfeedback))*100));
 		b.Parent.XTickLabel = {'positive','negative'};
 		drawnow;
 	end
 
 	function correct()
-		fprintf('===>>> Correct given!\n');
+		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
 		drawGreenSpot(sM,5);
-		flip(sM);
+		vbl=flip(sM); ct = vbl;
 		thisResponse = 1;
-		if ana.rewardEnd; rM.timedTTL(2,300); beep(sM.audio,'high'); end
-		WaitSecs('YieldSecs',ana.ITI/2);
-		flip(sM);
-		WaitSecs('YieldSecs',ana.ITI/2);
+		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1;beep(sM.audio,'high'); end
+		cloop=1;
+		while vbl <= ct + ana.ITI
+			if cloop<60; drawGreenSpot(sM,5); end
+			vbl=flip(sM);
+			doBreak = checkKeys();
+			if doBreak; break; end
+		end
 		pfeedback = pfeedback + 1;
 	end
 
 	function incorrect()
-		fprintf('===>>> Incorrect given!\n');
+		fprintf('===>>> Incorrect given, timeout=%.2f!\n',ana.timeOut);
 		drawRedSpot(sM,5);
-		flip(sM);
+		vbl=flip(sM); ct = vbl;
 		thisResponse = 0;
 		beep(sM.audio,'low');
-		WaitSecs('YieldSecs',ana.timeOut/2);
-		flip(sM);
-		WaitSecs('YieldSecs',ana.timeOut/2);
+		cloop=1;
+		while vbl <= ct + ana.timeOut
+			if cloop<60; drawRedSpot(sM,5); end
+			vbl=flip(sM);
+			doBreak = checkKeys();
+			if doBreak; break; end
+		end
 		nfeedback = nfeedback + 1;
 	end
 
