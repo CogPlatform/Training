@@ -42,7 +42,7 @@ try
 		sM.disableSyncTests = true; 
 	end
 	if ana.debug
-		sM.windowed = [0 0 1200 1000]; sM.debug = true;
+		sM.windowed = [0 0 1200 1000]; sM.debug = true; sM.visualDebug = true;
 	end
 	sM.pixelsPerCm = ana.pixelsPerCm;
 	sM.distance = ana.distance;
@@ -113,11 +113,16 @@ try
 		stim = movieStimulus();
 		stim.size = ana.size;
 		stim.setup(sM);
-	else
+		ana.fixOnly = false;
+	elseif strcmpi(ana.stimulus,'Pictures')
 		stim = imageStimulus();
 		stim.size = ana.size;
 		stim.fileName = ana.imageDir;
 		stim.setup(sM);
+		ana.fixOnly = false;
+	else
+		ana.fixOnly = true;
+		if ana.size == 0; ana.size = 0.6; end
 	end
 	
 	pos = ana.positions;
@@ -144,7 +149,7 @@ try
 		end
 		stim.xPositionOut = thisPos(1);
 		stim.yPositionOut = thisPos(2);
-		update(stim);
+		if ~ana.fixOnly; update(stim); end
 		
 		eT.resetFixation();
 		eT.fixation.X = thisPos(1);
@@ -160,7 +165,7 @@ try
 		fixated = ''; doBreak = false;
 		if ana.useTracker
 			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-				drawCross(sM,1,[],thisPos(1),thisPos(2));
+				drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
 				if ana.drawEye; drawEyePosition(eT,true); end
 				finishDrawing(sM);
 				flip(sM);
@@ -179,7 +184,7 @@ try
 				continue
 			end
 		else
-			drawCross(sM,1,[],thisPos(1),thisPos(2));
+			drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
 			finishDrawing(sM);
 			flip(sM);
 			WaitSecs(0.5);
@@ -189,13 +194,17 @@ try
 		tick = 0;
 		kTimer = 0; % this is the timer to stop too many key events
 		thisResponse = -1; doBreak = false;
-		sM.drawCross(1,[],thisPos(1),thisPos(2));
+		drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
 		tStart = flip(sM); vbl = tStart;
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		play(sM.audio);
 		while vbl < tStart + ana.playTimes
-			draw(stim);
-			sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2));
+			if ana.fixOnly
+				drawCross(sM,ana.size,[],thisPos(1),thisPos(2));
+			else
+				draw(stim);
+				sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2));
+			end
 			if ana.drawEye; drawEyePosition(eT,true); end
 			finishDrawing(sM);
 			vbl = flip(sM,vbl); tick = tick + 1;
@@ -227,6 +236,7 @@ try
 		ListenChar(0);
 		updatePlots();
 		sM.audio.loadSamples();
+		%save this run info to structure
 		ana.trial(totalRuns).result = thisResponse;
 		ana.trial(totalRuns).rewards = rewards;
 		ana.trial(totalRuns).positive = pfeedback;
