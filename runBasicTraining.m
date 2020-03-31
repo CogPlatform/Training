@@ -137,8 +137,8 @@ try
 	elseif strcmpi(ana.stimulus,'VEP')
 		stim								= metaStimulus();
 		stim.stimuli{1}						= barStimulus();
-		stim.stimuli{1}.barWidth			= 120;
-		stim.stimuli{1}.barLength			= 100;
+		stim.stimuli{1}.barWidth			= ceil(sM.screenVals.width / sM.pixelsPerCm);
+		stim.stimuli{1}.barLength			= ceil(sM.screenVals.width / sM.pixelsPerCm);
 		stim.stimuli{1}.type				= 'checkerboard';
 		stim.stimuli{1}.contrast			= ana.VEPContrast(end);
 		stim.stimuli{1}.phaseReverseTime	= 0.3;
@@ -190,6 +190,7 @@ try
 				stim.xPositionOut = thisPos(1);
 				stim.yPositionOut = thisPos(2);
 			end
+			fprintf('\n===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', thisRun, sM.fullName,thisPos(1),thisPos(2));
 		else
 			thisPos = [0, 0];
 			eT.fixation.X = thisPos(1);
@@ -197,6 +198,7 @@ try
 		end
 		if ana.isVEP
 			stim.stimuli{1}.checkSizeOut = seq.outValues{seq.totalRuns};
+			fprintf('\n===>>> BasicTraining START Run = %i:%i | %s | checkSize = %.2f\n', thisRun, seq.totalRuns, sM.fullName,stim.stimuli{1}.checkSizeOut);
 		end
 		if ~ana.fixOnly
 			update(stim); 
@@ -204,7 +206,6 @@ try
 		
 		eT.resetFixation();
 		
-		fprintf('\n===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', thisRun, sM.fullName,thisPos(1),thisPos(2));
 		if ~ana.debug;ListenChar(-1);end
 		WaitSecs(0.1);
 		
