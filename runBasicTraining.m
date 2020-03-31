@@ -1,5 +1,12 @@
 function runBasicTraining(ana)
 
+global lM
+if ~exist('lM','var') || isempty(lM) || ~isa(lM,'labJackT')
+	 lM = labJackT('openNow',false);
+end
+if ~ana.sendTrigger; lM.silentMode = true; end
+if ~lM.isOpen; open(lM); end %open our strobed word manager
+
 global rM
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager();
@@ -36,18 +43,19 @@ try
 	PsychDefaultSetup(2);
 	Screen('Preference', 'SkipSyncTests', 1);
 	%===================open our screen====================
-	sM = screenManager();
-	sM.screen = ana.screenID;
+	sM						= screenManager();
+	sM.screen				= ana.screenID;
 	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
 		sM.disableSyncTests = true; 
 	end
 	if ana.debug
-		sM.windowed = [0 0 1200 1000]; sM.debug = true; sM.visualDebug = true;
+		sM.windowed			= [0 0 1200 1000]; sM.debug = true; sM.visualDebug = true;
 	end
-	sM.pixelsPerCm = ana.pixelsPerCm;
-	sM.distance = ana.distance;
-	sM.blend = 1;
-	sM.verbosityLevel = 3;
+	sM.backgroundColour		= ana.backgroundColour;
+	sM.pixelsPerCm			= ana.pixelsPerCm;
+	sM.distance				= ana.distance;
+	sM.blend				= 1;
+	sM.verbosityLevel		= 3;
 	sM.open; % OPEN THE SCREEN
 	fprintf('\n--->>> BasicTraining Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
@@ -110,18 +118,50 @@ try
 	
 	%===========================set up stimuli====================
 	if strcmpi(ana.stimulus,'Dancing Monkey')
-		stim = movieStimulus();
-		stim.size = ana.size;
+		stim				= movieStimulus();
+		stim.size			= ana.size;
 		stim.setup(sM);
-		ana.fixOnly = false;
+		ana.fixOnly			= false;
+		ana.moveStim		= true;
+		ana.isVEP			= false;
+		seq.taskFinished	= false;
 	elseif strcmpi(ana.stimulus,'Pictures')
-		stim = imageStimulus();
-		stim.size = ana.size;
-		stim.fileName = ana.imageDir;
+		stim				= imageStimulus();
+		stim.size			= ana.size;
+		stim.fileName		= ana.imageDir;
 		stim.setup(sM);
-		ana.fixOnly = false;
+		ana.fixOnly			= false;
+		ana.moveStim		= true;
+		ana.isVEP			= false;
+		seq.taskFinished	= false;
+	elseif strcmpi(ana.stimulus,'VEP')
+		stim								= metaStimulus();
+		stim.stimuli{1}						= barStimulus();
+		stim.stimuli{1}.barWidth			= 120;
+		stim.stimuli{1}.barLength			= 100;
+		stim.stimuli{1}.type				= 'checkerboard';
+		stim.stimuli{1}.contrast			= ana.VEPContrast(end);
+		stim.stimuli{1}.phaseReverseTime	= 0.3;
+		stim.stimuli{1}.checkSize			= ana.VEPSF(2);
+		stim.stimuli{2}						= discStimulus();
+		stim.stimuli{2}.size				= 2;
+		stim.stimuli{2}.colour				= [0.5 0.5 0.5];
+		stim.setup(sM);
+		ana.fixOnly			= false;
+		ana.moveStim		= false;
+		ana.isVEP			= true;
+		seq					= stimulusSequence();
+		seq.nBlocks			= ana.nBlocks;
+		seq.nVar(1).name	= 'sf';
+		seq.nVar(1).values	= linspace(ana.VEPSF(1),ana.VEPSF(2),ana.VEPSF(3));
+		seq.nVar(1).stimulus = 1;
+		initialise(seq);
+		ana.nTrials = seq.nRuns;
 	else
-		ana.fixOnly = true;
+		ana.fixOnly			= true;
+		ana.moveStim		= true;
+		ana.isVEP			= false;
+		seq.taskFinished	= false;
 		if ana.size == 0; ana.size = 0.6; end
 	end
 	
@@ -133,34 +173,48 @@ try
 	trackerMessage(eT,'!!! Starting Demo...')
 	breakLoop		= false;
 	ana.trial		= struct();
-	totalRuns		= 0;
+	thisRun			= 0;
 	rewards			= 0;
 	pfeedback		= 0;
 	nfeedback		= 0;
 	
 	while ~breakLoop
 		%=========================TRIAL SETUP==========================
-		totalRuns = totalRuns + 1;
+		thisRun = thisRun + 1;
 		
-		if ana.randomPosition
+		if ~ana.moveStim && ~ana.isVEP
 			thisPos = pos(randi(length(pos)),:);
+			eT.fixation.X = thisPos(1);
+			eT.fixation.Y = thisPos(2);
+			if ~ana.fixOnly
+				stim.xPositionOut = thisPos(1);
+				stim.yPositionOut = thisPos(2);
+			end
 		else
 			thisPos = [0, 0];
+			eT.fixation.X = thisPos(1);
+			eT.fixation.Y = thisPos(2);
 		end
-		stim.xPositionOut = thisPos(1);
-		stim.yPositionOut = thisPos(2);
-		if ~ana.fixOnly; update(stim); end
+		if ana.isVEP
+			stim.stimuli{1}.checkSizeOut = seq.outValues{seq.totalRuns};
+		end
+		if ~ana.fixOnly
+			update(stim); 
+		end
 		
 		eT.resetFixation();
-		eT.fixation.X = thisPos(1);
-		eT.fixation.Y = thisPos(2);
 		
-		fprintf('\n===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', totalRuns, sM.fullName,thisPos(1),thisPos(2));
-		ListenChar(-1);
+		fprintf('\n===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', thisRun, sM.fullName,thisPos(1),thisPos(2));
+		if ~ana.debug;ListenChar(-1);end
 		WaitSecs(0.1);
 		
 		%=====================INITIATE FIXATION
-		trackerMessage(eT,['TRIALID' num2str(totalRuns)]);
+		if ana.isVEP
+			thisRun = seq.outIndex(seq.totalRuns);
+			trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
+		else
+			trackerMessage(eT,['TRIALID' num2str(thisRun)]);
+		end
 		trackerMessage(eT,'INITIATEFIX');
 		fixated = ''; doBreak = false;
 		if ana.useTracker
@@ -176,7 +230,7 @@ try
 			end
 			ListenChar(0);
 			if strcmpi(fixated,'breakfix')
-				fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', totalRuns);
+				fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', thisRun);
 				trackerMessage(eT,'TRIAL_RESULT -100');
 				trackerMessage(eT,'MSG:BreakInitialFix');
 				Screen('Flip',sM.win); %flip the buffer
@@ -203,11 +257,16 @@ try
 				drawCross(sM,ana.size,[],thisPos(1),thisPos(2));
 			else
 				draw(stim);
-				sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2));
+				if ana.isVEP
+					sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2));
+				else
+					sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2));
+				end
 			end
 			if ana.drawEye; drawEyePosition(eT,true); end
 			finishDrawing(sM);
 			vbl = flip(sM,vbl); tick = tick + 1;
+			animate(stim);
 			getSample(eT);
 			if ana.useTracker && ~isFixated(eT)
 				fixated = 'breakfix';
@@ -230,24 +289,40 @@ try
 			if ~doBreak; correct(); end
 		elseif ~doBreak
 			if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1;beep(sM.audio,'high'); end
-			WaitSecs('YieldSecs',1);
+			if ana.isVEP
+				updateTask(seq,true,tEnd-tStart); %updates our current run number
+				if seq.taskFinished;breakLoop = true;end
+			end
+			WaitSecs('YieldSecs',ana.ITI);
 			flip(sM);
 		end
 		ListenChar(0);
 		updatePlots();
 		sM.audio.loadSamples();
 		%save this run info to structure
-		ana.trial(totalRuns).result = thisResponse;
-		ana.trial(totalRuns).rewards = rewards;
-		ana.trial(totalRuns).positive = pfeedback;
-		ana.trial(totalRuns).negative = nfeedback;
-		ana.trial(totalRuns).tStart = tStart;
-		ana.trial(totalRuns).tEnd = tEnd;
-		ana.trial(totalRuns).tick = tick;
+		if ana.isVEP
+			ana.trial(seq.totalRuns).n = seq.totalRuns;
+			ana.trial(seq.totalRuns).variable = seq.outIndex(seq.totalRuns);
+			ana.trial(seq.totalRuns).result = thisResponse;
+			ana.trial(seq.totalRuns).rewards = rewards;
+			ana.trial(seq.totalRuns).positive = pfeedback;
+			ana.trial(seq.totalRuns).negative = nfeedback;
+			ana.trial(seq.totalRuns).tStart = tStart;
+			ana.trial(seq.totalRuns).tEnd = tEnd;
+			ana.trial(seq.totalRuns).tick = tick;
+		else
+			ana.trial(thisRun).result = thisResponse;
+			ana.trial(thisRun).rewards = rewards;
+			ana.trial(thisRun).positive = pfeedback;
+			ana.trial(thisRun).negative = nfeedback;
+			ana.trial(thisRun).tStart = tStart;
+			ana.trial(thisRun).tEnd = tEnd;
+			ana.trial(thisRun).tick = tick;
+		end
 	end %=====================================while ~breakLoop
 	
 	%===============================Clean up============================
-	fprintf('===>>> basicTraining Finished Trials: %i\n',totalRuns);
+	fprintf('===>>> basicTraining Finished Trials: %i\n',thisRun);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 1);
@@ -261,7 +336,9 @@ try
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];
 		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
-		save([ana.nameExp '.mat'],'ana');
+		save([ana.nameExp '.mat'],'ana','seq');
+		assignin('base','ana',ana)
+		assignin('base','seq',seq)
 	end
 	
 	ListenChar(0);ShowCursor;Priority(0);
@@ -337,7 +414,15 @@ end
 			doBreak = checkKeys();
 			if doBreak; break; end
 		end
+		vbl=flip(sM);
 		pfeedback = pfeedback + 1;
+		if ana.isVEP
+			updateTask(seq,true,tEnd-tStart); %updates our current run number
+			if seq.taskFinished;
+				breakLoop = true;
+			end
+		end
+		
 	end
 
 	function incorrect()
@@ -353,6 +438,7 @@ end
 			doBreak = checkKeys();
 			if doBreak; break; end
 		end
+		vbl=flip(sM);
 		nfeedback = nfeedback + 1;
 	end
 
