@@ -138,7 +138,7 @@ try
 		stim								= metaStimulus();
 		stim.stimuli{1}						= barStimulus();
 		stim.stimuli{1}.barWidth			= ceil(sM.screenVals.width / sM.pixelsPerCm);
-		stim.stimuli{1}.barLength			= ceil(sM.screenVals.width / sM.pixelsPerCm);
+		stim.stimuli{1}.barHeight			= ceil(sM.screenVals.height / sM.pixelsPerCm);
 		stim.stimuli{1}.type				= 'checkerboard';
 		stim.stimuli{1}.contrast			= ana.VEPContrast(end);
 		stim.stimuli{1}.phaseReverseTime	= 0.3;
