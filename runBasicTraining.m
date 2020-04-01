@@ -49,7 +49,7 @@ try
 		sM.disableSyncTests = true; 
 	end
 	if ana.debug
-		sM.windowed			= [0 0 1200 1000]; sM.debug = true; sM.visualDebug = true;
+		sM.windowed			= [0 0 1400 1000]; sM.debug = true; sM.visualDebug = true;
 	end
 	sM.backgroundColour		= ana.backgroundColour;
 	sM.pixelsPerCm			= ana.pixelsPerCm;
@@ -144,8 +144,8 @@ try
 		stim.stimuli{1}.phaseReverseTime	= 0.3;
 		stim.stimuli{1}.checkSize			= ana.VEPSF(2);
 		stim.stimuli{2}						= discStimulus();
-		stim.stimuli{2}.size				= 2;
-		stim.stimuli{2}.colour				= [0.5 0.5 0.5];
+		stim.stimuli{2}.size				= 2.5;
+		stim.stimuli{2}.colour				= ana.backgroundColour;
 		stim.setup(sM);
 		ana.fixOnly			= false;
 		ana.moveStim		= false;
@@ -181,7 +181,6 @@ try
 	while ~breakLoop
 		%=========================TRIAL SETUP==========================
 		thisRun = thisRun + 1;
-		
 		if ~ana.moveStim && ~ana.isVEP
 			thisPos = pos(randi(length(pos)),:);
 			eT.fixation.X = thisPos(1);
@@ -200,6 +199,7 @@ try
 			stim.stimuli{1}.checkSizeOut = seq.outValues{seq.totalRuns};
 			fprintf('\n===>>> BasicTraining START Run = %i:%i | %s | checkSize = %.2f\n', thisRun, seq.totalRuns, sM.fullName,stim.stimuli{1}.checkSizeOut);
 		end
+		
 		if ~ana.fixOnly
 			update(stim); 
 		end
@@ -207,7 +207,6 @@ try
 		eT.resetFixation();
 		
 		if ~ana.debug;ListenChar(-1);end
-		WaitSecs(0.1);
 		
 		%=====================INITIATE FIXATION
 		if ana.isVEP
@@ -406,22 +405,20 @@ end
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
 		drawGreenSpot(sM,5);
 		vbl=flip(sM); ct = vbl;
-		thisResponse = 1;
 		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1;beep(sM.audio,'high'); end
 		cloop=1;
 		while vbl <= ct + ana.ITI
 			if cloop<60; drawGreenSpot(sM,5); end
-			vbl=flip(sM);
+			vbl=flip(sM); cloop=cloop+1;
 			doBreak = checkKeys();
 			if doBreak; break; end
 		end
 		vbl=flip(sM);
+		thisResponse = 1;
 		pfeedback = pfeedback + 1;
 		if ana.isVEP
 			updateTask(seq,true,tEnd-tStart); %updates our current run number
-			if seq.taskFinished;
-				breakLoop = true;
-			end
+			if seq.taskFinished; breakLoop = true; end
 		end
 		
 	end
@@ -430,16 +427,16 @@ end
 		fprintf('===>>> Incorrect given, timeout=%.2f!\n',ana.timeOut);
 		drawRedSpot(sM,5);
 		vbl=flip(sM); ct = vbl;
-		thisResponse = 0;
 		beep(sM.audio,'low');
 		cloop=1;
 		while vbl <= ct + ana.timeOut
 			if cloop<60; drawRedSpot(sM,5); end
-			vbl=flip(sM);
+			vbl=flip(sM);cloop=cloop+1;
 			doBreak = checkKeys();
 			if doBreak; break; end
 		end
 		vbl=flip(sM);
+		thisResponse = 0;
 		nfeedback = nfeedback + 1;
 	end
 
