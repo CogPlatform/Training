@@ -73,7 +73,7 @@ try
 	eT.name					= 'Tobii Demo';
 	eT.model                = ana.tracker;
 	eT.trackingMode			= ana.trackingMode;
-	eT.eyeUsed				= 'both';
+	eT.eyeUsed				= ana.eyeUsed;
 	eT.sampleRate			= ana.sampleRate;
 	eT.calibrationStimulus	= ana.calStim;
 	eT.calPositions			= ana.calPos;
@@ -87,7 +87,7 @@ try
 		s					= screenManager;
 		s.screen			= sM.screen - 1;
 		s.backgroundColour	= sM.backgroundColour;
-		s.windowed			= [];
+		s.windowed			= [0 0 1400 1000];
 		s.bitDepth			= '8bit';
 		s.blend				= sM.blend;
 		s.disableSyncTests	= true;
@@ -100,10 +100,18 @@ try
 	eT.settings.cal.paceDuration = ana.paceDuration;
 	eT.settings.cal.doRandomPointOrder  = false;
 	ana.cal=[];
+	ana.calSave = [eT.paths.savedData filesep 'lastTobiiCalibration.mat'];
+	if ana.reloadPreviousCal && exist(ana.calSave,'file')
+		load(ana.calSave);
+		ana.cal = cal;
+	end
 	cal = trackerSetup(eT, ana.cal); ShowCursor();
 	if ~isempty('cal')
-		cal.comment='tobii demo calibration';
+		cal.comment=sprintf('Subject:%s | Comments: %s | tobii calibration',ana.subject,ana.comments);
+		cal.computer = ana.computer;
+		cal.date = ana.date;
 		assignin('base','cal',cal); %put our calibration ready to save manually
+		save(ana.calSave,'cal');
 		ana.outcal = cal;
 	end
 	

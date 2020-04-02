@@ -50,7 +50,6 @@ eT.calibrationStimulus	= 'animated';
 eT.calPositions		= [0.2 0.5; 0.8 0.5];
 eT.valPositions		= [0.5 0.5];
 eT.autoPace			= 1;
-eT.verbose			= true;
 if exist('s','var') && ~eT.isDummy
 	initialise(eT,sM,s);
 else
