@@ -250,6 +250,7 @@ try
 		thisResponse = -1; doBreak = false;
 		drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
 		tStart = flip(sM); vbl = tStart;
+		if ana.sendTrigger;lM.strobeServer(1); end
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		play(sM.audio);
 		while vbl < tStart + ana.playTimes
@@ -278,6 +279,8 @@ try
 		end
 		
 		vbl=flip(sM); tEnd = vbl;
+		if ana.sendTrigger;lM.strobeServer(255); end
+		
 		if strcmpi(fixated,'breakfix') || thisResponse == 0
 			trackerMessage(eT,'ENDVBL',vbl);
 			trackerMessage(eT,'TRIAL_RESULT -1');
@@ -402,10 +405,11 @@ end
 	end
 
 	function correct()
+		if ana.sendTrigger;lM.strobeServer(250); end
+		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1;beep(sM.audio,'high'); end
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
 		drawGreenSpot(sM,5);
 		vbl=flip(sM); ct = vbl;
-		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1;beep(sM.audio,'high'); end
 		cloop=1;
 		while vbl <= ct + ana.ITI
 			if cloop<60; drawGreenSpot(sM,5); end
@@ -420,14 +424,14 @@ end
 			updateTask(seq,true,tEnd-tStart); %updates our current run number
 			if seq.taskFinished; breakLoop = true; end
 		end
-		
 	end
 
 	function incorrect()
+		if ana.sendTrigger;lM.strobeServer(251); end
 		fprintf('===>>> Incorrect given, timeout=%.2f!\n',ana.timeOut);
+		beep(sM.audio,'low');
 		drawRedSpot(sM,5);
 		vbl=flip(sM); ct = vbl;
-		beep(sM.audio,'low');
 		cloop=1;
 		while vbl <= ct + ana.timeOut
 			if cloop<60; drawRedSpot(sM,5); end
