@@ -275,7 +275,7 @@ try
 			if ana.drawEye; drawEyePosition(eT,true); end
 			finishDrawing(sM);
 			vbl = flip(sM,vbl); tick = tick + 1;
-			animate(stim);
+			if ~ana.fixOnly; animate(stim); end
 			getSample(eT);
 			if ana.useTracker && ~isFixated(eT)
 				fixated = 'breakfix';
