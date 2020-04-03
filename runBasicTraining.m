@@ -49,12 +49,12 @@ try
 		sM.disableSyncTests = true; 
 	end
 	if ana.debug
-		sM.windowed			= [0 0 1400 1000]; sM.debug = true; sM.visualDebug = true;
+		sM.windowed			= [0 0 1400 1000]; sM.debug = true;
 	end
 	sM.backgroundColour		= ana.backgroundColour;
 	sM.pixelsPerCm			= ana.pixelsPerCm;
 	sM.distance				= ana.distance;
-	sM.blend				= 1;
+	sM.blend				= true;
 	sM.verbosityLevel		= 3;
 	sM.open; % OPEN THE SCREEN
 	fprintf('\n--->>> BasicTraining Opened Screen %i : %s\n', sM.win, sM.fullName);
@@ -70,7 +70,7 @@ try
 	
 	%===========================tobii manager=====================
 	eT						= tobiiManager();
-	eT.name					= 'Tobii Demo';
+	eT.name					= ana.nameExp;
 	eT.model                = ana.tracker;
 	eT.trackingMode			= ana.trackingMode;
 	eT.eyeUsed				= ana.eyeUsed;
@@ -79,6 +79,10 @@ try
 	eT.calPositions			= ana.calPos;
 	eT.valPositions			= ana.valPos;
 	eT.autoPace				= ana.autoPace;
+	eT.smoothing.nSamples	= ana.nSamples;
+	eT.smoothing.method		= ana.smoothMethod;
+	eT.smoothing.window		= ana.w;
+	eT.smoothing.eyes		= ana.smoothEye;
 	if ~ana.isDummy; eT.verbose	= true; end
 	if ~ana.useTracker || ana.isDummy
 		eT.isDummy = true;
@@ -87,6 +91,8 @@ try
 		s					= screenManager;
 		s.screen			= sM.screen - 1;
 		s.backgroundColour	= sM.backgroundColour;
+		s.pixelsPerCm		= sM.pixelsPerCm;
+		s.distance			= sM.distance;
 		s.windowed			= [0 0 1400 1000];
 		s.bitDepth			= '8bit';
 		s.blend				= sM.blend;
@@ -103,10 +109,10 @@ try
 	ana.calSave = [eT.paths.savedData filesep 'lastTobiiCalibration.mat'];
 	if ana.reloadPreviousCal && exist(ana.calSave,'file')
 		load(ana.calSave);
-		ana.cal = cal;
+		if isfield(cal,'attempt') && ~isempty(cal.attempt); ana.cal = cal; end
 	end
 	cal = trackerSetup(eT, ana.cal); ShowCursor();
-	if ~isempty('cal')
+	if ~isempty(cal) && isfield(cal,'attempt')
 		cal.comment=sprintf('Subject:%s | Comments: %s | tobii calibration',ana.subject,ana.comments);
 		cal.computer = ana.computer;
 		cal.date = ana.date;
