@@ -106,9 +106,12 @@ try
 	eT.settings.cal.paceDuration = ana.paceDuration;
 	eT.settings.cal.doRandomPointOrder  = false;
 	ana.cal=[];
-	ana.calSave = [eT.paths.savedData filesep 'lastTobiiCalibration.mat'];
-	if ana.reloadPreviousCal && exist(ana.calSave,'file')
-		load(ana.calSave);
+	if isempty(ana.calFile) || ~exist(ana.calFile,'file')
+		name = regexprep(ana.subject,' ','_');
+		ana.calFile = [eT.paths.savedData filesep 'TobiiCal-' name '.mat'];
+	end
+	if ana.reloadPreviousCal && exist(ana.calFile,'file')
+		load(ana.calFile);
 		if isfield(cal,'attempt') && ~isempty(cal.attempt); ana.cal = cal; end
 	end
 	cal = trackerSetup(eT, ana.cal); ShowCursor();
@@ -117,7 +120,7 @@ try
 		cal.computer = ana.computer;
 		cal.date = ana.date;
 		assignin('base','cal',cal); %put our calibration ready to save manually
-		save(ana.calSave,'cal');
+		save(ana.calFile,'cal');
 		ana.outcal = cal;
 	end
 	
@@ -344,6 +347,8 @@ try
 	Screen('Flip',sM.win);
 	WaitSecs('YieldSecs', 1);
 	close(sM);
+	stopRecording(eT);
+	saveData(eT,false);
 	
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
@@ -353,7 +358,7 @@ try
 		ana.plotAxis1 = [];
 		ana.plotAxis2 = [];
 		fprintf('==>> SAVE %s, to: %s\n', ana.nameExp, pwd);
-		save([ana.nameExp '.mat'],'ana','seq');
+		save([ana.nameExp '.mat'],'ana','eT','sM','seq');
 		assignin('base','ana',ana)
 		assignin('base','seq',seq)
 	end
