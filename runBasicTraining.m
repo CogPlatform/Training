@@ -158,10 +158,11 @@ try
 		stim.stimuli{1}.barHeight			= ceil(sM.screenVals.height / sM.pixelsPerCm);
 		stim.stimuli{1}.type				= 'checkerboard';
 		stim.stimuli{1}.contrast			= ana.VEPContrast(end);
+		stim.stimuli{1}.speed				= 0;
 		stim.stimuli{1}.phaseReverseTime	= 0.3;
 		stim.stimuli{1}.checkSize			= ana.VEPSF(2);
 		stim.stimuli{2}						= discStimulus();
-		stim.stimuli{2}.size				= 2.5;
+		stim.stimuli{2}.size				= 1;
 		stim.stimuli{2}.colour				= ana.backgroundColour;
 		stim.setup(sM);
 		ana.fixOnly			= false;
@@ -170,7 +171,11 @@ try
 		seq					= stimulusSequence();
 		seq.nBlocks			= ana.nBlocks;
 		seq.nVar(1).name	= 'sf';
-		seq.nVar(1).values	= linspace(ana.VEPSF(1),ana.VEPSF(2),ana.VEPSF(3));
+		if ana.VEPLog
+			seq.nVar(1).values	= logspace(log10(ana.VEPSF(1)),log10(ana.VEPSF(2)),ana.VEPSF(3));
+		else
+			seq.nVar(1).values	= linspace(ana.VEPSF(1),ana.VEPSF(2),ana.VEPSF(3));
+		end
 		seq.nVar(1).stimulus = 1;
 		initialise(seq);
 		ana.nTrials = seq.nRuns;
@@ -269,7 +274,7 @@ try
 		tStart = flip(sM); vbl = tStart;
 		if ana.sendTrigger;lM.strobeServer(1); end
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
-		play(sM.audio);
+		if ~ana.isVEP; play(sM.audio); end
 		while vbl < tStart + ana.playTimes
 			if ana.fixOnly
 				drawCross(sM,ana.size,[],thisPos(1),thisPos(2));
