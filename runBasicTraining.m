@@ -5,6 +5,7 @@ if ~exist('lM','var') || isempty(lM) || ~isa(lM,'labJackT')
 	 lM = labJackT('openNow',false);
 end
 if ~ana.sendTrigger; lM.silentMode = true; end
+lM.strobeTime = 10; %make strobe time a bit longer for EEG 
 if ~lM.isOpen; open(lM); end %open our strobed word manager
 
 global rM
@@ -25,10 +26,11 @@ ana.gpu = opengl('data');
 ana.screenID = max(Screen('Screens'));%-1;
 
 %===================Make a name for this run===================
-pf='basicTrain_';
+
 if ~isempty(ana.subject)
-	nameExp = [pf ana.subject];
-	c = sprintf(' %i',fix(clock()));
+	nameExp = ['basicTrain_' ana.stimulus '_' ana.subject];
+	ana.timeExp = fix(clock());
+	c = sprintf(' %i',ana.timeExp);
 	nameExp = [nameExp c];
 	ana.nameExp = regexprep(nameExp,' ','_');
 else
@@ -191,6 +193,12 @@ try
 	
 	%===========================prepare===========================
 	Priority(MaxPriority(sM.win)); %bump our priority to maximum allowed
+	if ana.sendTrigger
+		sd = ana.timeExp;
+		sd(1)=20;
+		for i = 1:6;lM.strobeServer(255); WaitSecs(0.05); end
+		for i = 1:length(sd);lM.strobeServer(sd(i)); WaitSecs(0.05);end
+	end
 	startRecording(eT); WaitSecs('YieldSecs',1);
 	trackerMessage(eT,'!!! Starting Demo...')
 	breakLoop		= false;
@@ -218,6 +226,7 @@ try
 			eT.fixation.Y = thisPos(2);
 		end
 		if ana.isVEP
+			thisRun = seq.outIndex(seq.totalRuns);
 			stim.stimuli{1}.checkSizeOut = seq.outValues{seq.totalRuns};
 			fprintf('\n===>>> BasicTraining START Run = %i:%i | %s | checkSize = %.2f\n', thisRun, seq.totalRuns, sM.fullName,stim.stimuli{1}.checkSizeOut);
 		end
@@ -231,12 +240,7 @@ try
 		if ~ana.debug;ListenChar(-1);end
 		
 		%=====================INITIATE FIXATION
-		if ana.isVEP
-			thisRun = seq.outIndex(seq.totalRuns);
-			trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
-		else
-			trackerMessage(eT,['TRIALID' num2str(thisRun)]);
-		end
+		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		trackerMessage(eT,'INITIATEFIX');
 		fixated = ''; doBreak = false;
 		if ana.useTracker
@@ -272,7 +276,7 @@ try
 		thisResponse = -1; doBreak = false;
 		drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
 		tStart = flip(sM); vbl = tStart;
-		if ana.sendTrigger;lM.strobeServer(1); end
+		if ana.sendTrigger;lM.strobeServer(thisRun); end
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		if ~ana.isVEP; play(sM.audio); end
 		while vbl < tStart + ana.playTimes
@@ -318,6 +322,7 @@ try
 				updateTask(seq,true,tEnd-tStart); %updates our current run number
 				if seq.taskFinished;breakLoop = true;end
 			end
+			if ana.sendTrigger;lM.strobeServer(250); end
 			WaitSecs('YieldSecs',ana.ITI);
 			flip(sM);
 		end
@@ -350,10 +355,16 @@ try
 	fprintf('===>>> basicTraining Finished Trials: %i\n',thisRun);
 	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
 	Screen('Flip',sM.win);
-	WaitSecs('YieldSecs', 1);
-	close(sM);
+	if ana.sendTrigger
+		sd = ana.timeExp;
+		sd(1)=20;
+		for i = 1:6;lM.strobeServer(254); WaitSecs(0.05); end
+		for i = 1:length(sd);lM.strobeServer(sd(i)); WaitSecs(0.05);end
+	end
+	WaitSecs('YieldSecs', 0.25);
 	stopRecording(eT);
 	saveData(eT,false);
+	close(sM);
 	
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
