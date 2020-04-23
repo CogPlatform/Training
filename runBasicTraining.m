@@ -196,11 +196,11 @@ try
 	if ana.sendTrigger
 		sd = ana.timeExp;
 		sd(1)=20;
-		for i = 1:6;lM.strobeServer(255); WaitSecs(0.05); end
-		for i = 1:length(sd);lM.strobeServer(sd(i)); WaitSecs(0.05);end
+		for i = 1:3;lM.strobeServer(255);WaitSecs(0.01); end
+		for i = 1:length(sd);lM.strobeServer(sd(i));WaitSecs(0.01);end
 	end
 	startRecording(eT); WaitSecs('YieldSecs',1);
-	trackerMessage(eT,'!!! Starting Demo...')
+	trackerMessage(eT,'!!! Starting Demo...');
 	breakLoop		= false;
 	ana.trial		= struct();
 	thisRun			= 0;
@@ -358,8 +358,8 @@ try
 	if ana.sendTrigger
 		sd = ana.timeExp;
 		sd(1)=20;
-		for i = 1:6;lM.strobeServer(254); WaitSecs(0.05); end
-		for i = 1:length(sd);lM.strobeServer(sd(i)); WaitSecs(0.05);end
+		for i = 1:3;lM.strobeServer(255);WaitSecs(0.01); end
+		for i = 1:length(sd);lM.strobeServer(sd(i));WaitSecs(0.01);end
 	end
 	WaitSecs('YieldSecs', 0.25);
 	stopRecording(eT);
