@@ -2,11 +2,11 @@
 fileName = 'Test_3.edf';
 
 if ~exist('data_eeg','var')
-	cfg            = [];
-	cfg.dataset    = filename;
-	cfg.continuous = 'yes';
-	cfg.channel    = 'all';
-	data_eeg           = ft_preprocessing(cfg);
+	cfg				= [];
+	cfg.dataset 	= fileName;
+	cfg.continuous	= 'yes';
+	cfg.channel 	= 'all';
+	data_eeg		= ft_preprocessing(cfg);
 end
 
 nchan = length(data_eeg.label);
