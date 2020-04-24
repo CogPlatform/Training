@@ -1,9 +1,21 @@
-
-fileName = 'Test_3.edf';
+ft_defaults;
+fileName = 'Test_4.edf';
+cfg				= [];
+cfg.dataset 	= fileName;
+cfg.header		= ft_read_header(cfg.dataset);
+labels			= cfg.header.label(3:end);
+data_events		= ft_read_event(cfg.dataset,'header',cfg.header,...
+	'detectflank','up','chanindx',3:10,'threshold','(1/2)*nanmedian');
+events = [];
+for i = 1:length(labels)
+	idx = cellfun(@(x)strcmpi(x,labels{i}),{data_events.type});
+	events(i).label	= labels{i};
+	events(i).idx	= idx;
+	events(i).e		= data_events(idx);
+end
+	
 
 if ~exist('data_eeg','var')
-	cfg				= [];
-	cfg.dataset 	= fileName;
 	cfg.continuous	= 'yes';
 	cfg.channel 	= 'all';
 	data_eeg		= ft_preprocessing(cfg);
