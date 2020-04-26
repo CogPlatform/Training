@@ -196,8 +196,8 @@ try
 	if ana.sendTrigger
 		sd = ana.timeExp;
 		sd(1)=20;
-		for i = 1:3;lM.strobeServer(255);WaitSecs(0.01); end
-		for i = 1:length(sd);lM.strobeServer(sd(i));WaitSecs(0.01);end
+		for i = 1:3;lM.strobeServer(255);WaitSecs(0.02); end
+		for i = 1:length(sd);lM.strobeServer(sd(i));WaitSecs(0.02);end
 	end
 	startRecording(eT); WaitSecs('YieldSecs',1);
 	trackerMessage(eT,'!!! Starting Demo...');
@@ -358,8 +358,8 @@ try
 	if ana.sendTrigger
 		sd = ana.timeExp;
 		sd(1)=20;
-		for i = 1:3;lM.strobeServer(255);WaitSecs(0.01); end
-		for i = 1:length(sd);lM.strobeServer(sd(i));WaitSecs(0.01);end
+		for i = 1:3;lM.strobeServer(255);WaitSecs(0.02); end
+		for i = 1:length(sd);lM.strobeServer(sd(i));WaitSecs(0.02);end
 	end
 	WaitSecs('YieldSecs', 0.25);
 	stopRecording(eT);
@@ -440,9 +440,10 @@ end
 	end
 
 	function correct()
-		if ana.sendTrigger;lM.strobeServer(250); end
-		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1;beep(sM.audio,'high'); end
+		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; end
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
+		beep(sM.audio,'high');
+		WaitSecs(0.02);if ana.sendTrigger;lM.strobeServer(250); end
 		drawGreenSpot(sM,5);
 		vbl=flip(sM); ct = vbl;
 		cloop=1;
@@ -462,9 +463,9 @@ end
 	end
 
 	function incorrect()
-		if ana.sendTrigger;lM.strobeServer(251); end
 		fprintf('===>>> Incorrect given, timeout=%.2f!\n',ana.timeOut);
 		beep(sM.audio,'low');
+		WaitSecs(0.02);if ana.sendTrigger;lM.strobeServer(251); end
 		drawRedSpot(sM,5);
 		vbl=flip(sM); ct = vbl;
 		cloop=1;
