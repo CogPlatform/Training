@@ -1,14 +1,18 @@
 ft_defaults;
 clear data_eeg data_events events triggers
-fileName = '13-run2.edf';
+fileName = '13-run3.edf';
+
+% which channels are the TTL signals
 bitchannels = 3:10;
-minNextTriggerTime = 0.015; %any trigger <= 15ms after previous is considered artifact
+% any trigger <= 15ms after previous is considered artifact and removed
+minNextTriggerTime = 0.015; 
+
 cfg				= [];
 cfg.dataset 	= fileName;
 cfg.header		= ft_read_header(cfg.dataset);
 labels			= cfg.header.label(bitchannels);
 data_events		= ft_read_event(cfg.dataset,'header',cfg.header,...
-	'detectflank','up','chanindx',bitchannels,'threshold','5*nanmedian');
+				'detectflank','up','chanindx',bitchannels,'threshold','6*nanmedian');
 events = [];
 if ~exist('data_eeg','var')
 	cfg.continuous	= 'yes';
@@ -16,7 +20,7 @@ if ~exist('data_eeg','var')
 	data_eeg		= ft_preprocessing(cfg);
 end
 
-%parse our events
+%parse our events, removing any events < minNextTriggerTime
 for i = 1:length(labels)
 	lidx = cellfun(@(x)strcmpi(x,labels{i}),{data_events.type});
 	events(i).label		= labels{i};
@@ -36,7 +40,7 @@ for i = 1:length(labels)
 	end
 end
 
-% make strobed words from events
+% make strobed words from individual events
 triggers = [];
 times = [];
 bidx = 1;
@@ -49,6 +53,8 @@ for i = 1:length(events)
 			triggers(bidx).bword = '00000000';
 			triggers(bidx).bword(i) = '1';
 			fixit(i) = j;
+			% for each event, now we check all other channels for events
+			% within 4ms
 			for k =  1 : length(events) %check all other channels
 				if k == i; continue; end
 				[idx,val,delta] = findNearest(events(k).times,triggers(bidx).time);
@@ -59,6 +65,8 @@ for i = 1:length(events)
 					fixit(k) = idx;
 				end
 			end
+			% make sure all other channels use the same time and sample so
+			% we don't double count events
 			for l = 1:length(fixit)
 				if fixit(l) > 0
 					events(l).times(fixit(l)) = triggers(bidx).time;
