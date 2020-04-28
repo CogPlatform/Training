@@ -161,7 +161,7 @@ try
 		stim.stimuli{1}.type				= 'checkerboard';
 		stim.stimuli{1}.contrast			= ana.VEPContrast(end);
 		stim.stimuli{1}.speed				= 0;
-		stim.stimuli{1}.phaseReverseTime	= 0.3;
+		stim.stimuli{1}.phaseReverseTime	= 0.1;
 		stim.stimuli{1}.checkSize			= ana.VEPSF(2);
 		stim.stimuli{2}						= discStimulus();
 		stim.stimuli{2}.size				= 1;

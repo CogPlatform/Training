@@ -1,158 +1,150 @@
+function [data_eeg_raw,data_eeg,triggers,dd] = loadEEGData();
+
 ft_defaults;
 clear data_eeg data_events events triggers
 fileName = '13-run3.edf';
+matData = 'basicTrain_VEP_13-run3_2020_4_24_14_53_52.mat';
+dd = load(matData);
+vars = dd.seq.nVar.values;
 
+% which channels are the data channels
+dataChannels = 1:2;
 % which channels are the TTL signals
-bitchannels = 3:10;
-% any trigger <= 15ms after previous is considered artifact and removed
-minNextTriggerTime = 0.015; 
+bitChannels = 3:10;
+% any trigger <= 4 samples after previous is considered artifact and removed
+minNextTrigger = 3; 
 
-cfg				= [];
-cfg.dataset 	= fileName;
-cfg.header		= ft_read_header(cfg.dataset);
-labels			= cfg.header.label(bitchannels);
-data_events		= ft_read_event(cfg.dataset,'header',cfg.header,...
-				'detectflank','up','chanindx',bitchannels,'threshold','6*nanmedian');
-events = [];
+cfgRaw			= [];
+cfgRaw.dataset 	= fileName;
+cfgRaw.header	= ft_read_header(cfgRaw.dataset);
+labels			= cfgRaw.header.label(bitChannels);
 if ~exist('data_eeg','var')
-	cfg.continuous	= 'yes';
-	cfg.channel 	= 'all';
-	data_eeg		= ft_preprocessing(cfg);
+	cfgRaw.continuous	= 'yes';
+	cfgRaw.channel		= 'all';
+	data_eeg_raw		= ft_preprocessing(cfgRaw);
 end
+[trl, events, triggers] = loadCOGEEG(cfgRaw);
+plotRawChannels(); drawnow;
 
-%parse our events, removing any events < minNextTriggerTime
-for i = 1:length(labels)
-	lidx = cellfun(@(x)strcmpi(x,labels{i}),{data_events.type});
-	events(i).label		= labels{i};
-	events(i).idx		= find(lidx==1);
-	events(i).evnt		= data_events(events(i).idx);
-	events(i).samples	= [events(i).evnt.sample];
-	events(i).times		= data_eeg.time{1}(events(i).samples);
-	rmTimes = diff(events(i).times);
-	rmIdx = find(rmTimes <= minNextTriggerTime);
-	if ~isempty(rmIdx)
-		rmIdx = rmIdx + 1;
-		events(i).idx(rmIdx) = [];
-		events(i).evnt(rmIdx) = [];
-		events(i).samples(rmIdx) = [];
-		events(i).times(rmIdx) = [];
-		events(i).rmIdx = rmIdx;
+cfg					= [];
+cfg.header			= cfgRaw.header;
+cfg.dataset			= fileName;
+cfg.trialfun		= 'loadCOGEEG';
+cfg					= ft_definetrial(cfg);
+cfg.continuous		= 'yes';
+cfg.dftfilter		= 'no';
+cfg.demean			= 'no';
+cfg.baselineWindow	= [-0.1 0.1];
+cfg.channel			= dataChannels;
+data_eeg			= ft_preprocessing(cfg);
+
+varmap = unique(data_eeg.trialinfo);
+for j = 1:length(varmap)
+	cfgt			= [];
+	cfgt.trials		= find(data_eeg.trialinfo==varmap(j));
+	timelock{j}		= ft_timelockanalysis(cfgt,data_eeg);
+	cfgt.channel	= 1;
+	cfgt.method 	= 'mtmconvol';
+	cfgt.taper		= 'hanning';
+	cfgt.foi		= 2:2:30;                         % analysis 2 to 30 Hz in steps of 2 Hz
+	cfgt.t_ftimwin  = ones(length(cfgt.foi),1).*0.3;   % length of time window = 0.5 sec
+	cfgt.toi        = -0.6:0.05:1.6;                  % time window "slides" from -0.5 to 1.5 sec in steps of 0.05 sec (50 ms)
+	freq{j}			= ft_freqanalysis(cfgt,data_eeg);
+end
+plotTimeLock();
+plotFrequency();
+
+
+function plotTimeLock()
+	h = figure('Name',['TL Processed Data: ' cfg.dataset],'Units','normalized',...
+		'Position',[0.05 0.1 0.2 0.9]);
+	tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
+	for jj = 1:length(timelock)
+		nexttile(tl,jj)
+		plot(timelock{jj}.time,timelock{jj}.avg);
+		box on;grid on; axis tight
+		title(['Var: ' num2str(jj) ' = ' num2str(vars(jj))])
 	end
+	tl.XLabel.String = 'Time (s)';
+	tl.YLabel.String = 'Amplitude';
+	tl.Title.String = 'Time Lock analysis';
 end
 
-% make strobed words from individual events
-triggers = [];
-times = [];
-bidx = 1;
-for i = 1:length(events)
-	for j = 1:length(events(i).idx)
-		fixit = zeros(1,length(events));
-		if ~any(times == events(i).times(j)) % check our time list of previously measured events
-			triggers(bidx).time = events(i).times(j);
-			triggers(bidx).sample = events(i).samples(j);
-			triggers(bidx).bword = '00000000';
-			triggers(bidx).bword(i) = '1';
-			fixit(i) = j;
-			% for each event, now we check all other channels for events
-			% within 4ms
-			for k =  1 : length(events) %check all other channels
-				if k == i; continue; end
-				[idx,val,delta] = findNearest(events(k).times,triggers(bidx).time);
-				if delta < 0.004
-					triggers(bidx).bword(k) = '1';
-					triggers(bidx).time = min([val,triggers(bidx).time]);
-					triggers(bidx).sample = min([events(i).samples(j),events(k).samples(idx)]);
-					fixit(k) = idx;
-				end
+function plotFrequency()
+	h = figure('Name',['TF Processed Data: ' cfg.dataset],'Units','normalized',...
+		'Position',[0 0.1 0.2 0.9]);
+	tl = tiledlayout(h,'flow');
+	for jj = 1:length(timelock)
+		nexttile(tl)
+		imagesc(freq{jj}.time,freq{jj}.freq,squeeze(freq{jj}.powspctrm(1,:,:)))
+		colorbar;
+		xlabel('Time (s)');
+		ylabel('Frequency (Hz)');
+		box on;grid on; axis tight
+		title(['Var: ' num2str(jj) ' = ' num2str(vars(jj))])
+	end
+	tl.Title.String = 'Time Frequency Analysis';	
+end
+
+function plotRawChannels()
+	% plotting code to visualise the raw data triggers
+	offset = 0;
+	nchan = length(cfgRaw.header.label);
+	h = figure('Name',['RAW Data: ' cfgRaw.dataset],'Units','normalized',...
+		'Position',[0.05 0.05 0.4 0.9]);
+	tl = tiledlayout(h,nchan,1,'TileSpacing','compact','Padding','none');
+	tm = data_eeg_raw.time{1};
+	xl = [triggers(1).time-1 triggers(1).time+9];
+	for i = 1:nchan
+		ch{i} = data_eeg_raw.trial{1}(i+offset,:);
+		baseline = median(ch{i}(1:100));
+		ch{i} = (ch{i} - baseline);
+		ch{i} = ch{i} / max(ch{i});
+		nexttile(tl,i)
+		plot(tm,ch{i},'k-'); hold on
+		if i < 3
+			for ii = 1:length(events)
+				y = repmat(ii/10, [1 length(events(ii).times)]);
+				plot(events(ii).times,y,'.','MarkerSize',12);
 			end
-			% make sure all other channels use the same time and sample so
-			% we don't double count events
-			for l = 1:length(fixit)
-				if fixit(l) > 0
-					events(l).times(fixit(l)) = triggers(bidx).time;
-					events(l).samples(fixit(l)) = triggers(bidx).sample;
-				end
+		else
+			ii = i - 2;
+			if ~isempty(events(ii).times);plot(events(ii).times,0.75,'r.','MarkerSize',12);end
+			ylim([-0.05 1.05]);
+		end
+		if i == 1
+			ypos = 0.2;
+			for jj = 1:size(trl,1) 
+				line([tm(trl(jj,1)) tm(trl(jj,2))],[ypos ypos]);
+				plot([tm(trl(jj,1)) tm(trl(jj,1)-trl(jj,3)) tm(trl(jj,2))],ypos,'ko','MarkerSize',8);
+				text(tm(trl(jj,1)-trl(jj,3)),ypos,['\leftarrow' num2str(trl(jj,4))]);
+				ypos = ypos+0.125;
+				if ypos > 1.0; ypos = 0.3;end
 			end
-			times(end+1) = triggers(bidx).time;
-			triggers(bidx).bword = fliplr(triggers(bidx).bword);
-			triggers(bidx).value = bin2dec(triggers(bidx).bword);
-			triggers(bidx).map = [i j];
-			triggers(bidx).fixit = fixit;
-			bidx = bidx + 1;
 		end
+		title(data_eeg_raw.label{i});
+		xlim(xl);
 	end
-end
-[~,sidx] = sort([triggers.time]); %sort by times
-triggers = triggers(sidx);
-purgeIdx = find(diff([triggers.time]) == 0)+1; %make sure any events with identical times are removed
-if ~isempty(purgeIdx)
-	warning('Duplicate events! removing...')
-	triggers(purgeIdx) = [];
-end
 
-nchan = length(data_eeg.label);
-offset = 0;
-
-h = figure('Name',fileName,'Units','normalized','Position',[0.1 0.1 0.8 0.8]);
-tl = tiledlayout(h,nchan,1,'TileSpacing','compact','Padding','none');
-
-tm = data_eeg.time{1};
-xl = [triggers(1).time-1 triggers(1).time+9];
-for i = 1:nchan
-	ch{i} = data_eeg.trial{1}(i+offset,:);
-	baseline = median(ch{i}(1:100));
-	ch{i} = (ch{i} - baseline);
-	ch{i} = ch{i} / max(ch{i});
-	nexttile(tl,i)
-	plot(tm,ch{i},'k-'); hold on
-	if i < 3
-		for ii = 1:length(events)
-			y = repmat(ii/10, [1 length(events(ii).times)]);
-			plot(events(ii).times,y,'.','MarkerSize',12);
-		end
-	else
-		ii = i - 2;
-		if ~isempty(9);plot(events(ii).times,0.75,'r.','MarkerSize',12);end
-	end
-	if i == 1
-		ypos = 0.25;
-		for jj = 1:length(triggers)
-			text(triggers(jj).time,ypos,['\leftarrow' num2str(triggers(jj).value)]);
-			ypos = ypos+0.125;
-			if ypos > 1.0; ypos = 0.3;end
-		end
-	end
-	title(data_eeg.label{i});
-	set(gca,'ButtonDownFcn',@myCallback);
-	xlim(xl);
-	ylim([-0.05 1.05]);
-end
-
-hz = zoom;
-hz.ActionPostCallback = @myCallbackScroll;
-hp = pan;
-hp.enable = 'on';
-hp.Motion = 'horizontal';
-hp.ActionPostCallback = @myCallbackScroll;
-tl.XLabel.String = 'Time (s)';
-tl.YLabel.String = 'Normalised Amplitude';
-
-
-function myCallback(src,event) 
-	xl = event.XLim;
-	for i = 1:length(src.Parent.Children)
-		src.Parent.Children(i).YLim = [-0.05 1.05];
-		if ~all(xl == src.Parent.Children(i).XLim)
-			src.Parent.Children(i).XLim = xl;
-		end
-	end
+	hz = zoom;
+	hz.ActionPostCallback = @myCallbackScroll;
+	hp = pan;
+	hp.enable = 'on';
+	hp.Motion = 'horizontal';
+	hp.ActionPostCallback = @myCallbackScroll;
+	tl.XLabel.String = 'Time (s)';
+	tl.YLabel.String = 'Normalised Amplitude';
 end
 
 function myCallbackScroll(src,event)
 	src = event.Axes;
 	xl = src.XLim;
 	for i = 1:length(src.Parent.Children)
-		src.Parent.Children(i).YLim = [-0.05 1.05];
+		if i < 9
+			src.Parent.Children(i).YLim = [-0.05 1.05];
+		else
+			ylim(src.Parent.Children(i),'auto');
+		end
 		if ~all(xl == src.Parent.Children(i).XLim)
 			src.Parent.Children(i).XLim = xl;
 		end
@@ -164,4 +156,6 @@ function [idx,val,delta]=findNearest(in,value)
 	[~,idx] = min(abs(in - value));
 	val = in(idx);
 	delta = abs(value - val);
+end
+
 end

@@ -1,4 +1,4 @@
-function [trl, event] = loadCOGEEG(cfg)
+function [trl, events, triggers] = loadCOGEEG(cfg)
 
 % read the header information and the events from the data
 hdr   = ft_read_header(cfg.dataset);
@@ -15,7 +15,7 @@ events = [];
 time = linspace(0, (1/hdr.Fs)*hdr.nSamples, hdr.nSamples);
 
 % any trigger <= 4 samples after previous is considered artifact and removed
-minNextTrigger = 4; 
+minNextTrigger = 10;
 
 %parse our events, removing any events < minNextTriggerTime
 for i = 1:nChannels
@@ -40,6 +40,7 @@ end
 triggers = [];
 times = [];
 bidx = 1;
+nSamples = 4; % number of samples to allow jitter to assign to same strobed word
 for i = 1:nChannels
 	for j = 1:length(events(i).idx)
 		fixit = zeros(1,length(events));
@@ -53,8 +54,8 @@ for i = 1:nChannels
 			% within 4ms
 			for k =  1 : length(events) %check all other channels
 				if k == i; continue; end
-				[idx,val,delta] = findNearest(events(k).times,triggers(bidx).time);
-				if delta < 0.004
+				[idx,val,delta] = findNearest(events(k).samples,triggers(bidx).sample);
+				if delta <= nSamples
 					triggers(bidx).bword(k) = '1';
 					triggers(bidx).time = min([val,triggers(bidx).time]);
 					triggers(bidx).sample = min([events(i).samples(j),events(k).samples(idx)]);
@@ -88,7 +89,31 @@ if ~isempty(purgeIdx)
 	triggers(purgeIdx) = [];
 end
 
-trl = triggers;
+% now we need to make the trl structure fieldtrip needs:
+% first find all trials where a number is followed by 255
+bSamples = round(0.3 / (1/hdr.Fs));
+nTriggers = length(triggers);
+trlN = 0;
+trl0 = [];
+for i = 1:(nTriggers - 1)
+	if triggers(i).value ~= 255 && triggers(i+1).value == 255
+		trlN = trlN + 1;
+		trl0(trlN,1) = triggers(i).sample-bSamples;
+		trl0(trlN,2) = triggers(i+1).sample;
+		trl0(trlN,3) = -bSamples;
+		trl0(trlN,4) = triggers(i).value;
+	end
+end
+
+% now we remove duplicate numbers or any > 10
+trlN = 0;
+trl = [];
+for i = 1:size(trl0,1)-1
+	if (trl0(i,4) ~= trl0(i+1,4)) && trl0(i,4) <= 10
+		trlN = trlN + 1;
+		trl(trlN,:) = trl0(i,:);
+	end
+end
 
 function [idx,val,delta]=findNearest(in,value)
 	%find nearest value in a vector, if more than 1 index return the first	
