@@ -3,9 +3,9 @@ function [trl, events, triggers] = loadCOGEEG(cfg)
 % read the header information and the events from the data
 hdr   = ft_read_header(cfg.dataset);
 % read the events from the data
-chanindx      = 3:10;
+chanindx      = cfg.chanindx;
 detectflank   = 'up';
-threshold     = '6*nanmedian'; % or, e.g., 1/2 times the median for down flanks
+threshold     = cfg.threshold; % or, e.g., 1/2 times the median for down flanks
 event = ft_read_event(cfg.dataset,'header',hdr,...
 		'detectflank',detectflank,'chanindx',chanindx,...
 		'threshold',threshold);
@@ -15,7 +15,11 @@ events = [];
 time = linspace(0, (1/hdr.Fs)*hdr.nSamples, hdr.nSamples);
 
 % any trigger <= 4 samples after previous is considered artifact and removed
-minNextTrigger = 10;
+minNextTrigger = cfg.minTrigger;
+% number of samples to allow jitter to assign to same strobed word
+nSamples = cfg.jitter; 
+% pre stimulus time to select
+preTime = cfg.preTime;
 
 %parse our events, removing any events < minNextTriggerTime
 for i = 1:nChannels
@@ -40,7 +44,7 @@ end
 triggers = [];
 times = [];
 bidx = 1;
-nSamples = 4; % number of samples to allow jitter to assign to same strobed word
+
 for i = 1:nChannels
 	for j = 1:length(events(i).idx)
 		fixit = zeros(1,length(events));
@@ -91,7 +95,7 @@ end
 
 % now we need to make the trl structure fieldtrip needs:
 % first find all trials where a number is followed by 255
-bSamples = round(0.3 / (1/hdr.Fs));
+bSamples = round(preTime / (1/hdr.Fs));
 nTriggers = length(triggers);
 trlN = 0;
 trl0 = [];
@@ -99,7 +103,7 @@ for i = 1:(nTriggers - 1)
 	if triggers(i).value ~= 255 && triggers(i+1).value == 255
 		trlN = trlN + 1;
 		trl0(trlN,1) = triggers(i).sample-bSamples;
-		trl0(trlN,2) = triggers(i+1).sample;
+		trl0(trlN,2) = triggers(i+1).sample+bSamples;
 		trl0(trlN,3) = -bSamples;
 		trl0(trlN,4) = triggers(i).value;
 	end
