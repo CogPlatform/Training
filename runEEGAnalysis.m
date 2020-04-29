@@ -2,7 +2,7 @@ function runEEGAnalysis(ana)
 
 ft_defaults;
 info = load(ana.MATFile);
-info.seq.showLog();
+info.seq.showLog();drawnow;
 vars = info.seq.nVar.values;
 
 data_raw = []; trl=[];triggers=[];events=[];
@@ -46,13 +46,11 @@ timelock = cell(length(varmap),1);
 freq = cell(length(varmap),1);
 for j = 1:length(varmap)
 	cfg				= [];
-	cfg.dataset		= ana.EDFFile;
 	cfg.trials		= find(data_eeg.trialinfo==varmap(j));
 	cfg.keeptrials	= ana.keeptrials;
 	cfg.latency		= ana.latency;
 	timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
 	cfg				= [];
-	cfg.dataset		= ana.EDFFile;
 	cfg.trials		= find(data_eeg.trialinfo==varmap(j));
 	cfg.channel		= 1;
 	cfg.method		= 'mtmconvol';
@@ -108,7 +106,6 @@ function plotFrequency()
 		cfg = [];
 		cfg.baseline = [-0.3 0];
 		cfg.baselinetype = 'absolute';
-		cfg.
 		cfg.xlim = [-0.3 1];
 		ft_singleplotTFR(cfg,freq{jj});
 		line([0 0],[min(ana.freqrange) max(ana.freqrange)],'LineWidth',2);
