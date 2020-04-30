@@ -1,5 +1,6 @@
 function runEEGAnalysis(ana)
 
+ana.table.Data =[]; drawnow;
 ft_defaults;
 info = load(ana.MATFile);
 info.seq.showLog();drawnow;
