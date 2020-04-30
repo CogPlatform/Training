@@ -83,7 +83,7 @@ if length(col1) < maxn; col1(end+1:maxn) = NaN; end
 if length(col2) < maxn; col2(end+1:maxn) = NaN; end
 if length(col3) < maxn; col3(end+1:maxn) = NaN; end
 if length(col4) < maxn; col4(end+1:maxn) = NaN; end
-tdata = table(col1,col2,col3,col4,'VariableNames',{'Trig A','Trig B','Stimulus','Index'});
+tdata = table(col1,col2,col3,col4,'VariableNames',{'Triggers Sent','Data Triggers','Stimulus Value','Index'});
 ana.table.Data = tdata;
 drawnow;
 

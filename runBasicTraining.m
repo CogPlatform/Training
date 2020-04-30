@@ -260,6 +260,7 @@ try
 				fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', thisRun);
 				trackerMessage(eT,'TRIAL_RESULT -100');
 				trackerMessage(eT,'MSG:BreakInitialFix');
+				if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 				Screen('Flip',sM.win); %flip the buffer
 				WaitSecs('YieldSecs',0.5);
 				continue
@@ -462,6 +463,7 @@ end
 			doBreak = checkKeys();
 			if doBreak; break; end
 		end
+		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM);
 		thisResponse = 1;
 		pfeedback = pfeedback + 1;
@@ -486,6 +488,7 @@ end
 			doBreak = checkKeys();
 			if doBreak; break; end
 		end
+		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM);
 		thisResponse = 0;
 		nfeedback = nfeedback + 1;
