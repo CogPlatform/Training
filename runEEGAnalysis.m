@@ -10,7 +10,6 @@ if ana.plotTriggers
 	cfgRaw				= [];
 	cfgRaw.dataset		= ana.EDFFile;
 	cfgRaw.header		= ft_read_header(cfgRaw.dataset);
-	labels				= cfgRaw.header.label(ana.bitChannels);
 	cfgRaw.continuous	= 'yes';
 	cfgRaw.channel		= 'all';
 	cfgRaw.chanindx		= ana.bitChannels;
@@ -125,7 +124,7 @@ function plotRawChannels()
 		'Position',[0.05 0.05 0.4 0.9]);
 	tl = tiledlayout(h,nchan,1,'TileSpacing','compact','Padding','none');
 	tm = data_raw.time{1};
-	xl = [triggers(1).time-1 triggers(1).time+9];
+	xl = [triggers(5).time-1 triggers(5).time+9];
 	for i = 1:nchan
 		ch{i} = data_raw.trial{1}(i+offset,:);
 		baseline = median(ch{i}(1:100));
@@ -147,8 +146,9 @@ function plotRawChannels()
 			ypos = 0.2;
 			for jj = 1:size(trl,1) 
 				line([tm(trl(jj,1)) tm(trl(jj,2))],[ypos ypos]);
-				plot([tm(trl(jj,1)) tm(trl(jj,1)-trl(jj,3)) tm(trl(jj,2))],ypos,'ko','MarkerSize',8);
+				plot([tm(trl(jj,1)) tm(trl(jj,1)-trl(jj,3)) tm(trl(jj,2)+trl(jj,3))],ypos,'ko','MarkerSize',8);
 				text(tm(trl(jj,1)-trl(jj,3)),ypos,['\leftarrow' num2str(trl(jj,4))]);
+				text(tm(trl(jj,2)+trl(jj,3)),ypos,'\leftarrow255');
 				ypos = ypos+0.125;
 				if ypos > 1.0; ypos = 0.3;end
 			end

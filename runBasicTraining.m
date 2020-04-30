@@ -246,6 +246,7 @@ try
 		if ana.useTracker
 			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 				drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
+				if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 				if ana.drawEye; drawEyePosition(eT,true); end
 				finishDrawing(sM);
 				flip(sM);
@@ -265,6 +266,7 @@ try
 			end
 		else
 			drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
+			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			finishDrawing(sM);
 			flip(sM);
 			WaitSecs(0.5);
@@ -275,6 +277,7 @@ try
 		kTimer = 0; % this is the timer to stop too many key events
 		thisResponse = -1; doBreak = false;
 		drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
+		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		tStart = flip(sM); vbl = tStart;
 		if ana.sendTrigger;lM.strobeServer(thisRun); end
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
@@ -290,6 +293,7 @@ try
 					sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2));
 				end
 			end
+			if ana.photoDiode; drawPhotoDiodeSquare(sM,[1 1 1]); end
 			if ana.drawEye; drawEyePosition(eT,true); end
 			finishDrawing(sM);
 			vbl = flip(sM,vbl); tick = tick + 1;
@@ -304,8 +308,10 @@ try
 			if ana.rewardDuring && tick == 60;rM.timedTTL(2,300);rewards=rewards+1;end
 		end
 		
-		vbl=flip(sM); tEnd = vbl;
+		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
+		vbl=flip(sM);
 		if ana.sendTrigger;lM.strobeServer(255); end
+		tEnd = vbl;
 		
 		if strcmpi(fixated,'breakfix') || thisResponse == 0
 			trackerMessage(eT,'ENDVBL',vbl);
@@ -324,6 +330,7 @@ try
 			end
 			if ana.sendTrigger;lM.strobeServer(250); end
 			WaitSecs('YieldSecs',ana.ITI);
+			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			flip(sM);
 		end
 		ListenChar(0);
@@ -445,10 +452,12 @@ end
 		beep(sM.audio,'high');
 		WaitSecs(0.02);if ana.sendTrigger;lM.strobeServer(250); end
 		drawGreenSpot(sM,5);
+		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
 		cloop=1;
 		while vbl <= ct + ana.ITI
 			if cloop<60; drawGreenSpot(sM,5); end
+			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			vbl=flip(sM); cloop=cloop+1;
 			doBreak = checkKeys();
 			if doBreak; break; end
@@ -467,10 +476,12 @@ end
 		beep(sM.audio,'low');
 		WaitSecs(0.02);if ana.sendTrigger;lM.strobeServer(251); end
 		drawRedSpot(sM,5);
+		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
 		cloop=1;
 		while vbl <= ct + ana.timeOut
 			if cloop<60; drawRedSpot(sM,5); end
+			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			vbl=flip(sM);cloop=cloop+1;
 			doBreak = checkKeys();
 			if doBreak; break; end
