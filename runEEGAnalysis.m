@@ -40,6 +40,7 @@ cfg.polyremoval		= ana.polyremoval;
 cfg.baselinewindow	= ana.baseline;
 cfg.channel			= ana.dataChannels;
 data_eeg			= ft_preprocessing(cfg);
+data_cfg			= cfg;
 
 varmap = unique(data_eeg.trialinfo);
 timelock = cell(length(varmap),1);
@@ -54,7 +55,7 @@ for j = 1:length(varmap)
 	cfg.trials		= find(data_eeg.trialinfo==varmap(j));
 	cfg.channel		= 1;
 	cfg.method		= 'mtmconvol';
-	cfg.taper		= 'hanning';
+	cfg.taper		= ana.freqtaper;
 	cfg.pad			= 'nextpow2';
 	cfg.foi			= ana.freqrange;                         % analysis 2 to 30 Hz in steps of 2 Hz
 	cfg.t_ftimwin	= ones(length(cfg.foi),1).*0.2;   % length of time window = 0.5 sec
@@ -71,6 +72,20 @@ info.data_raw		= data_raw;
 info.data_eeg		= data_eeg;
 info.triggers		= triggers;
 assignin('base','info',info);
+
+col1 = info.seq.outIndex;if size(col1,1)<size(col1,2); col1=col1';end
+col2 = info.data_eeg.trialinfo;if size(col2,1)<size(col2,2); col2=col2';end
+col3 = info.seq.nVar.values; if size(col3,1)<size(col3,2); col3=col3';end
+col4 = 1:length(col3); if size(col4,1)<size(col4,2); col4=col4';end
+
+maxn = max([length(col1) length(col2) length(col3) length(col4)]);
+if length(col1) < maxn; col1(end+1:maxn) = NaN; end
+if length(col2) < maxn; col2(end+1:maxn) = NaN; end
+if length(col3) < maxn; col3(end+1:maxn) = NaN; end
+if length(col4) < maxn; col4(end+1:maxn) = NaN; end
+tdata = table(col1,col2,col3,col4,'VariableNames',{'Trig A','Trig B','Stimulus','Index'});
+ana.table.Data = tdata;
+drawnow;
 
 
 %==========================================SUB FUNCTIONS
@@ -104,9 +119,9 @@ function plotFrequency()
 	for jj = 1:length(freq)
 		nexttile(tl)
 		cfg = [];
-		cfg.baseline = [-0.3 0];
-		cfg.baselinetype = 'absolute';
-		cfg.xlim = [-0.3 1];
+		cfg.baseline = ana.freqbaselinevalue;
+		cfg.baselinetype = ana.freqbaseline;
+		%cfg.xlim = [-0.3 1];
 		ft_singleplotTFR(cfg,freq{jj});
 		line([0 0],[min(ana.freqrange) max(ana.freqrange)],'LineWidth',2);
 		xlabel('Time (s)');
