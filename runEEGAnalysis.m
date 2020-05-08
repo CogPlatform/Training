@@ -91,7 +91,7 @@ drawnow;
 %==========================================SUB FUNCTIONS
 
 function plotTimeLock()
-	h = figure('Name',['TL Processed Data: ' ana.EDFFile],'Units','normalized',...
+	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
 		'Position',[0 0.1 0.3 0.9]);
 	tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
 	for jj = 1:length(timelock)
@@ -107,13 +107,15 @@ function plotTimeLock()
 		line([0 0],ylim,'LineWidth',1,'Color','k');
 		title(['Var: ' num2str(jj) ' = ' num2str(vars(jj))])
 	end
+	
+	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval);
 	tl.XLabel.String = 'Time (s)';
 	tl.YLabel.String = 'Amplitude';
-	tl.Title.String = 'Time Lock analysis';
+	tl.Title.String = t;
 end
 
 function plotFrequency()
-	h = figure('Name',['TF Processed Data: ' ana.EDFFile],'Units','normalized',...
+	h = figure('Name',['TF Data: ' ana.EDFFile],'Units','normalized',...
 		'Position',[0.3 0.1 0.3 0.9]);
 	tl = tiledlayout(h,'flow');
 	for jj = 1:length(freq)
