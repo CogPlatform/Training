@@ -280,7 +280,6 @@ try
 		drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		tStart = flip(sM); vbl = tStart;
-		if ana.sendTrigger;lM.strobeServer(thisRun); end
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		if ~ana.isVEP; play(sM.audio); end
 		while vbl < tStart + ana.playTimes
@@ -298,6 +297,7 @@ try
 			if ana.drawEye; drawEyePosition(eT,true); end
 			finishDrawing(sM);
 			vbl = flip(sM,vbl); tick = tick + 1;
+			if tick==1 && ana.sendTrigger; lM.strobeServer(thisRun); end
 			if ~ana.fixOnly; animate(stim); end
 			getSample(eT);
 			if ana.useTracker && ~isFixated(eT)

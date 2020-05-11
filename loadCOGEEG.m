@@ -98,26 +98,26 @@ end
 bSamples = round(preTime / (1/hdr.Fs));
 nTriggers = length(triggers);
 trlN = 0;
-trl0 = [];
+trl = [];
 for i = 1:(nTriggers - 1)
-	if triggers(i).value ~= 255 && triggers(i+1).value == 255
+	if triggers(i).value ~= 255 && triggers(i+1).value == 255 && triggers(i+2).value == 250
 		trlN = trlN + 1;
-		trl0(trlN,1) = triggers(i).sample-bSamples;
-		trl0(trlN,2) = triggers(i+1).sample+bSamples;
-		trl0(trlN,3) = -bSamples;
-		trl0(trlN,4) = triggers(i).value;
+		trl(trlN,1) = triggers(i).sample-bSamples;
+		trl(trlN,2) = triggers(i+1).sample+bSamples;
+		trl(trlN,3) = -bSamples;
+		trl(trlN,4) = triggers(i).value;
 	end
 end
 
-% now we remove duplicate numbers or any > 10
-trlN = 0;
-trl = [];
-for i = 1:size(trl0,1)-1
-	if (trl0(i,4) ~= trl0(i+1,4)) && trl0(i,4) <= 10
-		trlN = trlN + 1;
-		trl(trlN,:) = trl0(i,:);
-	end
-end
+% now we remove duplicate numbers (early bug) or any > 10
+%trlN = 0;
+%trl = [];
+%for i = 1:size(trl0,1)-1
+%	if (trl0(i,4) ~= trl0(i+1,4)) && trl0(i,4) <= 249
+%		trlN = trlN + 1;
+%		trl(trlN,:) = trl0(i,:);
+%	end
+%end
 
 function [idx,val,delta]=findNearest(in,value)
 	%find nearest value in a vector, if more than 1 index return the first	

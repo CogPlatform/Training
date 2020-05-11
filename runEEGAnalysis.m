@@ -13,12 +13,15 @@ if ana.plotTriggers
 	cfgRaw.header		= ft_read_header(cfgRaw.dataset);
 	cfgRaw.continuous	= 'yes';
 	cfgRaw.channel		= 'all';
-	cfgRaw.chanindx		= ana.bitChannels;
+	cfgRaw.demean		= 'yes';
+	cfgRaw.detrend		= 'yes';
+	cfgRaw.polyremoval= 'yes';
+	cfgRaw.chanindx	= ana.bitChannels;
 	cfgRaw.threshold	= ana.threshold;
 	cfgRaw.jitter		= ana.jitter;
 	cfgRaw.minTrigger	= ana.minTrigger;
 	cfgRaw.preTime		= ana.preTime;
-	data_raw			= ft_preprocessing(cfgRaw);
+	data_raw				= ft_preprocessing(cfgRaw);
 	[trl, events, triggers] = loadCOGEEG(cfgRaw);
 	plotRawChannels(); drawnow;
 end
@@ -36,15 +39,15 @@ cfg					= ft_definetrial(cfg);
 cfg.dftfilter		= ana.dftfilter;
 cfg.demean			= ana.demean;
 cfg.detrend			= ana.detrend;
-cfg.polyremoval		= ana.polyremoval;
-cfg.baselinewindow	= ana.baseline;
+cfg.polyremoval	= ana.polyremoval;
+cfg.baselinewindow= ana.baseline;
 cfg.channel			= ana.dataChannels;
-data_eeg			= ft_preprocessing(cfg);
-data_cfg			= cfg;
+data_eeg				= ft_preprocessing(cfg);
+data_cfg				= cfg;
 
-varmap = unique(data_eeg.trialinfo);
-timelock = cell(length(varmap),1);
-freq = cell(length(varmap),1);
+varmap				= unique(data_eeg.trialinfo);
+timelock				= cell(length(varmap),1);
+freq					= cell(length(varmap),1);
 for j = 1:length(varmap)
 	cfg				= [];
 	cfg.trials		= find(data_eeg.trialinfo==varmap(j));
@@ -149,18 +152,23 @@ function plotRawChannels()
 		ch{i} = (ch{i} - baseline);
 		ch{i} = ch{i} / max(ch{i});
 		nexttile(tl,i)
-		plot(tm,ch{i},'k-'); hold on
-		if i < 3
+		p = plot(tm,ch{i},'k-'); 
+		dtt = p.DataTipTemplate;
+		dtt.DataTipRows(1).Format = '%.3f';
+		hold on
+		if any(ana.dataChannels == i)
 			for ii = 1:length(events)
 				y = repmat(ii/10, [1 length(events(ii).times)]);
-				plot(events(ii).times,y,'.','MarkerSize',12);
+				p = plot(events(ii).times,y,'.','MarkerSize',12);
+				dtt = p.DataTipTemplate;
+				dtt.DataTipRows(1).Format = '%.3f';
 			end
 		else
-			ii = i - 2;
+			ii = i - (ana.bitChannels(1)-1);
 			if ~isempty(events(ii).times);plot(events(ii).times,0.75,'r.','MarkerSize',12);end
 			ylim([-0.05 1.05]);
 		end
-		if i == 1
+		if any(ana.dataChannels == i) && i == 1
 			ypos = 0.2;
 			for jj = 1:size(trl,1) 
 				line([tm(trl(jj,1)) tm(trl(jj,2))],[ypos ypos]);
