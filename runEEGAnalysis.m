@@ -43,7 +43,7 @@ cfg.polyremoval	= ana.polyremoval;
 cfg.baselinewindow= ana.baseline;
 cfg.channel			= ana.dataChannels;
 data_eeg				= ft_preprocessing(cfg);
-data_cfg				= cfg;
+info.data_cfg		= cfg;
 
 varmap				= unique(data_eeg.trialinfo);
 timelock				= cell(length(varmap),1);
@@ -145,7 +145,7 @@ function plotRawChannels()
 		'Position',[0.05 0.05 0.4 0.9]);
 	tl = tiledlayout(h,nchan,1,'TileSpacing','compact','Padding','none');
 	tm = data_raw.time{1};
-	xl = [triggers(5).time-1 triggers(5).time+9];
+	xl = [tm(trl(1,1))-1 tm(trl(1,1))+9];
 	for i = 1:nchan
 		ch{i} = data_raw.trial{1}(i+offset,:);
 		baseline = median(ch{i}(1:100));
@@ -156,19 +156,20 @@ function plotRawChannels()
 		dtt = p.DataTipTemplate;
 		dtt.DataTipRows(1).Format = '%.3f';
 		hold on
-		if any(ana.dataChannels == i)
+		if any([ana.dataChannels ana.pDiode] == i)
 			for ii = 1:length(events)
 				y = repmat(ii/10, [1 length(events(ii).times)]);
 				p = plot(events(ii).times,y,'.','MarkerSize',12);
 				dtt = p.DataTipTemplate;
 				dtt.DataTipRows(1).Format = '%.3f';
 			end
+			ylim([-inf inf]);
 		else
 			ii = i - (ana.bitChannels(1)-1);
 			if ~isempty(events(ii).times);plot(events(ii).times,0.75,'r.','MarkerSize',12);end
 			ylim([-0.05 1.05]);
 		end
-		if any(ana.dataChannels == i) && i == 1
+		if any([ana.dataChannels ana.pDiode] == i) && i == 1
 			ypos = 0.2;
 			for jj = 1:size(trl,1) 
 				line([tm(trl(jj,1)) tm(trl(jj,2))],[ypos ypos]);
@@ -178,6 +179,11 @@ function plotRawChannels()
 				ypos = ypos+0.125;
 				if ypos > 1.0; ypos = 0.3;end
 			end
+			trgVals = num2cell([triggers.value]);
+			trgVals = cellfun(@num2str,trgVals,'UniformOutput',false);
+			trgTime = [triggers.time];
+			trgY = ones(1,length(trgTime));
+			text(trgTime,trgY,trgVals);
 		end
 		title(data_raw.label{i});
 		xlim(xl);
@@ -196,7 +202,7 @@ function myCallbackScroll(~,event)
 	src = event.Axes;
 	xl = src.XLim;
 	for i = 1:length(src.Parent.Children)
-		if i < 9
+		if i < length(src.Parent.Children)-2
 			src.Parent.Children(i).YLim = [-0.05 1.05];
 		else
 			ylim(src.Parent.Children(i),'auto');

@@ -6,13 +6,13 @@ screenSize = [];
 
 ptb = mySetup(screen,bgColour,screenSize);
 
-resolution = [500 500];
+resolution = [400 400];
 phase = 0;
 angle = 0;
 sf = 1 / ptb.ppd; %1c/d
 contrast = 0.75; 
 sigma = -1; % >=0 become a square wave smoothed with sigma. <0 = sinewave grating.
-radius = 0; %if radius > 0 then we create a circular aperture radius pixels wide
+radius = inf; %if radius > 0 then we create a circular aperture radius pixels wide
 
 colorA = [1 0 0 1];
 colorB = [0 1 0 1];
@@ -21,6 +21,10 @@ colorB = [0 1 0 1];
 [cgrat, crect] = CreateProceduralColorGrating(ptb.win, ...
 	resolution(1), resolution(2),...
 	colorA, colorB, radius);
+
+% this is a two color grating, passing in colorA and colorB.
+[chboard, chrect, chshader] = CreateProceduralCheckerboard(ptb.win, ...
+	resolution(1), resolution(2), radius);
 
 colorC = [0.6 0 0 1];
 colorD = [0 0.6 0 1];
@@ -34,14 +38,17 @@ Priority(MaxPriority(ptb.win)); %bump our priority to maximum allowed
 
 mvaRect = CenterRect(arect,ptb.winRect);
 crect = CenterRect(crect,ptb.winRect);
+mvcbRect = OffsetRect(crect,0,resolution(1)+10);
 mvcRect = OffsetRect(crect,-resolution(1),0);
 mvccRect = OffsetRect(crect,resolution(1),0);
+degRect = CenterRect([0 0 ptb.ppd ptb.ppd], ptb.winRect);
+degRect = OffsetRect(degRect,0,resolution(1)/2);
 
-% UNCOMMENT this to fix the shader error, adds 1 horizontal pixel to size
-%mvaRect = mvaRect + [0 0 1 0];
+% UNCOMMENT this to fix the shader error, adds 1 vertical pixel to size
+mvaRect = mvaRect + [0 0 0 1];
 
 vbl(1)=Screen('Flip', ptb.win);
-while vbl(end) < vbl(1) + 8
+while vbl(end) < vbl(1) + 10
 	%if contrast < 1, then modulateColor is used as the middle point, so for
 	%example if color1=red & color2=green & modulateColor=[0.5 0.5 0.5] then
 	%as we decrease contrast, we blend red and green each with mid-grey.
@@ -57,15 +64,23 @@ while vbl(end) < vbl(1) + 8
 	Screen('DrawTexture', ptb.win, anstis, [], mvaRect,...
 		angle, [], [], [], [], [],...
 		[phase, sf, 0, 0]);
-	Screen('DrawingFinished',ptb.win);
-	phase = phase - 1; 
+	
+	colour1 = [1 1 1 1];
+	colour2 = [0 0 0 1];
+	
+	Screen('DrawTexture', ptb.win, chboard, [], mvcbRect,...
+		angle, [], [], [bgColour bgColour bgColour 1], [], [],...
+		[ptb.ppd, 1, 0.8, phase, colour1, colour2]);
+	
+	Screen('FillRect', ptb.win, [1 0 1], degRect);
+	phase = phase - 5; 
 	%angle = angle + 0.2;
 	vbl(end+1) = Screen('Flip', ptb.win, vbl(end) + ptb.ifi/2);
 end
 
 Screen('Flip', ptb.win);
 
-figure;plot(diff(vbl)*1e3);title(sprintf('VBL Times, should be ~%.2f ms',ptb.ifi*1e3));ylabel('Time (ms)')
+%figure;plot(diff(vbl)*1e3);title(sprintf('VBL Times, should be ~%.2f ms',ptb.ifi*1e3));ylabel('Time (ms)')
 
 end
 
