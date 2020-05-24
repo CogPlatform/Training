@@ -2,7 +2,7 @@ function anstistest()
 
 bgColour = 0.5;
 screen = max(Screen('Screens'));
-screenSize = [];
+screenSize = [0 0 1600 1000];
 
 ptb = mySetup(screen,bgColour,screenSize);
 
@@ -46,7 +46,8 @@ degRect = OffsetRect(degRect,0,resolution(1)/2);
 
 % UNCOMMENT this to fix the shader error, adds 1 vertical pixel to size
 mvaRect = mvaRect + [0 0 0 1];
-
+mvcbRect = mvcbRect + [0 0 0 1];
+thisp = 0;
 vbl(1)=Screen('Flip', ptb.win);
 while vbl(end) < vbl(1) + 10
 	%if contrast < 1, then modulateColor is used as the middle point, so for
@@ -59,7 +60,7 @@ while vbl(end) < vbl(1) + 10
 		[phase, sf, contrast, sigma]);
 	Screen('DrawTexture', ptb.win, cgrat, [], mvccRect,...
 		angle, [], [], [bgColour bgColour bgColour 1], [], [],...
-		[phase, sf, 0.75, 0.0]); % this is a 0.25contrast smoothed square wave grating		
+		[phase, sf, 0.25, 0.0]); % this is a 0.25contrast smoothed square wave grating		
 	%only auxParameters phase and sf are used
 	Screen('DrawTexture', ptb.win, anstis, [], mvaRect,...
 		angle, [], [], [], [], [],...
@@ -68,13 +69,20 @@ while vbl(end) < vbl(1) + 10
 	colour1 = [1 1 1 1];
 	colour2 = [0 0 0 1];
 	
+	if mod(length(vbl),60)==0
+		if thisp == 0
+			thisp = 180;
+		else
+			thisp = 0;
+		end
+	end
+	
 	Screen('DrawTexture', ptb.win, chboard, [], mvcbRect,...
 		angle, [], [], [bgColour bgColour bgColour 1], [], [],...
-		[ptb.ppd, 1, 0.8, phase, colour1, colour2]);
+		[ptb.ppd, 1, 1.0, thisp, colour1, colour2]);
 	
 	Screen('FillRect', ptb.win, [1 0 1], degRect);
 	phase = phase - 5; 
-	%angle = angle + 0.2;
 	vbl(end+1) = Screen('Flip', ptb.win, vbl(end) + ptb.ifi/2);
 end
 
@@ -89,7 +97,7 @@ function ptb = mySetup(screen, bgColour, ws)
 
 ptb.cleanup = onCleanup(@myCleanup);
 PsychDefaultSetup(2);
-Screen('Preference', 'SkipSyncTests', 1);
+Screen('Preference', 'SkipSyncTests', 2);
 if isempty(screen); screen = max(Screen('Screens')); end
 ptb.ScreenID = screen;
 PsychImaging('PrepareConfiguration');

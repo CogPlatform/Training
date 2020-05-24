@@ -45,14 +45,14 @@ void main()
     /* ppd: */
     ppd = auxParameters0[0];
 
-    /* size: */
+    /* size ( divide by 2 to get cycle): */
     size = auxParameters0[1];
 
     /* contrast: */
     contrast = auxParameters0[2];
 
-    /* phase: */
-    phase = auxParameters0[3] / twopi;
+    /* phase converted to pixels: */
+    phase = ( auxParameters0[3] * deg2rad ) / twopi;
 
     colour1 = auxParameters1;
     colour2 = auxParameters2;

@@ -30,7 +30,7 @@ void main() {
     pos.x = pos.x + phase;
 
     /* scale to size */
-    pos = floor( pos / size );
+    pos = floor( pos / ( ppd / size / 2 ) );
 
     float mask = mod( pos.x + pos.y, 2.0 );
 
