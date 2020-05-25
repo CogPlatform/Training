@@ -204,8 +204,9 @@ try
 		stim.stimuli{1}.phaseReverseTime		= ana.VEP.Flicker;
 		
 		stim.stimuli{2}							= discStimulus();
-		stim.stimuli{2}.size						= 1;
+		stim.stimuli{2}.size					= 1;
 		stim.stimuli{2}.colour					= ana.backgroundColour;
+		if ana.spotSize == 0; stim.stimuli{2}.hide(); end
 		stim.setup(sM);
 		ana.fixOnly			= false;
 		ana.moveStim		= false;
@@ -216,9 +217,9 @@ try
 		seq.nVar(1).name	= 'sf';
 		if length(ana.VEP.SF) == 3
 			if ana.VEP.LogSF
-				seq.nVar(1).values	= [logspace(log10(ana.VEP.SF(1)),log10(ana.VEP.SF(2)),ana.VEP.SF(3))];
+				seq.nVar(1).values	= logspace(log10(ana.VEP.SF(1)),log10(ana.VEP.SF(2)),ana.VEP.SF(3));
 			else
-				seq.nVar(1).values	= [linspace(ana.VEP.SF(1),ana.VEP.SF(2),ana.VEP.SF(3))];
+				seq.nVar(1).values	= linspace(ana.VEP.SF(1),ana.VEP.SF(2),ana.VEP.SF(3));
 			end
 		else
 			seq.nVar(1).values = [ana.VEP.SF];
@@ -306,7 +307,7 @@ try
 		fixated = ''; doBreak = false;
 		if ana.useTracker
 			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-				drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
+				if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2));end
 				if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 				if ana.drawEye; drawEyePosition(eT,true); end
 				finishDrawing(sM);
@@ -327,7 +328,7 @@ try
 				continue
 			end
 		else
-			drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
+			if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2));end
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			finishDrawing(sM);
 			flip(sM);
@@ -338,7 +339,7 @@ try
 		tick = 0;
 		kTimer = 0; % this is the timer to stop too many key events
 		thisResponse = -1; doBreak = false;
-		drawCross(sM,ana.spotSize,[],thisPos(1),thisPos(2));
+		if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2));end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		if ~ana.isVEP; play(sM.audio); end
@@ -349,7 +350,7 @@ try
 			else
 				draw(stim);
 				if ana.isVEP
-					sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2));
+					if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2));end
 				else
 					sM.drawCross(0.4,[0.5 0.5 0.5],thisPos(1),thisPos(2));
 				end
