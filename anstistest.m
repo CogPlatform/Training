@@ -1,6 +1,6 @@
 function anstistest()
 
-bgColour = 0.5;
+bgColour = [0.5 0.5 0.5];
 screen = max(Screen('Screens'));
 screenSize = [0 0 1600 1000];
 
@@ -9,7 +9,7 @@ ptb = mySetup(screen,bgColour,screenSize);
 resolution = [400 400];
 phase = 0;
 angle = 0;
-sf = 1 / ptb.ppd; %1c/d
+sf = 0.5 / ptb.ppd; %1c/d
 contrast = 0.75; 
 sigma = -1; % >=0 become a square wave smoothed with sigma. <0 = sinewave grating.
 radius = inf; %if radius > 0 then we create a circular aperture radius pixels wide
@@ -56,10 +56,10 @@ while vbl(end) < vbl(1) + 10
 	%The 4th value auxParameters is sigma. If sigma >= 0 then the grating 
 	%becomes a square wave smoothed with sigma between color1 and color2.
 	Screen('DrawTexture', ptb.win, cgrat, [], mvcRect,...
-		angle, [], [], [bgColour bgColour bgColour 1], [], [],...
+		angle, [], [], [bgColour 1], [], [],...
 		[phase, sf, contrast, sigma]);
 	Screen('DrawTexture', ptb.win, cgrat, [], mvccRect,...
-		angle, [], [], [bgColour bgColour bgColour 1], [], [],...
+		angle, [], [], [bgColour 1], [], [],...
 		[phase, sf, 0.25, 0.0]); % this is a 0.25contrast smoothed square wave grating		
 	%only auxParameters phase and sf are used
 	Screen('DrawTexture', ptb.win, anstis, [], mvaRect,...
@@ -69,7 +69,7 @@ while vbl(end) < vbl(1) + 10
 	colour1 = [1 1 1 1];
 	colour2 = [0 0 0 1];
 	
-	if mod(length(vbl),60)==0
+	if mod(length(vbl),ptb.fps)==0
 		if thisp == 0
 			thisp = 180;
 		else
@@ -78,8 +78,8 @@ while vbl(end) < vbl(1) + 10
 	end
 	
 	Screen('DrawTexture', ptb.win, chboard, [], mvcbRect,...
-		angle, [], [], [bgColour bgColour bgColour 1], [], [],...
-		[ptb.ppd, 1, 1.0, thisp, colour1, colour2]);
+		angle, [], [], [bgColour 1], [], [],...
+		[ptb.ppd, sf*ptb.ppd, 0.2, thisp, colour1, colour2]);
 	
 	Screen('FillRect', ptb.win, [1 0 1], degRect);
 	phase = phase - 5; 

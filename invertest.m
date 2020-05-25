@@ -2,7 +2,7 @@ function invertest()
 
 bgColour = 0.5;
 screen = max(Screen('Screens'));
-screenSize = [0 0 1000 1000];
+screenSize = [];
 
 ptb = mySetup(screen,bgColour,screenSize);
 
@@ -17,13 +17,16 @@ shader = LoadGLSLProgramFromFiles(which('Invert.frag'), 1);
 glUseProgram(shader);
 glUniform1i(glGetUniformLocation(shader, 'Image'), 0);
 glUseProgram(0);
-
+trig = false;
 vbl(1)=Screen('Flip', ptb.win);
-while vbl(end) < vbl(1) + 4
+while vbl(end) < vbl(1) + 10
 	%Screen('DrawTexture', windowPointer, texturePointer [,sourceRect] [,destinationRect] 
 	%[,rotationAngle] [, filterMode] [,globalAlpha] [, modulateColor] [, textureShader] 
 	%[, specialFlags] [, auxParameters])
-	if length(vbl)<=ptb.fps
+	if mod(length(vbl),ptb.fps)==0
+		trig = ~trig;
+	end
+	if ~trig
 		Screen('DrawTexture',ptb.win, texture,[],[],...
 		0, [], [], [],[]);
 	else
@@ -35,7 +38,6 @@ while vbl(end) < vbl(1) + 4
 end
 
 Screen('Flip', ptb.win);
-
 
 end
 

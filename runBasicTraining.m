@@ -26,7 +26,6 @@ ana.gpu = opengl('data');
 ana.screenID = max(Screen('Screens'));%-1;
 
 %===================Make a name for this run===================
-
 if ~isempty(ana.subject)
 	nameExp = ['basicTrain_' ana.stimulus '_' ana.subject];
 	ana.timeExp = fix(clock());
@@ -43,7 +42,6 @@ cla(ana.plotAxis2);
 %==========================TRY==========================
 try
 	PsychDefaultSetup(2);
-	Screen('Preference', 'SkipSyncTests', 1);
 	%===================open our screen====================
 	sM							= screenManager();
 	sM.screen				= ana.screenID;
@@ -62,6 +60,7 @@ try
 	sM.distance				= ana.distance;
 	sM.blend					= true;
 	sM.open; % OPEN THE SCREEN
+	ana.gpuInfo				= Screen('GetWindowInfo',sM.win);
 	fprintf('\n--->>> BasicTraining Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
 	PsychPortAudio('Close');
@@ -158,31 +157,80 @@ try
 		seq.taskFinished	= false;
 	elseif strcmpi(ana.stimulus,'VEP')
 		stim									= metaStimulus();
-		stim.stimuli{1}					= barStimulus();
-		stim.stimuli{1}.barWidth		= ceil(sM.screenVals.width / sM.ppd);
-		stim.stimuli{1}.barHeight		= ceil(sM.screenVals.height / sM.ppd);
-		stim.stimuli{1}.type				= 'checkerboard';
-		stim.stimuli{1}.contrast		= ana.VEPContrast(end);
-		stim.stimuli{1}.speed			= 0;
-		stim.stimuli{1}.phaseReverseTime	= ana.VEPFlicker;
-		stim.stimuli{1}.checkSize		= ana.VEPSF(2);
-		stim.stimuli{2}					= discStimulus();
-		stim.stimuli{2}.size				= 1;
-		stim.stimuli{2}.colour			= ana.backgroundColour;
+		switch ana.VEP.Type
+			case 'Checkerboard'
+				stim.stimuli{1}					= barStimulus();
+				if ana.size == 0 || ana.size == inf
+					stim.stimuli{1}.barWidth	= ceil(sM.screenVals.width / sM.ppd);
+					stim.stimuli{1}.barHeight	= ceil(sM.screenVals.height / sM.ppd);
+				else
+					stim.stimuli{1}.size			= ana.size;
+				end
+				stim.stimuli{1}.type				= 'checkerboard';
+			case {'Square','Sin'}
+				stim.stimuli{1}					= gratingStimulus();
+				if ana.size == 0 || ana.size == inf
+					stim.stimuli{1}.size	= ceil(sM.screenVals.width / sM.ppd);
+				else
+					stim.stimuli{1}.size			= ana.size;
+				end
+				if strcmpi(ana.VEP.Type,'Square')
+					stim.stimuli{1}.type = 'square';
+				end
+				stim.stimuli{1}.tf				= 0;
+				stim.stimuli{1}.mask				= false;
+			case 'LogGabor'
+				stim.stimuli{1}					= logGaborStimulus();
+				if ana.size == 0 || ana.size == inf
+					stim.stimuli{1}.size	= ceil(sM.screenVals.width / sM.ppd);
+				else
+					stim.stimuli{1}.size			= ana.size;
+				end
+				stim.stimuli{1}.sf				= ana.VEP.sfPeak;
+				stim.stimuli{1}.sfSigma			= ana.VEP.sfSigma;
+				stim.stimuli{1}.angle			= ana.VEP.anglePeak;
+				stim.stimuli{1}.angleSigma		= ana.VEP.angleSigma;
+				stim.stimuli{1}.mask				= false;
+		end
+		stim.stimuli{1}.speed					= 0;
+		stim.stimuli{1}.phaseReverseTime		= ana.VEP.Flicker;
+		
+		stim.stimuli{2}							= discStimulus();
+		stim.stimuli{2}.size						= 1;
+		stim.stimuli{2}.colour					= ana.backgroundColour;
 		stim.setup(sM);
 		ana.fixOnly			= false;
 		ana.moveStim		= false;
 		ana.isVEP			= true;
 		seq					= stimulusSequence();
 		seq.nBlocks			= ana.nBlocks;
+		
 		seq.nVar(1).name	= 'sf';
-		if ana.VEPLog
-			seq.nVar(1).values	= [ana.VEPSFZero logspace(log10(ana.VEPSF(1)),log10(ana.VEPSF(2)),ana.VEPSF(3))];
+		if length(ana.VEP.SF) == 3
+			if ana.VEP.LogSF
+				seq.nVar(1).values	= [logspace(log10(ana.VEP.SF(1)),log10(ana.VEP.SF(2)),ana.VEP.SF(3))];
+			else
+				seq.nVar(1).values	= [linspace(ana.VEP.SF(1),ana.VEP.SF(2),ana.VEP.SF(3))];
+			end
 		else
-			seq.nVar(1).values	= [ana.VEPSFZero linspace(ana.VEPSF(1),ana.VEPSF(2),ana.VEPSF(3))];
+			seq.nVar(1).values = [ana.VEP.SF];
 		end
 		seq.nVar(1).values = unique(seq.nVar(1).values);
 		seq.nVar(1).stimulus = 1;
+		
+		seq.nVar(2).name	= 'contrast';
+		if length(ana.VEP.Contrast) == 3
+			if ana.VEP.LogContrast
+				seq.nVar(2).values	= [logspace(log10(ana.VEP.Contrast(1)),log10(ana.VEP.Contrast(2)),ana.VEP.Contrast(3))];
+			else
+				seq.nVar(2).values	= [linspace(ana.VEP.Contrast(1),ana.VEP.Contrast(2),ana.VEP.Contrast(3))];
+			end
+		else
+			seq.nVar(2).values = [ana.VEP.Contrast];
+		end
+		seq.nVar(2).values = unique(seq.nVar(2).values);
+		seq.nVar(2).stimulus = 1;
+		
 		initialise(seq);
 		ana.nTrials = seq.nRuns;
 	else
@@ -231,8 +279,9 @@ try
 		end
 		if ana.isVEP
 			thisRun = seq.outIndex(seq.totalRuns);
-			stim.stimuli{1}.checkSizeOut = seq.outValues{seq.totalRuns};
-			fprintf('\n===>>> BasicTraining START Run = %i:%i | %s | checkSize = %.2f\n', thisRun, seq.totalRuns, sM.fullName,stim.stimuli{1}.checkSizeOut);
+			stim.stimuli{1}.sfOut = seq.outValues{seq.totalRuns,1};
+			stim.stimuli{1}.contrastOut = seq.outValues{seq.totalRuns,2};
+			fprintf('\n===>>> BasicTraining START Run = %i:%i | %s | SF = %.2f | Contrast = %.2f\n', thisRun, seq.totalRuns, sM.fullName,stim.stimuli{1}.sfOut,stim.stimuli{1}.contrastOut);
 		end
 		
 		if ~ana.fixOnly
