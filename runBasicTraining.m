@@ -59,6 +59,13 @@ try
 	sM.pixelsPerCm			= ana.pixelsPerCm;
 	sM.distance				= ana.distance;
 	sM.blend					= true;
+	if isfield(ana,'screenCal') && exist(ana.screenCal, 'file')
+		load(ana.screenCal);
+		if exist('c','var') && isa(c,'calibrateLuminance')
+			sM.gammaTable = c;
+		end
+		clear c;
+	end
 	sM.open; % OPEN THE SCREEN
 	ana.gpuInfo				= Screen('GetWindowInfo',sM.win);
 	fprintf('\n--->>> BasicTraining Opened Screen %i : %s\n', sM.win, sM.fullName);
@@ -175,6 +182,7 @@ try
 					stim.stimuli{1}.size			= ana.size;
 				end
 				if strcmpi(ana.VEP.Type,'Square')
+					sM.blend					= false;
 					stim.stimuli{1}.type = 'square';
 				end
 				stim.stimuli{1}.tf				= 0;
