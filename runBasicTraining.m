@@ -87,6 +87,7 @@ try
 	eT.eyeUsed				= ana.eyeUsed;
 	eT.sampleRate			= ana.sampleRate;
 	eT.calibrationStimulus= ana.calStim;
+	eT.manualCalibration = ana.calManual;
 	eT.calPositions		= ana.calPos;
 	eT.valPositions		= ana.valPos;
 	eT.autoPace				= ana.autoPace;
@@ -105,7 +106,7 @@ try
 		s.pixelsPerCm		= sM.pixelsPerCm;
 		s.distance			= sM.distance;
 		[w,h]=Screen('WindowSize',s.screen);
-		s.windowed			= [0 0 round(w/1.5) round(h/1.5)];
+		s.windowed			= [0 0 round(w/1.2) round(h/1.2)];
 		s.bitDepth			= '8bit';
 		s.blend				= sM.blend;
 		s.disableSyncTests= true;
