@@ -104,7 +104,8 @@ try
 		s.backgroundColour= sM.backgroundColour;
 		s.pixelsPerCm		= sM.pixelsPerCm;
 		s.distance			= sM.distance;
-		s.windowed			= [0 0 1400 1000];
+		[w,h]=Screen('WindowSize',s.screen);
+		s.windowed			= [0 0 round(w/1.5) round(h/1.5)];
 		s.bitDepth			= '8bit';
 		s.blend				= sM.blend;
 		s.disableSyncTests= true;
@@ -182,11 +183,12 @@ try
 					stim.stimuli{1}.size			= ana.size;
 				end
 				if strcmpi(ana.VEP.Type,'Square')
-					sM.blend					= false;
+					sM.srcMode				= 'GL_ONE';
+					sM.dstMode				= 'GL_ZERO';
 					stim.stimuli{1}.type = 'square';
 				end
 				stim.stimuli{1}.tf				= 0;
-				stim.stimuli{1}.mask				= false;
+				stim.stimuli{1}.mask				= ana.VEP.mask;
 			case 'LogGabor'
 				stim.stimuli{1}					= logGaborStimulus();
 				if ana.size == 0 || ana.size == inf
@@ -198,24 +200,26 @@ try
 				stim.stimuli{1}.sfSigma			= ana.VEP.sfSigma;
 				stim.stimuli{1}.angle			= ana.VEP.anglePeak;
 				stim.stimuli{1}.angleSigma		= ana.VEP.angleSigma;
-				stim.stimuli{1}.mask				= false;
+				stim.stimuli{1}.mask				= ana.VEP.mask;
 		end
 		stim.stimuli{1}.speed					= 0;
 		stim.stimuli{1}.phaseReverseTime		= ana.VEP.Flicker;
 		
 		stim.stimuli{2}							= discStimulus();
-		stim.stimuli{2}.size					= 1;
+		stim.stimuli{2}.size						= 1;
 		stim.stimuli{2}.colour					= ana.backgroundColour;
-		if ana.spotSize == 0; stim.stimuli{2}.hide(); end
 		stim.setup(sM);
+		if ana.spotSize == 0; stim.stimuli{2}.hide(); end
 		ana.fixOnly			= false;
 		ana.moveStim		= false;
 		ana.isVEP			= true;
+		
+		
 		seq					= stimulusSequence();
 		seq.nBlocks			= ana.nBlocks;
-		
+		seq.addBlank		= true;
 		seq.nVar(1).name	= 'sf';
-		if length(ana.VEP.SF) == 3
+		if size(ana.VEP.SF,1) > size(ana.VEP.SF,2)
 			if ana.VEP.LogSF
 				seq.nVar(1).values	= logspace(log10(ana.VEP.SF(1)),log10(ana.VEP.SF(2)),ana.VEP.SF(3));
 			else
@@ -228,7 +232,7 @@ try
 		seq.nVar(1).stimulus = 1;
 		
 		seq.nVar(2).name	= 'contrast';
-		if length(ana.VEP.Contrast) == 3
+		if size(ana.VEP.Contrast,1) > size(ana.VEP.Contrast,2)
 			if ana.VEP.LogContrast
 				seq.nVar(2).values	= [logspace(log10(ana.VEP.Contrast(1)),log10(ana.VEP.Contrast(2)),ana.VEP.Contrast(3))];
 			else
@@ -288,9 +292,15 @@ try
 		end
 		if ana.isVEP
 			thisRun = seq.outIndex(seq.totalRuns);
-			stim.stimuli{1}.sfOut = seq.outValues{seq.totalRuns,1};
-			stim.stimuli{1}.contrastOut = seq.outValues{seq.totalRuns,2};
-			fprintf('\n===>>> BasicTraining START Run = %i:%i | %s | SF = %.2f | Contrast = %.2f\n', thisRun, seq.totalRuns, sM.fullName,stim.stimuli{1}.sfOut,stim.stimuli{1}.contrastOut);
+			if isnan(seq.outValues{seq.totalRuns,1});
+				hide(stim);
+				fprintf('BLANK STIMULUS CONDITION\n');
+			else
+				show(stim);
+				stim.stimuli{1}.sfOut = seq.outValues{seq.totalRuns,1};
+				stim.stimuli{1}.contrastOut = seq.outValues{seq.totalRuns,2};
+			end
+			fprintf('\n===>>> BasicTraining START Run = %i (%i:%i) | %s | SF = %.2f | Contrast = %.2f\n', thisRun, seq.totalRuns, seq.nRuns, sM.fullName,stim.stimuli{1}.sfOut,stim.stimuli{1}.contrastOut);
 		end
 		
 		if ~ana.fixOnly
