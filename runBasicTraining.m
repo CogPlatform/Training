@@ -220,7 +220,7 @@ try
 		ana.moveStim		= false;
 		ana.isVEP			= true;
 		
-		
+		%=====================Stimulus Sequence=========================
 		seq					= stimulusSequence();
 		seq.nBlocks			= ana.nBlocks;
 		seq.addBlank		= true;
@@ -303,6 +303,7 @@ try
 				fprintf('BLANK STIMULUS CONDITION\n');
 			else
 				show(stim);
+				if ana.spotSize == 0; stim.stimuli{2}.hide(); end
 				stim.stimuli{1}.sfOut = seq.outValues{seq.totalRuns,1};
 				stim.stimuli{1}.contrastOut = seq.outValues{seq.totalRuns,2};
 			end
@@ -528,9 +529,8 @@ end
 	end
 
 	function correct()
-		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; end
+		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; beep(sM.audio,'high'); end
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
-		beep(sM.audio,'high');
 		WaitSecs(0.02);if ana.sendTrigger;lM.strobeServer(250); end
 		drawGreenSpot(sM,5);
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
