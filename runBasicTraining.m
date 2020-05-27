@@ -101,12 +101,13 @@ try
 	end
 	if length(Screen('Screens')) > 1 && ~eT.isDummy % ---- second screen for calibration
 		s						= screenManager;
+		s.verbose			= true;
 		s.screen				= sM.screen - 1;
 		s.backgroundColour= sM.backgroundColour;
 		s.pixelsPerCm		= sM.pixelsPerCm;
 		s.distance			= sM.distance;
 		[w,h]=Screen('WindowSize',s.screen);
-		s.windowed			= [0 0 round(w/1.2) round(h/1.2)];
+		s.windowed			= [0 0 round(w/1.5) round(h/1.2)];
 		s.bitDepth			= '8bit';
 		s.blend				= sM.blend;
 		s.disableSyncTests= true;
@@ -117,6 +118,10 @@ try
 		initialise(eT,sM);
 	end
 	eT.settings.cal.paceDuration = ana.paceDuration;
+	if ana.calManual
+		eT.settings.mancal.cal.paceDuration = ana.paceDuration;
+		eT.settings.mancal.val.paceDuration = ana.paceDuration;
+	end
 	eT.settings.cal.doRandomPointOrder  = false;
 	ana.cal=[];
 	if isempty(ana.calFile) || ~exist(ana.calFile,'file')
@@ -478,6 +483,7 @@ end
 					Screen('DrawText', sM.win, '===>>> EXIT!!!',10,10);
 					flip(sM);
 					fprintf('===>>> EXIT!\n');
+					fixated = 'breakfix';
 					breakLoop = true;
 					doBreak = true;
 				case {'p'}
@@ -486,11 +492,14 @@ end
 					flip(sM);
 					WaitSecs('Yieldsecs',0.1);
 					KbWait(-1);
+					fixated = 'breakfix';
 					doBreak = true;
 				case {'c'}
 					WaitSecs('YieldSecs',0.1);
-					fprintf('--->>> Entering calibration mode...\n');
+					fprintf('\n\n--->>> Entering calibration mode...\n');
 					trackerSetup(eT,eT.calibration);
+					stim{1}.verbose = true;
+					fixated = 'breakfix';
 					doBreak = true;
 				case {'1','1!','kp_end'}
 					if kTimer < vbl
