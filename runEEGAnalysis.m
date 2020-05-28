@@ -15,8 +15,8 @@ if ana.plotTriggers
 	cfgRaw.channel		= 'all';
 	cfgRaw.demean		= 'yes';
 	cfgRaw.detrend		= 'yes';
-	cfgRaw.polyremoval= 'yes';
-	cfgRaw.chanindx	= ana.bitChannels;
+	cfgRaw.polyremoval  = 'yes';
+	cfgRaw.chanindx     = ana.bitChannels;
 	cfgRaw.threshold	= ana.threshold;
 	cfgRaw.jitter		= ana.jitter;
 	cfgRaw.minTrigger	= ana.minTrigger;
@@ -42,7 +42,7 @@ cfg.detrend			= ana.detrend;
 cfg.polyremoval	= ana.polyremoval;
 cfg.baselinewindow= ana.baseline;
 cfg.channel			= ana.dataChannels;
-data_eeg				= ft_preprocessing(cfg);
+data_eeg			= ft_preprocessing(cfg);
 info.data_cfg		= cfg;
 
 varmap				= unique(data_eeg.trialinfo);
@@ -145,7 +145,11 @@ function plotRawChannels()
 		'Position',[0.05 0.05 0.4 0.9]);
 	tl = tiledlayout(h,nchan,1,'TileSpacing','compact','Padding','none');
 	tm = data_raw.time{1};
-	xl = [tm(trl(1,1))-1 tm(trl(1,1))+9];
+    if ~isempty(trl)
+        xl = [tm(trl(1,1))-1 tm(trl(1,1))+9];
+    else
+        xl = [10 20];
+    end
 	for i = 1:nchan
 		ch{i} = data_raw.trial{1}(i+offset,:);
 		baseline = median(ch{i}(1:100));
@@ -169,7 +173,7 @@ function plotRawChannels()
 			if ~isempty(events(ii).times);plot(events(ii).times,0.75,'r.','MarkerSize',12);end
 			ylim([-0.05 1.05]);
 		end
-		if any([ana.dataChannels ana.pDiode] == i) && i == 1
+		if any([ana.dataChannels ana.pDiode] == i) && i == 1 && ~isempty(trl)
 			ypos = 0.2;
 			for jj = 1:size(trl,1) 
 				line([tm(trl(jj,1)) tm(trl(jj,2))],[ypos ypos]);

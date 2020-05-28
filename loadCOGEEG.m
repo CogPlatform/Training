@@ -100,7 +100,7 @@ nTriggers = length(triggers);
 trlN = 0;
 trl = [];
 for i = 1:(nTriggers - 1)
-	if triggers(i).value ~= 255 && triggers(i+1).value == 255 && triggers(i+2).value == 250
+	if triggers(i).value ~= 255 && triggers(i+1).value == 255 && (triggers(i+2).value == 250 || triggers(i+2).value == 128)
 		trlN = trlN + 1;
 		trl(trlN,1) = triggers(i).sample-bSamples;
 		trl(trlN,2) = triggers(i+1).sample+bSamples;

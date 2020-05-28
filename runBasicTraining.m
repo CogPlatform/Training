@@ -32,9 +32,9 @@ ana.gpu = opengl('data');
 ana.screenID = max(Screen('Screens'));%-1;
 
 %===================Make a name for this run===================
+ana.timeExp = fix(clock());
 if ~isempty(ana.subject)
 	nameExp = ['basicTrain_' ana.stimulus '_' ana.subject];
-	ana.timeExp = fix(clock());
 	c = sprintf(' %i',ana.timeExp);
 	nameExp = [nameExp c];
 	ana.nameExp = regexprep(nameExp,' ','_');
