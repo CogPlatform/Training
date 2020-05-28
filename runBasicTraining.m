@@ -12,7 +12,13 @@ global rM
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager();
 end
-open(rM) %open our reward manager
+if ~ana.useArduino; 
+	rM.silentMode = true; 
+	ana.rewardDuring=false;
+	ana.rewardEnd=false;
+	ana.rewardStart=false;
+end
+if ~rM.isOpen; open(rM); end %open our reward manager
 
 fprintf('\n--->>> runBasicTraining Started: ana UUID = %s!\n',ana.uuid);
 
@@ -45,6 +51,7 @@ try
 	%===================open our screen====================
 	sM							= screenManager();
 	sM.screen				= ana.screenID;
+	sM.verbose				= true;
 	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
 		sM.disableSyncTests = true; 
 	end
@@ -91,6 +98,7 @@ try
 	eT.calPositions		= ana.calPos;
 	eT.valPositions		= ana.valPos;
 	eT.autoPace				= ana.autoPace;
+	eT.paceDuration		= ana.paceDuration;
 	eT.smoothing.nSamples= ana.nSamples;
 	eT.smoothing.method	= ana.smoothMethod;
 	eT.smoothing.window	= ana.w;
@@ -117,7 +125,7 @@ try
 	else
 		initialise(eT,sM);
 	end
-	eT.settings.cal.paceDuration = ana.paceDuration;
+	
 	if ana.calManual
 		eT.settings.mancal.cal.paceDuration = ana.paceDuration;
 		eT.settings.mancal.val.paceDuration = ana.paceDuration;
@@ -210,6 +218,7 @@ try
 		end
 		stim.stimuli{1}.speed					= 0;
 		stim.stimuli{1}.phaseReverseTime		= ana.VEP.Flicker;
+		stim.stimuli{1}.verbose					= true;
 		
 		stim.stimuli{2}							= discStimulus();
 		stim.stimuli{2}.size						= 1;
