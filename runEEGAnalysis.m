@@ -4,7 +4,7 @@ ana.table.Data =[]; drawnow;
 ft_defaults;
 info = load(ana.MATFile);
 info.seq.showLog();drawnow;
-vars = info.seq.nVar.values;
+vars = getVariables;
 
 data_raw = []; trl=[];triggers=[];events=[];
 if ana.plotTriggers
@@ -15,8 +15,8 @@ if ana.plotTriggers
 	cfgRaw.channel		= 'all';
 	cfgRaw.demean		= 'yes';
 	cfgRaw.detrend		= 'yes';
-	cfgRaw.polyremoval  = 'yes';
-	cfgRaw.chanindx     = ana.bitChannels;
+	cfgRaw.polyremoval = 'yes';
+	cfgRaw.chanindx	= ana.bitChannels;
 	cfgRaw.threshold	= ana.threshold;
 	cfgRaw.jitter		= ana.jitter;
 	cfgRaw.minTrigger	= ana.minTrigger;
@@ -78,13 +78,13 @@ assignin('base','info',info);
 
 col1 = info.seq.outIndex;if size(col1,1)<size(col1,2); col1=col1';end
 col2 = info.data_eeg.trialinfo;if size(col2,1)<size(col2,2); col2=col2';end
-col3 = info.seq.nVar.values; if size(col3,1)<size(col3,2); col3=col3';end
+col3 = vars; if size(col3,1)<size(col3,2); col3=col3';end
 col4 = 1:length(col3); if size(col4,1)<size(col4,2); col4=col4';end
 
 maxn = max([length(col1) length(col2) length(col3) length(col4)]);
 if length(col1) < maxn; col1(end+1:maxn) = NaN; end
 if length(col2) < maxn; col2(end+1:maxn) = NaN; end
-if length(col3) < maxn; col3(end+1:maxn) = NaN; end
+if length(col3) < maxn; col3(end+1:maxn) = ' '; end
 if length(col4) < maxn; col4(end+1:maxn) = NaN; end
 tdata = table(col1,col2,col3,col4,'VariableNames',{'Triggers Sent','Data Triggers','Stimulus Value','Index'});
 ana.table.Data = tdata;
@@ -92,6 +92,14 @@ drawnow;
 
 
 %==========================================SUB FUNCTIONS
+
+function vars = getVariables()
+	if isprop(info.seq,'varLabels')
+		vars = info.seq.varLabels;
+	else
+		vars = cell(1,info.seq.minBlocks);
+	end
+end
 
 function plotTimeLock()
 	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
@@ -106,9 +114,9 @@ function plotTimeLock()
 			areabar(timelock{jj}.time,timelock{jj}.avg(2,:),timelock{jj}.var(2,:),[0.9 0.6 0.6]);
 		end
 		box on;grid on; axis tight;
-		xlim([-0.5 1.0]);
+		xlim([ana.plotRange(1) ana.plotRange(2)]);
 		line([0 0],ylim,'LineWidth',1,'Color','k');
-		title(['Var: ' num2str(jj) ' = ' num2str(vars(jj))])
+		title(['Var: ' num2str(jj) ' = ' vars{jj}]);
 	end
 	
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval);
@@ -132,7 +140,7 @@ function plotFrequency()
 		xlabel('Time (s)');
 		ylabel('Frequency (Hz)');
 		box on;grid on; axis tight
-		title(['Var: ' num2str(jj) ' = ' num2str(vars(jj))])
+		title(['Var: ' num2str(jj) ' = ' vars{jj}]);
 	end
 	tl.Title.String = 'Time Frequency Analysis';	
 end

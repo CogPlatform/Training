@@ -416,7 +416,7 @@ try
 				updateTask(seq,true,tEnd-tStart); %updates our current run number
 				if seq.taskFinished;breakLoop = true;end
 			end
-			if ana.sendTrigger;lM.strobeServer(250); end
+			if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
 			WaitSecs('YieldSecs',ana.ITI);
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			flip(sM);
@@ -540,7 +540,7 @@ end
 	function correct()
 		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; beep(sM.audio,'high'); end
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
-		WaitSecs(0.02);if ana.sendTrigger;lM.strobeServer(250); end
+		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
 		drawGreenSpot(sM,5);
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
@@ -565,7 +565,7 @@ end
 	function incorrect()
 		fprintf('===>>> Incorrect given, timeout=%.2f!\n',ana.timeOut);
 		beep(sM.audio,'low');
-		WaitSecs(0.02);if ana.sendTrigger;lM.strobeServer(251); end
+		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(251); end
 		drawRedSpot(sM,5);
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
