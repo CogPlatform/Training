@@ -99,14 +99,23 @@ bSamples = round(preTime / (1/hdr.Fs));
 nTriggers = length(triggers);
 trlN = 0;
 trl = [];
-correctID = 250;
 for i = 1:(nTriggers - 1)
-	if triggers(i).value ~= 255 && triggers(i+1).value == 255 && (triggers(i+2).value == correctID || triggers(i+2).value == 128)
-		trlN = trlN + 1;
-		trl(trlN,1) = triggers(i).sample-bSamples;
-		trl(trlN,2) = triggers(i+1).sample+bSamples;
-		trl(trlN,3) = -bSamples;
-		trl(trlN,4) = triggers(i).value;
+	if isempty(cfg.correctID) || cfg.correctID==0
+		if triggers(i).value ~= 255 && triggers(i+1).value == 255
+			trlN = trlN + 1;
+			trl(trlN,1) = triggers(i).sample-bSamples;
+			trl(trlN,2) = triggers(i+1).sample+bSamples;
+			trl(trlN,3) = -bSamples;
+			trl(trlN,4) = triggers(i).value;
+		end
+	else
+		if triggers(i).value ~= 255 && triggers(i+1).value == 255 && triggers(i+2).value == cfg.correctID
+			trlN = trlN + 1;
+			trl(trlN,1) = triggers(i).sample-bSamples;
+			trl(trlN,2) = triggers(i+1).sample+bSamples;
+			trl(trlN,3) = -bSamples;
+			trl(trlN,4) = triggers(i).value;
+		end
 	end
 end
 

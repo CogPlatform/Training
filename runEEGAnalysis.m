@@ -15,13 +15,14 @@ if ana.plotTriggers
 	cfgRaw.channel		= 'all';
 	cfgRaw.demean		= 'yes';
 	cfgRaw.detrend		= 'yes';
-	cfgRaw.polyremoval = 'yes';
-	cfgRaw.chanindx	= ana.bitChannels;
+	cfgRaw.polyremoval  = 'yes';
+	cfgRaw.chanindx     = ana.bitChannels;
 	cfgRaw.threshold	= ana.threshold;
 	cfgRaw.jitter		= ana.jitter;
 	cfgRaw.minTrigger	= ana.minTrigger;
 	cfgRaw.preTime		= ana.preTime;
-	data_raw				= ft_preprocessing(cfgRaw);
+	cfgRaw.correctID	= ana.correctID;
+	data_raw			= ft_preprocessing(cfgRaw);
 	[trl, events, triggers] = loadCOGEEG(cfgRaw);
 	plotRawChannels(); drawnow;
 end
@@ -34,6 +35,7 @@ cfg.chanindx		= ana.bitChannels;
 cfg.threshold		= ana.threshold;
 cfg.jitter			= ana.jitter;
 cfg.minTrigger		= ana.minTrigger;
+cfg.correctID		= ana.correctID;
 cfg.preTime			= ana.preTime;
 cfg					= ft_definetrial(cfg);
 cfg.dftfilter		= ana.dftfilter;
@@ -62,7 +64,7 @@ for j = 1:length(varmap)
 	cfg.pad			= 'nextpow2';
 	cfg.foi			= ana.freqrange;                         % analysis 2 to 30 Hz in steps of 2 Hz
 	cfg.t_ftimwin	= ones(length(cfg.foi),1).*0.2;   % length of time window = 0.5 sec
-	cfg.toi			= -0.5:0.05:1;                  % time window "slides" from -0.5 to 1.5 sec in steps of 0.05 sec (50 ms)
+	cfg.toi			= ana.plotRange(1):0.05:ana.plotRange(2);                  % time window "slides" from -0.5 to 1.5 sec in steps of 0.05 sec (50 ms)
 	freq{j}			= ft_freqanalysis(cfg,data_eeg);
 end
 
