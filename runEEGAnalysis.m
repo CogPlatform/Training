@@ -86,7 +86,9 @@ col4 = 1:length(col3); if size(col4,1)<size(col4,2); col4=col4';end
 maxn = max([length(col1) length(col2) length(col3) length(col4)]);
 if length(col1) < maxn; col1(end+1:maxn) = NaN; end
 if length(col2) < maxn; col2(end+1:maxn) = NaN; end
-if length(col3) < maxn; col3(end+1:maxn) = ' '; end
+if length(col3) < maxn
+	col3 = [col3;repmat({''},maxn-length(col3),1)];
+end
 if length(col4) < maxn; col4(end+1:maxn) = NaN; end
 tdata = table(col1,col2,col3,col4,'VariableNames',{'Triggers Sent','Data Triggers','Stimulus Value','Index'});
 ana.table.Data = tdata;
@@ -116,7 +118,7 @@ function plotTimeLock()
 			areabar(timelock{jj}.time,timelock{jj}.avg(2,:),timelock{jj}.var(2,:),[0.9 0.6 0.6]);
 		end
 		box on;grid on; axis tight;
-		xlim([ana.plotRange(1) ana.plotRange(2)]);
+		%xlim([ana.plotRange(1) ana.plotRange(2)]);
 		line([0 0],ylim,'LineWidth',1,'Color','k');
 		title(['Var: ' num2str(jj) ' = ' vars{jj}]);
 	end
@@ -132,11 +134,12 @@ function plotFrequency()
 		'Position',[0.3 0.1 0.3 0.9]);
 	tl = tiledlayout(h,'flow');
 	for jj = 1:length(freq)
-		nexttile(tl)
+		nexttile(tl);
 		cfg = [];
-		cfg.baseline = ana.freqbaselinevalue;
-		cfg.baselinetype = ana.freqbaseline;
-		%cfg.xlim = [-0.3 1];
+		if ~contains(ana.freqbaseline,'none');
+			cfg.baseline = ana.freqbaselinevalue;
+			cfg.baselinetype = ana.freqbaseline;
+		end
 		ft_singleplotTFR(cfg,freq{jj});
 		line([0 0],[min(ana.freqrange) max(ana.freqrange)],'LineWidth',2);
 		xlabel('Time (s)');
