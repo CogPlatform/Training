@@ -2,7 +2,7 @@ function anstistest()
 
 bgColour = [0.5 0.5 0.5];
 screen = max(Screen('Screens'));
-screenSize = [0 0 1600 1000];
+screenSize = [];
 
 ptb = mySetup(screen,bgColour,screenSize);
 
@@ -79,7 +79,7 @@ while vbl(end) < vbl(1) + 10
 	
 	Screen('DrawTexture', ptb.win, chboard, [], mvcbRect,...
 		angle, [], [], [bgColour 1], [], [],...
-		[ptb.ppd, sf*ptb.ppd, 0.2, thisp, colour1, colour2]);
+		[ptb.ppd, sf*ptb.ppd, 0.2, phase, colour1, colour2]);
 	
 	Screen('FillRect', ptb.win, [1 0 1], degRect);
 	phase = phase - 5; 
@@ -106,7 +106,7 @@ PsychImaging('AddTask', 'General', 'UseFastOffscreenWindows');
 [ptb.win, ptb.winRect] = PsychImaging('OpenWindow', ptb.ScreenID, bgColour, ws, [], [], [], 1);
 
 [ptb.w, ptb.h] = RectSize(ptb.winRect);
-screenWidth = 405; % mm
+screenWidth = 530; % mm
 viewDistance = 573; % mm
 ptb.ppd = ptb.w/2/atand(screenWidth/2/viewDistance);
 ptb.ifi = Screen('GetFlipInterval', ptb.win);

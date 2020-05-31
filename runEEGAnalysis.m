@@ -1,7 +1,8 @@
 function runEEGAnalysis(ana)
-
+ts=tic;
 ana.table.Data =[]; drawnow;
 ft_defaults;
+
 info = load(ana.MATFile);
 info.seq.showLog();drawnow;
 vars = getVariables;
@@ -27,6 +28,7 @@ if ana.plotTriggers
 	plotRawChannels(); drawnow;
 end
 
+%---------------------------LOAD DATA AS TRIALS
 cfg					= [];
 cfg.dataset			= ana.EDFFile;
 cfg.continuous		= 'yes';
@@ -41,21 +43,35 @@ cfg					= ft_definetrial(cfg);
 cfg.dftfilter		= ana.dftfilter;
 cfg.demean			= ana.demean;
 cfg.detrend			= ana.detrend;
-cfg.polyremoval	= ana.polyremoval;
-cfg.baselinewindow= ana.baseline;
+cfg.polyremoval		= ana.polyremoval;
+cfg.baselinewindow	= ana.baseline;
 cfg.channel			= ana.dataChannels;
 data_eeg			= ft_preprocessing(cfg);
 info.data_cfg		= cfg;
 
+if ana.rejectvisual
+	cfg = [];
+	cfg.method   = 'summary';
+	data_eeg = ft_rejectvisual(cfg,data_eeg);
+end
+
+%------------------------------RUN TIMELOCK
 varmap				= unique(data_eeg.trialinfo);
-timelock				= cell(length(varmap),1);
-freq					= cell(length(varmap),1);
+timelock			= cell(length(varmap),1);
 for j = 1:length(varmap)
 	cfg				= [];
 	cfg.trials		= find(data_eeg.trialinfo==varmap(j));
-	cfg.keeptrials	= ana.keeptrials;
-	cfg.latency		= ana.latency;
+	cfg.covariance	= ana.tlcovariance;
+	cfg.keeptrials	= ana.tlkeeptrials;
+	cfg.removemean	= ana.tlremovemean;
+	cfg.latency		= ana.plotRange;
 	timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
+end
+plotTimeLock();
+
+%------------------------------RUN TIMEFREQ
+freq				= cell(length(varmap),1);
+for j = 1:length(varmap)
 	cfg				= [];
 	cfg.trials		= find(data_eeg.trialinfo==varmap(j));
 	cfg.channel		= 1;
@@ -67,8 +83,6 @@ for j = 1:length(varmap)
 	cfg.toi			= ana.plotRange(1):0.05:ana.plotRange(2);                  % time window "slides" from -0.5 to 1.5 sec in steps of 0.05 sec (50 ms)
 	freq{j}			= ft_freqanalysis(cfg,data_eeg);
 end
-
-plotTimeLock();
 plotFrequency();
 
 info.timelock		= timelock;
@@ -93,7 +107,7 @@ if length(col4) < maxn; col4(end+1:maxn) = NaN; end
 tdata = table(col1,col2,col3,col4,'VariableNames',{'Triggers Sent','Data Triggers','Stimulus Value','Index'});
 ana.table.Data = tdata;
 drawnow;
-
+fprintf('===>>> Analysis took %.2f seconds\n', toc(ts));
 
 %==========================================SUB FUNCTIONS
 
