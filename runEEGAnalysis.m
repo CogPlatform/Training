@@ -7,7 +7,7 @@ info = load(ana.MATFile);
 info.seq.showLog();drawnow;
 vars = getVariables;
 
-data_raw = []; trl=[];triggers=[];events=[];
+data_raw = []; trl=[]; triggers=[]; events=[];
 if ana.plotTriggers
 	cfgRaw				= [];
 	cfgRaw.dataset		= ana.EDFFile;
@@ -31,6 +31,7 @@ end
 %---------------------------LOAD DATA AS TRIALS
 cfg					= [];
 cfg.dataset			= ana.EDFFile;
+cfg.header			= ft_read_header(cfg.dataset);
 cfg.continuous		= 'yes';
 cfg.trialfun		= 'loadCOGEEG';
 cfg.chanindx		= ana.bitChannels;
@@ -42,17 +43,25 @@ cfg.preTime			= ana.preTime;
 cfg					= ft_definetrial(cfg);
 cfg.dftfilter		= ana.dftfilter;
 cfg.demean			= ana.demean;
+if strcmpi(ana.demean,'yes') 
+	cfg.baselinewindow	= ana.baseline;
+end
 cfg.detrend			= ana.detrend;
 cfg.polyremoval		= ana.polyremoval;
-cfg.baselinewindow	= ana.baseline;
 cfg.channel			= ana.dataChannels;
+if ana.rereference > 0 && any(ana.dataChannels == ana.rereference)
+	cfg.reref		= 'yes';
+	cfg.refchannel	= cfg.header.label{ana.rereference};
+end
 data_eeg			= ft_preprocessing(cfg);
 info.data_cfg		= cfg;
 
 if ana.rejectvisual
-	cfg = [];
-	cfg.method   = 'summary';
-	data_eeg = ft_rejectvisual(cfg,data_eeg);
+	cfg				= [];
+	cfg.box			= 'yes';
+	cfg.latency		= 'all';
+	cfg.method		= ana.rejecttype;
+	data_eeg		= ft_rejectvisual(cfg,data_eeg);
 end
 
 %------------------------------RUN TIMELOCK
@@ -64,10 +73,12 @@ for j = 1:length(varmap)
 	cfg.covariance	= ana.tlcovariance;
 	cfg.keeptrials	= ana.tlkeeptrials;
 	cfg.removemean	= ana.tlremovemean;
-	cfg.latency		= ana.plotRange;
+	%cfg.latency		= ana.plotRange;
+	cfg.hassampleinfo = true;
 	timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
 end
 plotTimeLock();
+plotFreqPower();
 
 %------------------------------RUN TIMEFREQ
 freq				= cell(length(varmap),1);
@@ -123,29 +134,79 @@ function plotTimeLock()
 	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
 		'Position',[0 0.1 0.3 0.9]);
 	tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
+	mn = inf; mx = -inf;
 	for jj = 1:length(timelock)
 		nexttile(tl,jj)
 		ft_singleplotER(struct('channel',[1 2]),timelock{jj});
 		if isfield(timelock{jj},'avg')
 			hold on
-			areabar(timelock{jj}.time,timelock{jj}.avg(1,:),timelock{jj}.var(1,:),[0.6 0.6 0.6]);
-			areabar(timelock{jj}.time,timelock{jj}.avg(2,:),timelock{jj}.var(2,:),[0.9 0.6 0.6]);
+			c={[0.6 0.6 0.6],[0.9 0.6 0.6],[0.9 0.9 0.9]};
+			for i = 1:length(timelock{jj}.label)
+				areabar(timelock{jj}.time,timelock{jj}.avg(i,:),timelock{jj}.var(i,:),c{i});
+			end
+		else
+			hold on
+			c={[0.6 0.6 0.6],[0.9 0.6 0.6],[0.7 0.7 0.7]};
+			for i = 1:length(timelock{jj}.label)
+				dt = squeeze(timelock{jj}.trial(:,i,:))';
+				plot(timelock{jj}.time',dt,'k-','Color',c{i});
+			end
 		end
+		xlim([ana.plotRange(1) ana.plotRange(2)]);
 		box on;grid on; axis tight;
-		%xlim([ana.plotRange(1) ana.plotRange(2)]);
+		if min(ylim)<mn;mn=min(ylim);end
+		if max(ylim)>mx;mx=max(ylim);end
 		line([0 0],ylim,'LineWidth',1,'Color','k');
 		title(['Var: ' num2str(jj) ' = ' vars{jj}]);
+		hz = zoom;hz.enable = 'on';hz.ActionPostCallback = @myCallbackZoom;
+		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
-	
+	for j = 1:length(timelock);nexttile(tl,j);ylim([mn mx]);end
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval);
 	tl.XLabel.String = 'Time (s)';
 	tl.YLabel.String = 'Amplitude';
 	tl.Title.String = t;
 end
 
+function plotFreqPower()
+	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
+		'Position',[0.3 0.1 0.3 0.9]);
+	tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
+	mn = inf; mx = -inf;
+	for j = 1:length(timelock)
+		nexttile(tl,j)
+		hold on
+		for iif = 1:length(timelock{j}.label)
+			if isfield(timelock{j},'avg')
+				[P,f,~,p1,p0] = doFFT(timelock{j}.avg(iif,:));
+			else
+				dt = mean(squeeze(timelock{j}.trial(:,iif,:)));
+				[P,f,~,p1,p0] = doFFT(dt);
+			end
+			plot(f,P);
+			if iif == 1;powf1(j) = p1;powf0(j) = p0;end
+			if min(ylim)<mn;mn=min(ylim);end
+			if max(ylim)>mx;mx=max(ylim);end
+		end
+		legend(timelock{1}.label)
+		box on;grid on; axis tight;xlim([-1 20]);
+		title(['Var: ' num2str(j) ' = ' vars{j}]);
+		hz = zoom;hz.enable = 'on';hz.ActionPostCallback = @myCallbackZoom;
+		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
+	end
+	for j = 1:length(timelock);nexttile(tl,j);ylim([mn mx]);end
+	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval);
+	tl.XLabel.String = 'Frequency (Hz)';
+	tl.YLabel.String = 'Power';
+	tl.Title.String = t;
+	figure
+	plot(powf0);hold on;plot(powf1);legend({'Fundamental','First'});
+	title('Power at Flicker')
+end
+
 function plotFrequency()
 	h = figure('Name',['TF Data: ' ana.EDFFile],'Units','normalized',...
-		'Position',[0.3 0.1 0.3 0.9]);
+		'Position',[0.6 0.1 0.3 0.9]);
 	tl = tiledlayout(h,'flow');
 	for jj = 1:length(freq)
 		nexttile(tl);
@@ -244,11 +305,62 @@ function myCallbackScroll(~,event)
 	end
 end
 
+function myCallbackZoom(~,event)
+	src = event.Axes;
+	xl = src.XLim;
+	xy = src.YLim;
+	for i = 1:length(src.Parent.Children)
+		if isa(src.Parent.Children(i),'matlab.graphics.axis.Axes')
+			if ~all(xl == src.Parent.Children(i).XLim)
+				src.Parent.Children(i).XLim = xl;
+			end
+			if ~all(xy == src.Parent.Children(i).YLim)
+				src.Parent.Children(i).YLim = xy;
+			end
+		end
+	end
+end
+
 function [idx,val,delta]=findNearest(in,value)
 	%find nearest value in a vector, if more than 1 index return the first	
 	[~,idx] = min(abs(in - value));
 	val = in(idx);
 	delta = abs(value - val);
+end
+
+function [P, f, A, p1, p0] = doFFT(p)	
+	useX = true;
+	useHanning = false;
+	L = length(p);
+	if useHanning
+		win = hanning(L, 'periodic');
+		P = fft(p.*win'); 
+	else
+		P = fft(p);
+	end
+	
+	fs = data_eeg.fsample;
+	ff = (1/info.ana.VEP.Flicker) / 2;
+
+	if useX
+		Pi = fft(p);
+		P = abs(Pi/L);
+		P=P(1:floor(L/2)+1);
+		P(2:end-1) = 2*P(2:end-1);
+		f = fs * (0:(L/2))/L;
+	else
+		Pi = fft(p);
+		NumUniquePts = ceil((L+1)/2);
+		P = abs(Pi(1:NumUniquePts));
+		f = (0:NumUniquePts-1)*fs/L;
+	end
+
+	idx = analysisCore.findNearest(f, ff);
+	p1 = P(idx);
+	A = angle(Pi(idx));
+	idx = analysisCore.findNearest(f, 0);
+	p0 = P(idx);
+
 end
 
 end

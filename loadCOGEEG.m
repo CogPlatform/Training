@@ -1,4 +1,6 @@
 function [trl, events, triggers] = loadCOGEEG(cfg)
+% Uses 8 analog recorded channels to encode strobed words to generate trial
+% markers
 
 % read the header information and the events from the data
 hdr   = ft_read_header(cfg.dataset);
