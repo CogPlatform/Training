@@ -141,13 +141,13 @@ function plotTimeLock()
 		ft_singleplotER(struct('channel',[1 2]),timelock{jj});
 		if isfield(timelock{jj},'avg')
 			hold on
-			c={[0.6 0.6 0.6],[0.9 0.6 0.6],[0.9 0.9 0.9]};
+			c={[0.6 0.6 0.6],[0.9 0.6 0.6],[0.9 0.9 0.9],[0.7 0.9 0.7],[0.9 0.9 0.7],[0.7 0.7 0.9]};
 			for i = 1:length(timelock{jj}.label)
 				areabar(timelock{jj}.time,timelock{jj}.avg(i,:),timelock{jj}.var(i,:),c{i});
 			end
 		else
 			hold on
-			c={[0.6 0.6 0.6],[0.9 0.6 0.6],[0.7 0.7 0.7]};
+			c={[0.6 0.6 0.6],[0.9 0.6 0.6],[0.9 0.9 0.9],[0.7 0.9 0.7],[0.9 0.9 0.7],[0.7 0.7 0.9]};
 			for i = 1:length(timelock{jj}.label)
 				dt = squeeze(timelock{jj}.trial(:,i,:))';
 				plot(timelock{jj}.time',dt,'k-','Color',c{i});
@@ -251,10 +251,12 @@ function plotRawChannels()
 		hold on
 		if any([ana.dataChannels ana.pDiode] == i)
 			for ii = 1:length(events)
-				y = repmat(ii/10, [1 length(events(ii).times)]);
-				p = plot(events(ii).times,y,'.','MarkerSize',12);
-				dtt = p.DataTipTemplate;
-				dtt.DataTipRows(1).Format = '%.3f';
+				if ~isempty(events(ii).times)
+					y = repmat(ii/10, [1 length(events(ii).times)]);
+					p = plot(events(ii).times,y,'.','MarkerSize',12);
+					dtt = p.DataTipTemplate;
+					dtt.DataTipRows(1).Format = '%.3f';
+				end
 			end
 			ylim([-inf inf]);
 		else
@@ -262,7 +264,7 @@ function plotRawChannels()
 			if ~isempty(events(ii).times);plot(events(ii).times,0.75,'r.','MarkerSize',12);end
 			ylim([-0.05 1.05]);
 		end
-		if any([ana.dataChannels ana.pDiode] == i) && i == 1 && ~isempty(trl)
+		if any([ana.dataChannels ana.pDiode] == i) && i == 1 && ~isempty(trl) && size(trl,1) > 1
 			ypos = 0.2;
 			for jj = 1:size(trl,1) 
 				line([tm(trl(jj,1)) tm(trl(jj,2))],[ypos ypos]);

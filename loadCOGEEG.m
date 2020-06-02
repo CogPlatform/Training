@@ -85,7 +85,14 @@ for i = 1:nChannels
 		end
 	end
 end
+%TODO 0 triggers
 % resort by times
+trl = [];
+if isempty(triggers)
+	warning('No triggers found');
+	trl = [1 hdr.nSamples];
+	return
+end
 [~,sidx] = sort([triggers.time]);
 triggers = triggers(sidx);
 % make sure any events with identical times are removed
