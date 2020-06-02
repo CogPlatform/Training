@@ -78,6 +78,7 @@ for j = 1:length(varmap)
 	timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
 end
 plotTimeLock();
+makeSurrogate();
 plotFreqPower();
 
 %------------------------------RUN TIMEFREQ
@@ -332,24 +333,23 @@ function [P, f, A, p1, p0] = doFFT(p)
 	useX = true;
 	useHanning = false;
 	L = length(p);
-	if useHanning
-		win = hanning(L, 'periodic');
-		P = fft(p.*win'); 
-	else
-		P = fft(p);
-	end
 	
 	fs = data_eeg.fsample;
 	ff = (1/info.ana.VEP.Flicker) / 2;
+	
+	if useHanning
+		win = hanning(L, 'periodic');
+		Pi = fft(p.*win'); 
+	else
+		Pi = fft(p);
+	end
 
 	if useX
-		Pi = fft(p);
 		P = abs(Pi/L);
 		P=P(1:floor(L/2)+1);
 		P(2:end-1) = 2*P(2:end-1);
 		f = fs * (0:(L/2))/L;
 	else
-		Pi = fft(p);
 		NumUniquePts = ceil((L+1)/2);
 		P = abs(Pi(1:NumUniquePts));
 		f = (0:NumUniquePts-1)*fs/L;
@@ -361,6 +361,71 @@ function [P, f, A, p1, p0] = doFFT(p)
 	idx = analysisCore.findNearest(f, 0);
 	p0 = P(idx);
 
+end
+
+function makeSurrogate()
+	f = data_eeg.fsample; %f is the frequency, normally 1000 for LFPs
+	mydata = timelock{end};
+	tmult = (length(mydata.time)-1) / f; 
+
+	randPhaseRange			= 2*pi; %how much to randomise phase?
+	rphase					= 0; %default phase
+	basef					= 1; % base frequency
+	onsetf					= 5; %an onset at 0 frequency
+	onsetDivisor			= 1.5; %scale the onset frequency
+	burstf					= 30; %small burst frequency
+	burstOnset				= 1.0; %time of onset of burst freq
+	burstLength				= 0.2; %length of burst
+	powerDivisor			= 2; %how much to attenuate the secondary frequencies
+	group2Divisor			= 1; %do we use a diff divisor for group 2?
+	noiseDivisor			= 0.4; %scale noise to signal
+	piMult					= basef * 2; %resultant pi multiplier
+	burstMult				= burstf * 2; %resultant pi multiplier
+	onsetMult				= onsetf * 2; %onset multiplier
+	
+	time=mydata.time;
+	for k = 1:size(mydata.avg,1)
+		mx = max(mydata.avg(k,:));
+		mn = min(mydata.avg(k,:));
+		rn = mx - mn;
+		y = makeSurrogate();
+		y = y * rn; % scale to the voltage range of the original trial
+		y = y + mn;
+		mydata.avg(k,:);
+	end
+	
+	function y = makeSurrogate()
+		rphase = rand * randPhaseRange;
+		%base frequency
+		y = sin((0 : (pi*piMult)/f : (pi*piMult) * tmult)+rphase)';
+		y = y(1:length(time));
+		%burst frequency with different power in group 2 if present
+		rphase = rand * randPhaseRange;
+		yy = sin((0 : (pi*burstMult)/f : (pi*burstMult) * burstLength)+rphase)';
+		if 1
+			yy = yy ./ group2Divisor;
+		else
+			yy = yy ./ powerDivisor;
+		end
+		%intermediate onset frequency
+		rphase = rand * randPhaseRange;
+		yyy = sin((0 : (pi*onsetMult)/f : (pi*onsetMult) * 0.4)+rphase)';
+		yyy = yyy ./ onsetDivisor;
+		%find our times to inject yy burst frequency
+		st = findNearest(time,burstOnset);
+		en = st + length(yy)-1;
+		y(st:en) = y(st:en) + yy;
+		%add our fixed 0.4s intermediate onset freq
+		st = findNearest(time,0);
+		en = st + length(yyy)-1;
+		y(st:en) = y(st:en) + yyy;
+		%add our noise
+		y = y + ((rand(size(y))-0.5)./noiseDivisor);
+		%normalise our surrogate to be 0-1 range
+		y = y - min(y); y = y / max(y); % 0 - 1 range;
+		%make sure we are a column vector
+		if size(y,2) < size(y,1); y = y'; end
+	end
 end
 
 end

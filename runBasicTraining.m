@@ -23,20 +23,21 @@ if ~rM.isOpen; open(rM); end %open our reward manager
 fprintf('\n--->>> runBasicTraining Started: ana UUID = %s!\n',ana.uuid);
 
 %===================Initiate our metadata===================
-ana.date = datestr(datetime);
-ana.version = Screen('Version');
-ana.computer = Screen('Computer');
-ana.gpu = opengl('data');
+ana.date		= datestr(datetime);
+ana.version		= Screen('Version');
+ana.computer	= Screen('Computer');
+ana.gpu			= opengl('data');
+thisVerbose		= true;
 
 %===================experiment parameters===================
-ana.screenID = max(Screen('Screens'));%-1;
+ana.screenID	= max(Screen('Screens'));%-1;
 
 %===================Make a name for this run===================
-ana.timeExp = fix(clock());
+ana.timeExp		= fix(clock());
 if ~isempty(ana.subject)
-	nameExp = ['basicTrain_' ana.stimulus '_' ana.subject];
-	c = sprintf(' %i',ana.timeExp);
-	nameExp = [nameExp c];
+	nameExp		= ['basicTrain_' ana.stimulus '_' ana.subject];
+	c			= sprintf(' %i',ana.timeExp);
+	nameExp		= [nameExp c];
 	ana.nameExp = regexprep(nameExp,' ','_');
 else
 	ana.nameExp = 'debug';
@@ -51,7 +52,7 @@ try
 	%===================open our screen====================
 	sM							= screenManager();
 	sM.screen				= ana.screenID;
-	sM.verbose				= true;
+	sM.verbose				= thisVerbose;
 	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
 		sM.disableSyncTests = true; 
 	end
@@ -59,17 +60,17 @@ try
 		sM.windowed			= [0 0 1400 1000]; sM.debug = true;
 		sM.verbosityLevel	= 5;
 	else
-		sM.debug				= false;
-		sM.verbosityLevel	= 3;
+		sM.debug			= false;
+		sM.verbosityLevel	= 6;
 	end
-	sM.backgroundColour	= ana.backgroundColour;
+	sM.backgroundColour		= ana.backgroundColour;
 	sM.pixelsPerCm			= ana.pixelsPerCm;
 	sM.distance				= ana.distance;
-	sM.blend					= true;
+	sM.blend				= true;
 	if isfield(ana,'screenCal') && exist(ana.screenCal, 'file')
 		load(ana.screenCal);
 		if exist('c','var') && isa(c,'calibrateLuminance')
-			sM.gammaTable = c;
+			sM.gammaTable	= c;
 		end
 		clear c;
 	end
@@ -80,45 +81,45 @@ try
 	PsychPortAudio('Close');
 	sM.audio = audioManager(); sM.audio.close();
 	if IsLinux
-		sM.audio.device = [];
+		sM.audio.device		= [];
 	elseif IsWin
-		sM.audio.device = [];
+		sM.audio.device		= [];
 	end
 	sM.audio.setup();
 	
 	%===========================tobii manager=====================
-	eT							= tobiiManager();
+	eT						= tobiiManager();
 	eT.name					= ana.nameExp;
-	eT.model             = ana.tracker;
-	eT.trackingMode		= ana.trackingMode;
+	eT.model				= ana.tracker;
+	eT.trackingMode			= ana.trackingMode;
 	eT.eyeUsed				= ana.eyeUsed;
 	eT.sampleRate			= ana.sampleRate;
-	eT.calibrationStimulus= ana.calStim;
-	eT.manualCalibration = ana.calManual;
-	eT.calPositions		= ana.calPos;
-	eT.valPositions		= ana.valPos;
+	eT.calibrationStimulus	= ana.calStim;
+	eT.manualCalibration	= ana.calManual;
+	eT.calPositions			= ana.calPos;
+	eT.valPositions			= ana.valPos;
 	eT.autoPace				= ana.autoPace;
-	eT.paceDuration		= ana.paceDuration;
-	eT.smoothing.nSamples= ana.nSamples;
-	eT.smoothing.method	= ana.smoothMethod;
-	eT.smoothing.window	= ana.w;
+	eT.paceDuration			= ana.paceDuration;
+	eT.smoothing.nSamples	= ana.nSamples;
+	eT.smoothing.method		= ana.smoothMethod;
+	eT.smoothing.window		= ana.w;
 	eT.smoothing.eyes		= ana.smoothEye;
 	if ~ana.isDummy; eT.verbose	= true; end
 	if ~ana.useTracker || ana.isDummy
 		eT.isDummy			= true;
 	end
 	if length(Screen('Screens')) > 1 && ~eT.isDummy % ---- second screen for calibration
-		s						= screenManager;
-		s.verbose			= true;
-		s.screen				= sM.screen - 1;
-		s.backgroundColour= sM.backgroundColour;
+		s					= screenManager;
+		s.verbose			= thisVerbose;
+		s.screen			= sM.screen - 1;
+		s.backgroundColour	= sM.backgroundColour;
 		s.pixelsPerCm		= sM.pixelsPerCm;
 		s.distance			= sM.distance;
-		[w,h]=Screen('WindowSize',s.screen);
+		[w,h]				= Screen('WindowSize',s.screen);
 		s.windowed			= [0 0 round(w/1.5) round(h/1.2)];
 		s.bitDepth			= '8bit';
 		s.blend				= sM.blend;
-		s.disableSyncTests= true;
+		s.disableSyncTests	= true;
 	end
 	if exist('s','var')
 		initialise(eT,sM,s);
@@ -150,7 +151,7 @@ try
 		ana.outcal = cal;
 	end
 	
-	% ---- fixation values.
+	% ---- initial fixation values.
 	eT.resetFixation();
 	eT.fixation.X			= 0;
 	eT.fixation.Y			= 0;
@@ -177,6 +178,7 @@ try
 		ana.moveStim		= true;
 		ana.isVEP			= false;
 		seq.taskFinished	= false;
+		eT.secondScreen = false; %fix opengl window bug
 	elseif strcmpi(ana.stimulus,'VEP')
 		stim									= metaStimulus();
 		switch ana.VEP.Type
@@ -186,42 +188,44 @@ try
 					stim.stimuli{1}.barWidth	= ceil(sM.screenVals.width / sM.ppd);
 					stim.stimuli{1}.barHeight	= ceil(sM.screenVals.height / sM.ppd);
 				else
-					stim.stimuli{1}.size			= ana.size;
+					stim.stimuli{1}.size		= ana.size;
 				end
-				stim.stimuli{1}.type				= 'checkerboard';
+				stim.stimuli{1}.type			= 'checkerboard';
+				eT.secondScreen = false; %fix opengl window bug
 			case {'Square','Sin'}
 				stim.stimuli{1}					= gratingStimulus();
 				if ana.size == 0 || ana.size == inf
-					stim.stimuli{1}.size	= ceil(sM.screenVals.width / sM.ppd);
+					stim.stimuli{1}.size		= ceil(sM.screenVals.width / sM.ppd);
 				else
-					stim.stimuli{1}.size			= ana.size;
+					stim.stimuli{1}.size		= ana.size;
 				end
 				if strcmpi(ana.VEP.Type,'Square')
-					sM.srcMode				= 'GL_ONE';
-					sM.dstMode				= 'GL_ZERO';
-					stim.stimuli{1}.type = 'square';
+					sM.srcMode					= 'GL_ONE';
+					sM.dstMode					= 'GL_ZERO';
+					stim.stimuli{1}.type		= 'square';
 				end
 				stim.stimuli{1}.tf				= 0;
-				stim.stimuli{1}.mask				= ana.VEP.mask;
+				stim.stimuli{1}.mask			= ana.VEP.mask;
 			case 'LogGabor'
 				stim.stimuli{1}					= logGaborStimulus();
 				if ana.size == 0 || ana.size == inf
 					stim.stimuli{1}.size	= ceil(sM.screenVals.width / sM.ppd);
 				else
-					stim.stimuli{1}.size			= ana.size;
+					stim.stimuli{1}.size		= ana.size;
 				end
 				stim.stimuli{1}.sf				= ana.VEP.sfPeak;
 				stim.stimuli{1}.sfSigma			= ana.VEP.sfSigma;
 				stim.stimuli{1}.angle			= ana.VEP.anglePeak;
 				stim.stimuli{1}.angleSigma		= ana.VEP.angleSigma;
-				stim.stimuli{1}.mask				= ana.VEP.mask;
+				stim.stimuli{1}.mask			= ana.VEP.mask;
+				eT.secondScreen = false; %fix opengl window bug
 		end
 		stim.stimuli{1}.speed					= 0;
 		stim.stimuli{1}.phaseReverseTime		= ana.VEP.Flicker;
-		stim.stimuli{1}.verbose					= true;
+		stim.stimuli{1}.verbose					= thisVerbose;
 		
 		stim.stimuli{2}							= discStimulus();
-		stim.stimuli{2}.size						= 1;
+		stim.stimuli{2}.size					= 1;
 		stim.stimuli{2}.colour					= ana.backgroundColour;
 		stim.setup(sM);
 		if ana.spotSize == 0; stim.stimuli{2}.hide(); end
@@ -262,6 +266,7 @@ try
 		initialise(seq);
 		ana.nTrials = seq.nRuns;
 	else
+		%===============================FIXATION ONLY
 		ana.fixOnly			= true;
 		ana.moveStim		= true;
 		ana.isVEP			= false;
@@ -289,7 +294,7 @@ try
 	nfeedback		= 0;
 	
 	while ~breakLoop
-		%=========================TRIAL SETUP==========================
+		%=================================TRIAL SETUP================================
 		thisRun = thisRun + 1;
 		if ~ana.moveStim && ~ana.isVEP
 			thisPos = pos(randi(length(pos)),:);
@@ -327,7 +332,7 @@ try
 		
 		if ~ana.debug;ListenChar(-1);end
 		
-		%=====================INITIATE FIXATION
+		%========================================================INITIATE FIXATION
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		trackerMessage(eT,'INITIATEFIX');
 		fixated = ''; doBreak = false;
@@ -361,7 +366,7 @@ try
 			WaitSecs(0.5);
 		end
 		
-		%=====================SHOW STIMULUS
+		%===========================================================SHOW STIMULUS
 		tick = 0;
 		kTimer = 0; % this is the timer to stop too many key events
 		thisResponse = -1; doBreak = false;
@@ -401,6 +406,7 @@ try
 		if ana.sendTrigger;lM.strobeServer(255); end
 		tEnd = vbl;
 		
+		%=============================================================CHECK RESPONSE
 		if strcmpi(fixated,'breakfix') || thisResponse == 0
 			trackerMessage(eT,'ENDVBL',vbl);
 			trackerMessage(eT,'TRIAL_RESULT -1');
@@ -417,13 +423,15 @@ try
 				if seq.taskFinished;breakLoop = true;end
 			end
 			if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
-			WaitSecs('YieldSecs',ana.ITI);
+			WaitSecs('UntilTime',tEnd+ana.ITI);
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			flip(sM);
 		end
+		
 		sM.audio.loadSamples();
 		updatePlots();
-		%save this run info to structure
+		
+		%========================================================SAVE THIS RUN INFO
 		if ana.isVEP
 			ana.trial(seq.totalRuns).n = seq.totalRuns;
 			ana.trial(seq.totalRuns).variable = seq.outIndex(seq.totalRuns);
@@ -508,7 +516,6 @@ end
 					WaitSecs('YieldSecs',0.1);
 					fprintf('\n\n--->>> Entering calibration mode...\n');
 					trackerSetup(eT,eT.calibration);
-					stim{1}.verbose = true;
 					fixated = 'breakfix';
 					doBreak = true;
 				case {'1','1!','kp_end'}
@@ -541,12 +548,12 @@ end
 		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; beep(sM.audio,'high'); end
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
 		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
-		drawGreenSpot(sM,5);
+		drawGreenSpot(sM,1);
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
 		cloop=1;
 		while vbl <= ct + ana.ITI
-			if cloop<60; drawGreenSpot(sM,5); end
+			if cloop<60; drawGreenSpot(sM,1); end
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			vbl=flip(sM); cloop=cloop+1;
 			doBreak = checkKeys();
