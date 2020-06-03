@@ -25,7 +25,21 @@ if ana.plotTriggers
 	cfgRaw.correctID	= ana.correctID;
 	data_raw			= ft_preprocessing(cfgRaw);
 	[trl, events, triggers] = loadCOGEEG(cfgRaw);
+	if isempty(trl)
+		fprintf('--->>> NO Trials loaded\n');
+	else
+		fprintf('--->>> %i Trials loaded, plotting...\n',size(trl,1));
+	end
 	plotRawChannels(); drawnow;
+	if ~isempty(trl) && size(trl,2) == 4
+		plotTable(info.seq.outIndex,trl(:,4));
+	end
+	info.data_raw		= data_raw;
+	info.events			= events;
+	info.triggers		= triggers;
+	info.trl			= trl;
+	assignin('base','info',info);
+	return;
 end
 
 %---------------------------LOAD DATA AS TRIALS
@@ -73,12 +87,11 @@ for j = 1:length(varmap)
 	cfg.covariance	= ana.tlcovariance;
 	cfg.keeptrials	= ana.tlkeeptrials;
 	cfg.removemean	= ana.tlremovemean;
-	%cfg.latency		= ana.plotRange;
-	cfg.hassampleinfo = true;
+	cfg.latency		= ana.plotRange;
 	timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
 end
 plotTimeLock();
-makeSurrogate();
+%makeSurrogate();
 plotFreqPower();
 
 %------------------------------RUN TIMEFREQ
@@ -104,21 +117,7 @@ info.data_eeg		= data_eeg;
 info.triggers		= triggers;
 assignin('base','info',info);
 
-col1 = info.seq.outIndex;if size(col1,1)<size(col1,2); col1=col1';end
-col2 = info.data_eeg.trialinfo;if size(col2,1)<size(col2,2); col2=col2';end
-col3 = vars; if size(col3,1)<size(col3,2); col3=col3';end
-col4 = 1:length(col3); if size(col4,1)<size(col4,2); col4=col4';end
-
-maxn = max([length(col1) length(col2) length(col3) length(col4)]);
-if length(col1) < maxn; col1(end+1:maxn) = NaN; end
-if length(col2) < maxn; col2(end+1:maxn) = NaN; end
-if length(col3) < maxn
-	col3 = [col3;repmat({''},maxn-length(col3),1)];
-end
-if length(col4) < maxn; col4(end+1:maxn) = NaN; end
-tdata = table(col1,col2,col3,col4,'VariableNames',{'Triggers Sent','Data Triggers','Stimulus Value','Index'});
-ana.table.Data = tdata;
-drawnow;
+plotTable(info.seq.outIndex, info.data_eeg.trialinfo);
 fprintf('===>>> Analysis took %.2f seconds\n', toc(ts));
 
 %==========================================SUB FUNCTIONS
@@ -131,23 +130,51 @@ function vars = getVariables()
 	end
 end
 
+function plotTable(intrig,outtrig)
+	col1 = intrig;if size(col1,1)<size(col1,2); col1=col1';end
+	col2 = outtrig;if size(col2,1)<size(col2,2); col2=col2';end
+	col3 = vars; if size(col3,1)<size(col3,2); col3=col3';end
+	col4 = 1:length(col3); if size(col4,1)<size(col4,2); col4=col4';end
+	
+	if length(col1) ~= length(col2)
+		warning('Input and output triggers are different!')
+		ana.warning.Color = [ 0.8 0.3 0.3 ];
+	else
+		ana.warning.Color = [ 0.5 0.5 0.5 ];
+	end
+
+	maxn = max([length(col1) length(col2) length(col3) length(col4)]);
+	if length(col1) < maxn; col1(end+1:maxn) = NaN; end
+	if length(col2) < maxn; col2(end+1:maxn) = NaN; end
+	if length(col3) < maxn
+		col3 = [col3;repmat({''},maxn-length(col3),1)];
+	end
+	if length(col4) < maxn; col4(end+1:maxn) = NaN; end
+	tdata = table(col1,col2,col3,col4,'VariableNames',{'Triggers Sent','Data Triggers','Stimulus Value','Index'});
+	ana.table.Data = tdata;
+	
+end
+
 function plotTimeLock()
 	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
 		'Position',[0 0.1 0.3 0.9]);
-	tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
+	if length(timelock) > 8
+		tl = tiledlayout(h,'flow','TileSpacing','compact');
+	else
+		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
+	end
 	mn = inf; mx = -inf;
+	c={[0.3 0.3 0.3],[0.7 0.3 0.3],[0.8 0.8 0.8],[0.7 0.9 0.7],[0.9 0.9 0.7],[0.7 0.7 0.9]};
 	for jj = 1:length(timelock)
 		nexttile(tl,jj)
 		ft_singleplotER(struct('channel',[1 2]),timelock{jj});
 		if isfield(timelock{jj},'avg')
 			hold on
-			c={[0.6 0.6 0.6],[0.9 0.6 0.6],[0.9 0.9 0.9],[0.7 0.9 0.7],[0.9 0.9 0.7],[0.7 0.7 0.9]};
 			for i = 1:length(timelock{jj}.label)
 				areabar(timelock{jj}.time,timelock{jj}.avg(i,:),timelock{jj}.var(i,:),c{i});
 			end
 		else
 			hold on
-			c={[0.6 0.6 0.6],[0.9 0.6 0.6],[0.9 0.9 0.9],[0.7 0.9 0.7],[0.9 0.9 0.7],[0.7 0.7 0.9]};
 			for i = 1:length(timelock{jj}.label)
 				dt = squeeze(timelock{jj}.trial(:,i,:))';
 				plot(timelock{jj}.time',dt,'k-','Color',c{i});
@@ -172,20 +199,24 @@ end
 function plotFreqPower()
 	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
 		'Position',[0.3 0.1 0.3 0.9]);
-	tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
+	if length(timelock) > 8
+		tl = tiledlayout(h,'flow','TileSpacing','compact');
+	else
+		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
+	end
 	mn = inf; mx = -inf;
 	for j = 1:length(timelock)
 		nexttile(tl,j)
 		hold on
 		for iif = 1:length(timelock{j}.label)
 			if isfield(timelock{j},'avg')
-				[P,f,~,p1,p0] = doFFT(timelock{j}.avg(iif,:));
+				[P,f,~,p1,p0,p2] = doFFT(timelock{j}.avg(iif,:));
 			else
 				dt = mean(squeeze(timelock{j}.trial(:,iif,:)));
-				[P,f,~,p1,p0] = doFFT(dt);
+				[P,f,~,p1,p0,p2] = doFFT(dt);
 			end
 			plot(f,P);
-			if iif == 1;powf1(j) = p1;powf0(j) = p0;end
+			if iif == 1;powf1(j) = p1;powf0(j) = p0;powf2(j) = p2;end
 			if min(ylim)<mn;mn=min(ylim);end
 			if max(ylim)>mx;mx=max(ylim);end
 		end
@@ -201,14 +232,19 @@ function plotFreqPower()
 	tl.YLabel.String = 'Power';
 	tl.Title.String = t;
 	figure
-	plot(powf0);hold on;plot(powf1);legend({'Fundamental','First'});
+	plot(powf0);hold on;plot(powf1);plot(powf2);legend({'Fundamental','First','Second'});
 	title('Power at Flicker')
 end
 
 function plotFrequency()
 	h = figure('Name',['TF Data: ' ana.EDFFile],'Units','normalized',...
 		'Position',[0.6 0.1 0.3 0.9]);
-	tl = tiledlayout(h,'flow');
+	if length(freq) > 8
+		tl = tiledlayout(h,'flow','TileSpacing','compact');
+	else
+		tl = tiledlayout(h,length(freq),1,'TileSpacing','compact');
+	end
+	
 	for jj = 1:length(freq)
 		nexttile(tl);
 		cfg = [];
@@ -241,27 +277,30 @@ function plotRawChannels()
     end
 	for i = 1:nchan
 		ch{i} = data_raw.trial{1}(i+offset,:);
-		baseline = median(ch{i}(1:100));
+		baseline = nanmedian(ch{i});
 		ch{i} = (ch{i} - baseline);
 		ch{i} = ch{i} / max(ch{i});
 		nexttile(tl,i)
 		p = plot(tm,ch{i},'k-'); 
 		dtt = p.DataTipTemplate;
 		dtt.DataTipRows(1).Format = '%.3f';
+		line([min(tm) max(tm)], [0 0],'LineStyle',':','Color',[0.4 0.4 0.4]);
 		hold on
-		if any([ana.dataChannels ana.pDiode] == i)
+		if ~any(ana.bitChannels == i) && (i == 1 || i == ana.pDiode)
 			for ii = 1:length(events)
 				if ~isempty(events(ii).times)
 					y = repmat(ii/10, [1 length(events(ii).times)]);
-					p = plot(events(ii).times,y,'.','MarkerSize',12);
-					dtt = p.DataTipTemplate;
-					dtt.DataTipRows(1).Format = '%.3f';
+					plot(events(ii).times,y,'.','MarkerSize',12);
 				end
 			end
 			ylim([-inf inf]);
-		else
+		elseif any(ana.bitChannels == i)
 			ii = i - (ana.bitChannels(1)-1);
-			if ~isempty(events(ii).times);plot(events(ii).times,0.75,'r.','MarkerSize',12);end
+			if ~isempty(events(ii).times)
+				p=plot(events(ii).times,0.75,'r.','MarkerSize',12);
+				dtt = p.DataTipTemplate;
+				dtt.DataTipRows(1).Format = '%.3f';
+			end
 			ylim([-0.05 1.05]);
 		end
 		if any([ana.dataChannels ana.pDiode] == i) && i == 1 && ~isempty(trl) && size(trl,1) > 1
@@ -331,13 +370,13 @@ function [idx,val,delta]=findNearest(in,value)
 	delta = abs(value - val);
 end
 
-function [P, f, A, p1, p0] = doFFT(p)	
+function [P, f, A, p1, p0, p2] = doFFT(p)	
 	useX = true;
-	useHanning = false;
+	useHanning = true;
 	L = length(p);
 	
 	fs = data_eeg.fsample;
-	ff = (1/info.ana.VEP.Flicker) / 2;
+	ff = (1/info.ana.VEP.Flicker);
 	
 	if useHanning
 		win = hanning(L, 'periodic');
@@ -362,6 +401,8 @@ function [P, f, A, p1, p0] = doFFT(p)
 	A = angle(Pi(idx));
 	idx = analysisCore.findNearest(f, 0);
 	p0 = P(idx);
+	idx = analysisCore.findNearest(f, ff*2);
+	p2 = P(idx);
 
 end
 
@@ -374,11 +415,12 @@ function makeSurrogate()
 	rphase					= 0; %default phase
 	basef					= 1; % base frequency
 	onsetf					= 5; %an onset at 0 frequency
+	onsetLength				= 3; %length of onset signal
 	onsetDivisor			= 1.5; %scale the onset frequency
 	burstf					= 30; %small burst frequency
 	burstOnset				= 1.0; %time of onset of burst freq
-	burstLength				= 0.2; %length of burst
-	powerDivisor			= 2; %how much to attenuate the secondary frequencies
+	burstLength				= 0.5; %length of burst
+	powerDivisor			= 1; %how much to attenuate the secondary frequencies
 	group2Divisor			= 1; %do we use a diff divisor for group 2?
 	noiseDivisor			= 0.4; %scale noise to signal
 	piMult					= basef * 2; %resultant pi multiplier
@@ -386,6 +428,10 @@ function makeSurrogate()
 	onsetMult				= onsetf * 2; %onset multiplier
 	
 	time=mydata.time;
+	maxtime = max(time);
+	if onsetLength > maxtime; onsetLength = maxTime - 0.1; end
+	if burstLength > maxtime; burstLength = maxTime - 0.1; end
+	
 	for k = 1:size(mydata.avg,1)
 		mx = max(mydata.avg(k,:));
 		mn = min(mydata.avg(k,:));
@@ -393,7 +439,7 @@ function makeSurrogate()
 		y = makeSurrogate();
 		y = y * rn; % scale to the voltage range of the original trial
 		y = y + mn;
-		mydata.avg(k,:);
+		mydata.avg(k,:) = y;
 	end
 	
 	function y = makeSurrogate()
@@ -411,7 +457,7 @@ function makeSurrogate()
 		end
 		%intermediate onset frequency
 		rphase = rand * randPhaseRange;
-		yyy = sin((0 : (pi*onsetMult)/f : (pi*onsetMult) * 0.4)+rphase)';
+		yyy = sin((0 : (pi*onsetMult)/f : (pi*onsetMult) * onsetLength)+rphase)';
 		yyy = yyy ./ onsetDivisor;
 		%find our times to inject yy burst frequency
 		st = findNearest(time,burstOnset);

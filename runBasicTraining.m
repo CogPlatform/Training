@@ -27,7 +27,7 @@ ana.date		= datestr(datetime);
 ana.version		= Screen('Version');
 ana.computer	= Screen('Computer');
 ana.gpu			= opengl('data');
-thisVerbose		= true;
+thisVerbose		= false;
 
 %===================experiment parameters===================
 ana.screenID	= max(Screen('Screens'));%-1;
@@ -74,7 +74,7 @@ try
 		end
 		clear c;
 	end
-	sM.open; % OPEN THE SCREEN
+	sM.open;
 	ana.gpuInfo				= Screen('GetWindowInfo',sM.win);
 	fprintf('\n--->>> BasicTraining Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
@@ -236,7 +236,7 @@ try
 		%=====================Stimulus Sequence=========================
 		seq					= stimulusSequence();
 		seq.nBlocks			= ana.nBlocks;
-		seq.addBlank		= true;
+		seq.addBlank		= ana.addBlank;
 		seq.nVar(1).name	= 'sf';
 		if size(ana.VEP.SF,1) > size(ana.VEP.SF,2)
 			if ana.VEP.LogSF

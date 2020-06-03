@@ -3,7 +3,11 @@ function [trl, events, triggers] = loadCOGEEG(cfg)
 % markers
 
 % read the header information and the events from the data
-hdr   = ft_read_header(cfg.dataset);
+if isfield(cfg,'header')
+	hdr = cfg.header;
+else
+	hdr   = ft_read_header(cfg.dataset);
+end
 % read the events from the data
 chanindx      = cfg.chanindx;
 detectflank   = 'up';
@@ -16,8 +20,8 @@ nChannels = length(labels);
 events = [];
 time = linspace(0, (1/hdr.Fs)*hdr.nSamples, hdr.nSamples);
 
-% any trigger <= 4 samples after previous is considered artifact and removed
-minNextTrigger = cfg.minTrigger;
+% any trigger < minNextTrigger ms after previous is considered artifact and removed
+minNextTrigger = cfg.minTrigger * 1e-3;
 % number of samples to allow jitter to assign to same strobed word
 nSamples = cfg.jitter; 
 % pre stimulus time to select
@@ -31,14 +35,30 @@ for i = 1:nChannels
 	events(i).evnt		= event(events(i).idx);
 	events(i).samples	= [events(i).evnt.sample];
 	events(i).times		= time(events(i).samples);
-	rmIdx = find(diff(events(i).samples) <= minNextTrigger);
-	if ~isempty(rmIdx)
-		rmIdx = rmIdx + 1; %diff needs + 1 to correct the index
-		events(i).idx(rmIdx) = [];
-		events(i).evnt(rmIdx) = [];
-		events(i).samples(rmIdx) = [];
-		events(i).times(rmIdx) = [];
-		events(i).rmIdx = rmIdx;
+	events(i).rmIdx		= [];
+	times = events(i).times;
+	if ~any(diff(times) <= minNextTrigger);continue;end
+	j = 1;
+	while j < length(times)
+		% this checks if the next time < min and also next+1
+		% as some TTL signals show ringing.
+		if (times(j+1)-times(j)) <= minNextTrigger
+			if (j<length(times)-1) && (times(j+2)-times(j)) <= minNextTrigger
+				events(i).rmIdx = [events(i).rmIdx j+1 j+2];
+				j = j + 3;
+			else
+				events(i).rmIdx = [events(i).rmIdx j+1];
+				j = j + 2;
+			end
+		else
+			j = j + 1;
+		end
+	end
+	if ~isempty(events(i).rmIdx)
+		events(i).idx(events(i).rmIdx) = [];
+		events(i).evnt(events(i).rmIdx) = [];
+		events(i).samples(events(i).rmIdx) = [];
+		events(i).times(events(i).rmIdx) = [];
 	end
 end
 
