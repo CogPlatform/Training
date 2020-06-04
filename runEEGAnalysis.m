@@ -87,7 +87,7 @@ for j = 1:length(varmap)
 	cfg.covariance	= ana.tlcovariance;
 	cfg.keeptrials	= ana.tlkeeptrials;
 	cfg.removemean	= ana.tlremovemean;
-	cfg.latency		= ana.plotRange;
+	if ~isempty(ana.plotRange);	cfg.latency = ana.plotRange; end
 	timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
 end
 plotTimeLock();
@@ -103,9 +103,13 @@ for j = 1:length(varmap)
 	cfg.method		= 'mtmconvol';
 	cfg.taper		= ana.freqtaper;
 	cfg.pad			= 'nextpow2';
-	cfg.foi			= ana.freqrange;                         % analysis 2 to 30 Hz in steps of 2 Hz
+	cfg.foi			= ana.freqrange;                  % analysis 2 to 30 Hz in steps of 2 Hz
 	cfg.t_ftimwin	= ones(length(cfg.foi),1).*0.2;   % length of time window = 0.5 sec
-	cfg.toi			= ana.plotRange(1):0.05:ana.plotRange(2);                  % time window "slides" from -0.5 to 1.5 sec in steps of 0.05 sec (50 ms)
+	if ~isempty(ana.plotRange) && isnumeric(ana.plotRange)
+		cfg.toi		= ana.plotRange(1):0.05:ana.plotRange(2);% time window "slides" from -0.5 to 1.5 sec in steps of 0.05 sec (50 ms)
+	else
+		cfg.toi		= min(data_eeg.time{1}):0.05:max(data_eeg.time{1});
+	end
 	freq{j}			= ft_freqanalysis(cfg,data_eeg);
 end
 plotFrequency();
@@ -180,7 +184,7 @@ function plotTimeLock()
 				plot(timelock{jj}.time',dt,'k-','Color',c{i});
 			end
 		end
-		xlim([ana.plotRange(1) ana.plotRange(2)]);
+		if isnumeric(ana.plotRange);xlim([ana.plotRange(1) ana.plotRange(2)]);end
 		box on;grid on; axis tight;
 		if min(ylim)<mn;mn=min(ylim);end
 		if max(ylim)>mx;mx=max(ylim);end
@@ -205,14 +209,19 @@ function plotFreqPower()
 		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
 	end
 	mn = inf; mx = -inf;
+	mint = ana.analRange(1);
+	maxt = ana.analRange(2);
 	for j = 1:length(timelock)
+		minidx = findNearest(timelock{j}.time,mint);
+		maxidx = findNearest(timelock{j}.time,maxt);
 		nexttile(tl,j)
 		hold on
 		for iif = 1:length(timelock{j}.label)
 			if isfield(timelock{j},'avg')
-				[P,f,~,p1,p0,p2] = doFFT(timelock{j}.avg(iif,:));
+				[P,f,~,p1,p0,p2] = doFFT(timelock{j}.avg(iif,minidx:maxidx));
 			else
 				dt = mean(squeeze(timelock{j}.trial(:,iif,:)));
+				dt = dt(minidx:maxidx);
 				[P,f,~,p1,p0,p2] = doFFT(dt);
 			end
 			plot(f,P);
