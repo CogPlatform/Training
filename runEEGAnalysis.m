@@ -7,7 +7,7 @@ info = load(ana.MATFile);
 info.seq.showLog();drawnow;
 vars = getVariables;
 
-data_raw = []; trl=[]; triggers=[]; events=[];
+data_raw = []; trl=[]; triggers=[]; events=[]; timelock = []; freq = [];
 if ana.plotTriggers
 	cfgRaw				= [];
 	cfgRaw.dataset		= ana.EDFFile;
@@ -81,38 +81,43 @@ end
 %------------------------------RUN TIMELOCK
 varmap				= unique(data_eeg.trialinfo);
 timelock			= cell(length(varmap),1);
-for j = 1:length(varmap)
-	cfg				= [];
-	cfg.trials		= find(data_eeg.trialinfo==varmap(j));
-	cfg.covariance	= ana.tlcovariance;
-	cfg.keeptrials	= ana.tlkeeptrials;
-	cfg.removemean	= ana.tlremovemean;
-	if ~isempty(ana.plotRange);	cfg.latency = ana.plotRange; end
-	timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
+if ana.doTimelock
+	for j = 1:length(varmap)
+		cfg				= [];
+		cfg.trials		= find(data_eeg.trialinfo==varmap(j));
+		cfg.covariance	= ana.tlcovariance;
+		cfg.keeptrials	= ana.tlkeeptrials;
+		cfg.removemean	= ana.tlremovemean;
+		if ~isempty(ana.plotRange);	cfg.latency = ana.plotRange; end
+		timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
+	end
+	plotTimeLock();
+	%makeSurrogate();
+	plotFreqPower();
 end
-plotTimeLock();
-%makeSurrogate();
-plotFreqPower();
 
 %------------------------------RUN TIMEFREQ
+
 freq				= cell(length(varmap),1);
-for j = 1:length(varmap)
-	cfg				= [];
-	cfg.trials		= find(data_eeg.trialinfo==varmap(j));
-	cfg.channel		= 1;
-	cfg.method		= 'mtmconvol';
-	cfg.taper		= ana.freqtaper;
-	cfg.pad			= 'nextpow2';
-	cfg.foi			= ana.freqrange;                  % analysis 2 to 30 Hz in steps of 2 Hz
-	cfg.t_ftimwin	= ones(length(cfg.foi),1).*0.2;   % length of time window = 0.5 sec
-	if ~isempty(ana.plotRange) && isnumeric(ana.plotRange)
-		cfg.toi		= ana.plotRange(1):0.05:ana.plotRange(2);% time window "slides" from -0.5 to 1.5 sec in steps of 0.05 sec (50 ms)
-	else
-		cfg.toi		= min(data_eeg.time{1}):0.05:max(data_eeg.time{1});
+if ana.doTimeFreq
+	for j = 1:length(varmap)
+		cfg				= [];
+		cfg.trials		= find(data_eeg.trialinfo==varmap(j));
+		cfg.channel		= 1;
+		cfg.method		= 'mtmconvol';
+		cfg.taper		= ana.freqtaper;
+		cfg.pad			= 'nextpow2';
+		cfg.foi			= ana.freqrange;                  % analysis 2 to 30 Hz in steps of 2 Hz
+		cfg.t_ftimwin	= ones(length(cfg.foi),1).*0.2;   % length of time window = 0.5 sec
+		if ~isempty(ana.plotRange) && isnumeric(ana.plotRange)
+			cfg.toi		= ana.plotRange(1):0.05:ana.plotRange(2);% time window "slides" from -0.5 to 1.5 sec in steps of 0.05 sec (50 ms)
+		else
+			cfg.toi		= min(data_eeg.time{1}):0.05:max(data_eeg.time{1});
+		end
+		freq{j}			= ft_freqanalysis(cfg,data_eeg);
 	end
-	freq{j}			= ft_freqanalysis(cfg,data_eeg);
+	plotFrequency();
 end
-plotFrequency();
 
 info.timelock		= timelock;
 info.freq			= freq;
@@ -185,7 +190,8 @@ function plotTimeLock()
 			end
 		end
 		if isnumeric(ana.plotRange);xlim([ana.plotRange(1) ana.plotRange(2)]);end
-		box on;grid on; axis tight;
+		box on;grid on; grid minor; axis tight;
+		legend(timelock{1}.label)
 		if min(ylim)<mn;mn=min(ylim);end
 		if max(ylim)>mx;mx=max(ylim);end
 		line([0 0],ylim,'LineWidth',1,'Color','k');
@@ -230,12 +236,12 @@ function plotFreqPower()
 			if max(ylim)>mx;mx=max(ylim);end
 		end
 		legend(timelock{1}.label)
-		box on;grid on; axis tight;xlim([-1 20]);
+		box on;grid on; grid minor;
 		title(['Var: ' num2str(j) ' = ' vars{j}]);
 		hz = zoom;hz.enable = 'on';hz.ActionPostCallback = @myCallbackZoom;
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
-	for j = 1:length(timelock);nexttile(tl,j);ylim([mn mx]);end
+	for j = 1:length(timelock);nexttile(tl,j);ylim([mn mx]);xlim([-1 31]);end
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval);
 	tl.XLabel.String = 'Frequency (Hz)';
 	tl.YLabel.String = 'Power';
