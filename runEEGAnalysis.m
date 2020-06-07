@@ -176,7 +176,11 @@ function plotTimeLock()
 	c={[0.3 0.3 0.3],[0.7 0.3 0.3],[0.8 0.8 0.8],[0.7 0.9 0.7],[0.9 0.9 0.7],[0.7 0.7 0.9]};
 	for jj = 1:length(timelock)
 		nexttile(tl,jj)
-		ft_singleplotER(struct('channel',[1 2]),timelock{jj});
+		cfg = [];
+		cfg.interactive = 'no';
+		cfg.linewidth = 1;
+		cfg.channel = ana.dataChannels;
+		ft_singleplotER(cfg,timelock{jj});
 		if isfield(timelock{jj},'avg')
 			hold on
 			for i = 1:length(timelock{jj}.label)
@@ -186,15 +190,16 @@ function plotTimeLock()
 			hold on
 			for i = 1:length(timelock{jj}.label)
 				dt = squeeze(timelock{jj}.trial(:,i,:))';
-				plot(timelock{jj}.time',dt,'k-','Color',c{i});
+				plot(timelock{jj}.time',dt,'k-','Color',c{i},'DisplayName',timelock{jj}.label{i});
 			end
 		end
 		if isnumeric(ana.plotRange);xlim([ana.plotRange(1) ana.plotRange(2)]);end
 		box on;grid on; grid minor; axis tight;
-		legend(timelock{1}.label)
+		legend(cat(1,{'AVG'},timelock{1}.label));
 		if min(ylim)<mn;mn=min(ylim);end
 		if max(ylim)>mx;mx=max(ylim);end
-		line([0 0],ylim,'LineWidth',1,'Color','k');
+		l = line([0 0],ylim,'LineWidth',1,'Color','k');
+		l.Annotation.LegendInformation.IconDisplayStyle = 'off';
 		title(['Var: ' num2str(jj) ' = ' vars{jj}]);
 		hz = zoom;hz.enable = 'on';hz.ActionPostCallback = @myCallbackZoom;
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
@@ -248,7 +253,9 @@ function plotFreqPower()
 	tl.Title.String = t;
 	figure
 	plot(powf0);hold on;plot(powf1);plot(powf2);legend({'Fundamental','First','Second'});
-	title('Power at Flicker')
+	title('Power at Flicker Frequency')
+	xlabel('Variable');
+	ylabel('Power');
 end
 
 function plotFrequency()
@@ -263,7 +270,7 @@ function plotFrequency()
 	for jj = 1:length(freq)
 		nexttile(tl);
 		cfg = [];
-		if ~contains(ana.freqbaseline,'none');
+		if ~contains(ana.freqbaseline,'none')
 			cfg.baseline = ana.freqbaselinevalue;
 			cfg.baselinetype = ana.freqbaseline;
 		end
