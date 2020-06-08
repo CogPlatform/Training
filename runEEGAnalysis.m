@@ -11,7 +11,7 @@ data_raw = []; trl=[]; triggers=[]; events=[]; timelock = []; freq = [];
 if ana.plotTriggers
 	cfgRaw				= [];
 	cfgRaw.dataset		= ana.EDFFile;
-	cfgRaw.header		= ft_read_header(cfgRaw.dataset);
+	cfgRaw.header		= ft_read_header(cfgRaw.dataset); disp(cfgRaw.header);
 	cfgRaw.continuous	= 'yes';
 	cfgRaw.channel		= 'all';
 	cfgRaw.demean		= 'yes';
@@ -45,7 +45,7 @@ end
 %---------------------------LOAD DATA AS TRIALS
 cfg					= [];
 cfg.dataset			= ana.EDFFile;
-cfg.header			= ft_read_header(cfg.dataset);
+cfg.header			= ft_read_header(cfg.dataset); disp(cfg.header);
 cfg.continuous		= 'yes';
 cfg.trialfun		= 'loadCOGEEG';
 cfg.chanindx		= ana.bitChannels;
@@ -173,24 +173,25 @@ function plotTimeLock()
 		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
 	end
 	mn = inf; mx = -inf;
-	c={[0.3 0.3 0.3],[0.7 0.3 0.3],[0.8 0.8 0.8],[0.7 0.9 0.7],[0.9 0.9 0.7],[0.7 0.7 0.9]};
+	c=[0.1 0.1 0.1 ; 0.9 0.2 0.2 ; 0.8 0.8 0.8 ; 0.2 0.9 0.2 ; 0.2 0.2 0.9; 0.2 0.9 0.9; 0.7 0.7 0.2];
+	%c = parula(6);
 	for jj = 1:length(timelock)
 		nexttile(tl,jj)
 		cfg = [];
 		cfg.interactive = 'no';
 		cfg.linewidth = 1;
-		cfg.channel = ana.dataChannels;
+		cfg.channel = ana.tlChannels;
 		ft_singleplotER(cfg,timelock{jj});
 		if isfield(timelock{jj},'avg')
 			hold on
 			for i = 1:length(timelock{jj}.label)
-				areabar(timelock{jj}.time,timelock{jj}.avg(i,:),timelock{jj}.var(i,:),c{i});
+				areabar(timelock{jj}.time,timelock{jj}.avg(i,:),timelock{jj}.var(i,:),c(i,:));
 			end
 		else
 			hold on
 			for i = 1:length(timelock{jj}.label)
 				dt = squeeze(timelock{jj}.trial(:,i,:))';
-				plot(timelock{jj}.time',dt,'k-','Color',c{i},'DisplayName',timelock{jj}.label{i});
+				plot(timelock{jj}.time',dt,'k-','Color',c(i,:),'DisplayName',timelock{jj}.label{i});
 			end
 		end
 		if isnumeric(ana.plotRange);xlim([ana.plotRange(1) ana.plotRange(2)]);end
@@ -200,8 +201,10 @@ function plotTimeLock()
 		if max(ylim)>mx;mx=max(ylim);end
 		l = line([0 0],ylim,'LineWidth',1,'Color','k');
 		l.Annotation.LegendInformation.IconDisplayStyle = 'off';
-		title(['Var: ' num2str(jj) ' = ' vars{jj}]);
-		hz = zoom;hz.enable = 'on';hz.ActionPostCallback = @myCallbackZoom;
+		l.ButtonDownFcn = @cloneAxes;
+		t = title(['Var: ' num2str(jj) ' = ' vars{jj}]);
+		t.ButtonDownFcn = @cloneAxes;
+		hz = zoom;hz.ActionPostCallback = @myCallbackZoom;
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
 	for j = 1:length(timelock);nexttile(tl,j);ylim([mn mx]);end
@@ -219,6 +222,7 @@ function plotFreqPower()
 	else
 		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
 	end
+	ff = 1/info.ana.VEP.Flicker;
 	mn = inf; mx = -inf;
 	mint = ana.analRange(1);
 	maxt = ana.analRange(2);
@@ -240,10 +244,14 @@ function plotFreqPower()
 			if min(ylim)<mn;mn=min(ylim);end
 			if max(ylim)>mx;mx=max(ylim);end
 		end
+		l = line([[ff ff]',[ff*2 ff*2]'],[ylim',ylim'],'LineStyle','--','LineWidth',1.5,'Color','k');
+		l(1).Annotation.LegendInformation.IconDisplayStyle = 'off';
+		l(2).Annotation.LegendInformation.IconDisplayStyle = 'off';
 		legend(timelock{1}.label)
 		box on;grid on; grid minor;
-		title(['Var: ' num2str(j) ' = ' vars{j}]);
-		hz = zoom;hz.enable = 'on';hz.ActionPostCallback = @myCallbackZoom;
+		t = title(['Var: ' num2str(j) ' = ' vars{j}]);
+		t.ButtonDownFcn = @cloneAxes;
+		hz = zoom;hz.ActionPostCallback = @myCallbackZoom;
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
 	for j = 1:length(timelock);nexttile(tl,j);ylim([mn mx]);xlim([-1 31]);end
@@ -279,7 +287,8 @@ function plotFrequency()
 		xlabel('Time (s)');
 		ylabel('Frequency (Hz)');
 		box on;grid on; axis tight
-		title(['Var: ' num2str(jj) ' = ' vars{jj}]);
+		t =title(['Var: ' num2str(jj) ' = ' vars{jj}]);
+		t.ButtonDownFcn = @cloneAxes;
 	end
 	tl.Title.String = 'Time Frequency Analysis';	
 end
@@ -303,7 +312,7 @@ function plotRawChannels()
 		ch{i} = (ch{i} - baseline);
 		ch{i} = ch{i} / max(ch{i});
 		nexttile(tl,i)
-		p = plot(tm,ch{i},'k-'); 
+		p = plot(tm,ch{i},'k-');
 		dtt = p.DataTipTemplate;
 		dtt.DataTipRows(1).Format = '%.3f';
 		line([min(tm) max(tm)], [0 0],'LineStyle',':','Color',[0.4 0.4 0.4]);
@@ -330,8 +339,8 @@ function plotRawChannels()
 			for jj = 1:size(trl,1) 
 				line([tm(trl(jj,1)) tm(trl(jj,2))],[ypos ypos]);
 				plot([tm(trl(jj,1)) tm(trl(jj,1)-trl(jj,3)) tm(trl(jj,2)+trl(jj,3))],ypos,'ko','MarkerSize',8);
-				text(tm(trl(jj,1)-trl(jj,3)),ypos,['\leftarrow' num2str(trl(jj,4))]);
-				text(tm(trl(jj,2)+trl(jj,3)),ypos,'\leftarrow255');
+				%text(tm(trl(jj,1)-trl(jj,3)),ypos,['\leftarrow' num2str(trl(jj,4))]);
+				%text(tm(trl(jj,2)+trl(jj,3)),ypos,'\leftarrow255');
 				ypos = ypos+0.125;
 				if ypos > 1.0; ypos = 0.3;end
 			end
@@ -383,6 +392,18 @@ function myCallbackZoom(~,event)
 			end
 		end
 	end
+end
+
+function cloneAxes(src,evt)
+	disp('Cloning axis!')
+	if ~isa(src,'matlab.graphics.axis.Axes')
+		if isa(src.Parent,'matlab.graphics.axis.Axes')
+			src = src.Parent;
+		end
+	end
+	f=figure;
+	nsrc = copyobj(src,f);
+	nsrc.OuterPosition = [0.05 0.05 0.9 0.9];
 end
 
 function [idx,val,delta]=findNearest(in,value)
