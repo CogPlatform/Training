@@ -1,18 +1,22 @@
 function runBasicTraining(ana)
 
 global lM
-if ~exist('lM','var') || isempty(lM) || ~isa(lM,'labJackT')
-	 lM = labJackT('openNow',false);
+switch ana.lJType
+	case 'T4'
+		if ~isa(lM,'labJackT');lM = labJackT('openNow',false);end
+		lM.strobeTime = 10; %make strobe time a bit longer for EEG 
+	otherwise
+		if ~isa(lM,'labJack');lM = labJack('openNow',false,'readResponse',false);end
+		lM.strobeTime = 64;
 end
 if ~ana.sendTrigger; lM.silentMode = true; end
-lM.strobeTime = 10; %make strobe time a bit longer for EEG 
 if ~lM.isOpen; open(lM); end %open our strobed word manager
 
 global rM
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager();
 end
-if ~ana.useArduino; 
+if ~ana.useArduino
 	rM.silentMode = true; 
 	ana.rewardDuring=false;
 	ana.rewardEnd=false;
@@ -61,7 +65,7 @@ try
 		sM.verbosityLevel	= 5;
 	else
 		sM.debug			= false;
-		sM.verbosityLevel	= 6;
+		sM.verbosityLevel	= 3;
 	end
 	sM.backgroundColour		= ana.backgroundColour;
 	sM.pixelsPerCm			= ana.pixelsPerCm;
@@ -245,7 +249,7 @@ try
 				seq.nVar(1).values	= linspace(ana.VEP.SF(1),ana.VEP.SF(2),ana.VEP.SF(3));
 			end
 		else
-			seq.nVar(1).values = [ana.VEP.SF];
+			seq.nVar(1).values = ana.VEP.SF;
 		end
 		seq.nVar(1).values = unique(seq.nVar(1).values);
 		seq.nVar(1).stimulus = 1;
@@ -253,12 +257,12 @@ try
 		seq.nVar(2).name	= 'contrast';
 		if size(ana.VEP.Contrast,1) > size(ana.VEP.Contrast,2)
 			if ana.VEP.LogContrast
-				seq.nVar(2).values	= [logspace(log10(ana.VEP.Contrast(1)),log10(ana.VEP.Contrast(2)),ana.VEP.Contrast(3))];
+				seq.nVar(2).values	= logspace(log10(ana.VEP.Contrast(1)),log10(ana.VEP.Contrast(2)),ana.VEP.Contrast(3));
 			else
-				seq.nVar(2).values	= [linspace(ana.VEP.Contrast(1),ana.VEP.Contrast(2),ana.VEP.Contrast(3))];
+				seq.nVar(2).values	= linspace(ana.VEP.Contrast(1),ana.VEP.Contrast(2),ana.VEP.Contrast(3));
 			end
 		else
-			seq.nVar(2).values = [ana.VEP.Contrast];
+			seq.nVar(2).values = ana.VEP.Contrast;
 		end
 		seq.nVar(2).values = unique(seq.nVar(2).values);
 		seq.nVar(2).stimulus = 1;
