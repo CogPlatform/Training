@@ -4,14 +4,14 @@ ana.table.Data =[]; drawnow;
 ft_defaults;
 
 info = load(ana.MATFile);
-info.seq.showLog();drawnow;
+info.seq.showLog(); drawnow;
 vars = getVariables;
 
 data_raw = []; trl=[]; triggers=[]; events=[]; timelock = []; freq = [];
 if ana.plotTriggers
 	cfgRaw				= [];
 	cfgRaw.dataset		= ana.EDFFile;
-	cfgRaw.header		= ft_read_header(cfgRaw.dataset); disp(cfgRaw.header);
+	cfgRaw.header		= ft_read_header(cfgRaw.dataset); disp(cfgRaw.header); disp(cfgRaw.header.orig)
 	cfgRaw.continuous	= 'yes';
 	cfgRaw.channel		= 'all';
 	cfgRaw.demean		= 'yes';
@@ -98,7 +98,7 @@ end
 
 %------------------------------RUN TIMEFREQ
 
-freq				= cell(length(varmap),1);
+freq					= cell(length(varmap),1);
 if ana.doTimeFreq
 	for j = 1:length(varmap)
 		cfg				= [];
@@ -119,11 +119,11 @@ if ana.doTimeFreq
 	plotFrequency();
 end
 
-info.timelock		= timelock;
-info.freq			= freq;
-info.data_raw		= data_raw;
-info.data_eeg		= data_eeg;
-info.triggers		= triggers;
+info.timelock			= timelock;
+info.freq				= freq;
+info.data_raw			= data_raw;
+info.data_eeg			= data_eeg;
+info.triggers			= triggers;
 assignin('base','info',info);
 
 plotTable(info.seq.outIndex, info.data_eeg.trialinfo);
@@ -161,7 +161,6 @@ function plotTable(intrig,outtrig)
 	if length(col4) < maxn; col4(end+1:maxn) = NaN; end
 	tdata = table(col1,col2,col3,col4,'VariableNames',{'Triggers Sent','Data Triggers','Stimulus Value','Index'});
 	ana.table.Data = tdata;
-	
 end
 
 function plotTimeLock()
@@ -244,7 +243,7 @@ function plotFreqPower()
 			if min(ylim)<mn;mn=min(ylim);end
 			if max(ylim)>mx;mx=max(ylim);end
 		end
-		l = line([[ff ff]',[ff*2 ff*2]'],[ylim',ylim'],'LineStyle','--','LineWidth',1.5,'Color','k');
+		l = line([[ff ff]',[ff*2 ff*2]'],[ylim' ylim'],'LineStyle','--','LineWidth',1.5,'Color','k');
 		l(1).Annotation.LegendInformation.IconDisplayStyle = 'off';
 		l(2).Annotation.LegendInformation.IconDisplayStyle = 'off';
 		legend(timelock{1}.label)
@@ -259,11 +258,34 @@ function plotFreqPower()
 	tl.XLabel.String = 'Frequency (Hz)';
 	tl.YLabel.String = 'Power';
 	tl.Title.String = t;
-	figure
+	
+	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
+		'Position',[0.25 0.25 0.5 0.5]);
+	tl = tiledlayout(h,'flow','TileSpacing','compact');
+	nexttile(tl)
 	plot(powf0);hold on;plot(powf1);plot(powf2);legend({'Fundamental','First','Second'});
 	title('Power at Flicker Frequency')
 	xlabel('Variable');
 	ylabel('Power');
+	
+	lst = info.seq.varList;
+	
+	sfs = [lst{:,3}];
+	ctrst = [lst{:,4}];
+	clst = unique(ctrst);
+	clst(isnan(clst)) = [];
+	for i = 1:length(clst
+		clist
+	
+	
+	nexttile(tl)
+	plot(powf0);hold on;plot(powf1);plot(powf2);legend({'Fundamental','First','Second'});
+	title('Power at Flicker Frequency')
+	xlabel('Variable');
+	ylabel('Power');
+	
+	drawnow;
+	
 end
 
 function plotFrequency()
@@ -394,7 +416,7 @@ function myCallbackZoom(~,event)
 	end
 end
 
-function cloneAxes(src,evt)
+function cloneAxes(src,~)
 	disp('Cloning axis!')
 	if ~isa(src,'matlab.graphics.axis.Axes')
 		if isa(src.Parent,'matlab.graphics.axis.Axes')
