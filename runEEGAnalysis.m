@@ -165,7 +165,7 @@ end
 
 function plotTimeLock()
 	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
-		'Position',[0 0.1 0.3 0.9]);
+		'Position',[0 0.025 0.25 0.9]);
 	if length(timelock) > 8
 		tl = tiledlayout(h,'flow','TileSpacing','compact');
 	else
@@ -198,7 +198,7 @@ function plotTimeLock()
 		legend(cat(1,{'AVG'},timelock{1}.label));
 		if min(ylim)<mn;mn=min(ylim);end
 		if max(ylim)>mx;mx=max(ylim);end
-		l = line([0 0],ylim,'LineWidth',1,'Color','k');
+		l = line([0 0],ylim,'LineStyle','--','LineWidth',1.25,'Color',[.4 .4 .4]);
 		l.Annotation.LegendInformation.IconDisplayStyle = 'off';
 		l.ButtonDownFcn = @cloneAxes;
 		t = title(['Var: ' num2str(jj) ' = ' vars{jj}]);
@@ -215,7 +215,7 @@ end
 
 function plotFreqPower()
 	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
-		'Position',[0.3 0.1 0.3 0.9]);
+		'Position',[0.25 0.025 0.25 0.9]);
 	if length(timelock) > 8
 		tl = tiledlayout(h,'flow','TileSpacing','compact');
 	else
@@ -225,25 +225,50 @@ function plotFreqPower()
 	mn = inf; mx = -inf;
 	mint = ana.analRange(1);
 	maxt = ana.analRange(2);
+	outdt = [];
+	powf0 = zeros(1,length(timelock));
+	powf1 = powf0;
+	powf2 = powf0;
 	for j = 1:length(timelock)
 		minidx = findNearest(timelock{j}.time,mint);
 		maxidx = findNearest(timelock{j}.time,maxt);
 		nexttile(tl,j)
 		hold on
-		for iif = 1:length(timelock{j}.label)
+		a = 1;
+		for ch = 1:length(timelock{j}.label)
 			if isfield(timelock{j},'avg')
-				[P,f,~,p1,p0,p2] = doFFT(timelock{j}.avg(iif,minidx:maxidx));
+				dt = timelock{j}.avg(ch,minidx:maxidx);
 			else
-				dt = mean(squeeze(timelock{j}.trial(:,iif,:)));
+				dt = mean(squeeze(timelock{j}.trial(:,ch,:)));
 				dt = dt(minidx:maxidx);
-				[P,f,~,p1,p0,p2] = doFFT(dt);
+			end
+			if any(ana.tlChannels == ch)
+				outdt(j).dt{a} = dt;
+				a = a + 1;
+			end
+			[P,f,~,p1,p0,p2] = doFFT(dt);
+			if any(ana.tlChannels == ch)
+				if powf0(j) == 0
+					powf0(j) = p0;
+				else
+					powf0(j) = mean([powf0(j) p0]);
+				end
+				if powf1(j) == 0
+					powf1(j) = p1;
+				else
+					powf1(j) = mean([powf1(j) p1]);
+				end
+				if powf2(j) == 0
+					powf2(j) = p2;
+				else
+					powf2(j) = mean([powf2(j) p2]);
+				end
 			end
 			plot(f,P);
-			if iif == 1;powf1(j) = p1;powf0(j) = p0;powf2(j) = p2;end
 			if min(ylim)<mn;mn=min(ylim);end
 			if max(ylim)>mx;mx=max(ylim);end
 		end
-		l = line([[ff ff]',[ff*2 ff*2]'],[ylim' ylim'],'LineStyle','--','LineWidth',1.5,'Color','k');
+		l = line([[ff ff]',[ff*2 ff*2]'],[ylim' ylim'],'LineStyle','--','LineWidth',1.25,'Color',[.4 .4 .4]);
 		l(1).Annotation.LegendInformation.IconDisplayStyle = 'off';
 		l(2).Annotation.LegendInformation.IconDisplayStyle = 'off';
 		legend(timelock{1}.label)
@@ -253,44 +278,107 @@ function plotFreqPower()
 		hz = zoom;hz.ActionPostCallback = @myCallbackZoom;
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
-	for j = 1:length(timelock);nexttile(tl,j);ylim([mn mx]);xlim([-1 31]);end
+	for jj = 1:length(timelock);nexttile(tl,jj);ylim([mn mx]);xlim([-1 31]);end
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval);
 	tl.XLabel.String = 'Frequency (Hz)';
 	tl.YLabel.String = 'Power';
 	tl.Title.String = t;
 	
+	
+	
 	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
-		'Position',[0.25 0.25 0.5 0.5]);
+		'Position',[0.2 0.2 0.6 0.6]);
 	tl = tiledlayout(h,'flow','TileSpacing','compact');
 	nexttile(tl)
-	plot(powf0);hold on;plot(powf1);plot(powf2);legend({'Fundamental','First','Second'});
-	title('Power at Flicker Frequency')
-	xlabel('Variable');
-	ylabel('Power');
+	xa = 1:length(powf0);
+	if info.seq.addBlank
+		xb = [xa(end) xa(1:end-1)];
+		for jj = 1:length(xb)
+			if jj == 1
+				xlab{jj} = ['ctrl:' num2str(xb(jj))];
+			else
+				xlab{jj} = num2str(xb(jj));
+			end
+		end
+		f0 = [powf0(end) powf0(1:end-1)];
+		f1 = [powf1(end) powf1(1:end-1)];
+		f2 = [powf2(end) powf2(1:end-1)];
+	else
+		xb = xa;
+		f0 = powf0;
+		f1 = powf1;
+		f2 = powf2;
+		for jj = 1:length(xb)
+			xlab{jj} = num2str(xb(jj));
+		end
+	end
+	info.fpower.f0 = f0;
+	info.fpower.f1 = f1;
+	info.fpower.f2 = f2;
+	info.fpower.x = xb;
+	info.fpower.xlab = xlab;
+	pl = plot(xa,[f0;f1;f2],'Marker','o');
+	pl(1).Parent.XTick = xa;
+	pl(1).Parent.XTickLabel = xlab;
+	pl(1).Parent.XTickLabelRotation=45;
+	legend({'Zero','First','Second'});
+	title(['Flicker Frequency: ' num2str(ff) 'Hz'])
+	xlabel('Variable #');
+	ylabel('FFT Power');
 	
-	lst = info.seq.varList;
-	
-	sfs = [lst{:,3}];
-	ctrst = [lst{:,4}];
-	clst = unique(ctrst);
-	clst(isnan(clst)) = [];
-	for i = 1:length(clst
-		clist
-	
-	
-	nexttile(tl)
-	plot(powf0);hold on;plot(powf1);plot(powf2);legend({'Fundamental','First','Second'});
-	title('Power at Flicker Frequency')
-	xlabel('Variable');
-	ylabel('Power');
-	
-	drawnow;
-	
+	if info.seq.nVars == 2
+		lst = info.seq.varList;
+		minv = [];
+		for jj = 1 : info.seq.nVars
+			lv = info.seq.nVar(jj).values;
+			minv(jj) = length(unique(lv));
+		end
+
+		v1 = [lst{:,3}];
+		v1 = unique(v1);
+		v1(isnan(v1))=[];
+
+		v2 = [lst{:,4}];
+		v2 = unique(v2);
+		ctrl = [];
+		for jj = 1 : length(v2)
+			if isnan(v2(jj))
+				ctrl = find(isnan([lst{:,4}]));
+				ctrl = ctrl(1);
+			else
+				p{jj} = find([lst{:,4}] == v2(jj));
+			end
+		end
+
+		if ~isempty(ctrl)
+			v1 = [0 v1];
+			for jj = 1 : length(p)
+				p{jj} = [ctrl p{jj}];
+			end
+		end
+
+		for jj = 1 : length(p)
+			nexttile(tl)
+			ymax = max([powf0 powf1 powf2]);
+			ymax = ymax + (ymax/20);
+			pl = plot(1:length(p{jj}),[powf0(p{jj}); powf1(p{jj}); powf2(p{jj})],'Marker','o');
+			pl(1).Parent.XTick = 1:length(p{jj});
+			pl(1).Parent.XTickLabel = v1;
+			pl(1).Parent.XTickLabelRotation=45;
+			xlim([0.75 length(p{jj})+0.25]);
+			ylim([0 ymax]);
+			legend({'Zero','First','Second'})
+			title(['Power at ' info.seq.nVar(2).name ': ' num2str(v2(jj))]);
+			xlabel(info.seq.nVar(1).name);
+			ylabel('FFT Power');
+		end
+	end
+	figure(h);drawnow
 end
 
 function plotFrequency()
 	h = figure('Name',['TF Data: ' ana.EDFFile],'Units','normalized',...
-		'Position',[0.6 0.1 0.3 0.9]);
+		'Position',[0.6 0.025 0.25 0.9]);
 	if length(freq) > 8
 		tl = tiledlayout(h,'flow','TileSpacing','compact');
 	else
