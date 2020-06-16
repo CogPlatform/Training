@@ -1,6 +1,8 @@
 function runEEGAnalysis(ana)
 ts=tic;
-ana.table.Data =[]; drawnow;
+ana.table.Data =[]; 
+ana.warning.Color = [ 0.5 0.5 0.5 ];
+drawnow;
 ft_defaults;
 
 info = load(ana.MATFile);
@@ -11,7 +13,9 @@ data_raw = []; trl=[]; triggers=[]; events=[]; timelock = []; freq = [];
 if ana.plotTriggers
 	cfgRaw				= [];
 	cfgRaw.dataset		= ana.EDFFile;
-	cfgRaw.header		= ft_read_header(cfgRaw.dataset); disp(cfgRaw.header); disp(cfgRaw.header.orig)
+	cfgRaw.header		= ft_read_header(cfgRaw.dataset); 
+	disp('============= HEADER INFO, please check! ====================');
+	disp(cfgRaw.header); disp(cfgRaw.header.orig)
 	cfgRaw.continuous	= 'yes';
 	cfgRaw.channel		= 'all';
 	cfgRaw.demean		= 'yes';
@@ -24,6 +28,7 @@ if ana.plotTriggers
 	cfgRaw.preTime		= ana.preTime;
 	cfgRaw.correctID	= ana.correctID;
 	data_raw			= ft_preprocessing(cfgRaw);
+	cfgRaw.denoise		= false;
 	[trl, events, triggers] = loadCOGEEG(cfgRaw);
 	if isempty(trl)
 		fprintf('--->>> NO Trials loaded\n');
@@ -54,7 +59,9 @@ cfg.jitter			= ana.jitter;
 cfg.minTrigger		= ana.minTrigger;
 cfg.correctID		= ana.correctID;
 cfg.preTime			= ana.preTime;
+cfg.denoise			= false;
 cfg					= ft_definetrial(cfg);
+cfg					= rmfield(cfg,'denoise');
 cfg.dftfilter		= ana.dftfilter;
 cfg.demean			= ana.demean;
 if strcmpi(ana.demean,'yes') 
@@ -149,7 +156,7 @@ function plotTable(intrig,outtrig)
 		warning('Input and output triggers are different!')
 		ana.warning.Color = [ 0.8 0.3 0.3 ];
 	else
-		ana.warning.Color = [ 0.5 0.5 0.5 ];
+		ana.warning.Color = [ 0.3 0.8 0.3 ];
 	end
 
 	maxn = max([length(col1) length(col2) length(col3) length(col4)]);
@@ -207,7 +214,7 @@ function plotTimeLock()
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
 	for j = 1:length(timelock);nexttile(tl,j);ylim([mn mx]);end
-	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval);
+	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s | avg:%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval,num2str(ana.tlChannels));
 	tl.XLabel.String = 'Time (s)';
 	tl.YLabel.String = 'Amplitude';
 	tl.Title.String = t;
@@ -373,6 +380,7 @@ function plotFreqPower()
 			ylabel('FFT Power');
 		end
 	end
+	tl.Title.String = ['Tuning Averages for Channels ' num2str(ana.tlChannels)];
 	figure(h);drawnow
 end
 

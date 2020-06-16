@@ -9,12 +9,15 @@ else
 	hdr   = ft_read_header(cfg.dataset);
 end
 % read the events from the data
+if ~isfield(cfg,'denoise')
+	cfg.denoise = true;
+end
 chanindx      = cfg.chanindx;
 detectflank   = 'up';
 threshold     = cfg.threshold; % or, e.g., 1/2 times the median for down flanks
 event = ft_read_event(cfg.dataset,'header',hdr,...
 		'detectflank',detectflank,'chanindx',chanindx,...
-		'threshold',threshold);
+		'threshold',threshold,'denoise',cfg.denoise);
 labels = hdr.label(chanindx);
 nChannels = length(labels);
 events = [];
