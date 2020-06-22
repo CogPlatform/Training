@@ -6,11 +6,11 @@ drawnow;
 ft_defaults;
 
 info = load(ana.MATFile);
-info.seq.showLog(); drawnow;
-vars = getVariables;
+info.seq.getLabels();
 
 data_raw = []; trl=[]; triggers=[]; events=[]; timelock = []; freq = [];
 if ana.plotTriggers
+	info.seq.showLog(); drawnow;
 	cfgRaw				= [];
 	cfgRaw.dataset		= ana.EDFFile;
 	cfgRaw.header		= ft_read_header(cfgRaw.dataset); 
@@ -46,6 +46,8 @@ if ana.plotTriggers
 	assignin('base','info',info);
 	return;
 end
+
+vars = getVariables();
 
 %---------------------------LOAD DATA AS TRIALS
 cfg					= [];
@@ -85,6 +87,10 @@ if ana.rejectvisual
 	data_eeg		= ft_rejectvisual(cfg,data_eeg);
 end
 
+if ana.makeSurrogate
+	makeSurrogate();
+end
+
 %------------------------------RUN TIMELOCK
 varmap				= unique(data_eeg.trialinfo);
 timelock			= cell(length(varmap),1);
@@ -99,7 +105,6 @@ if ana.doTimelock
 		timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
 	end
 	plotTimeLock();
-	%makeSurrogate();
 	plotFreqPower();
 end
 
@@ -116,7 +121,7 @@ if ana.doTimeFreq
 		cfg.pad			= 'nextpow2';
 		cfg.foi			= ana.freqrange;                  % analysis 2 to 30 Hz in steps of 2 Hz
 		cfg.t_ftimwin	= ones(length(cfg.foi),1).*0.2;   % length of time window = 0.5 sec
-		if ~isempty(ana.plotRange) && isnumeric(ana.plotRange)
+		if ~isempty(ana.plotRange) && isnumeric(ana.plotRange) && length(ana.plotRange)==2
 			cfg.toi		= ana.plotRange(1):0.05:ana.plotRange(2);% time window "slides" from -0.5 to 1.5 sec in steps of 0.05 sec (50 ms)
 		else
 			cfg.toi		= min(data_eeg.time{1}):0.05:max(data_eeg.time{1});
@@ -171,7 +176,8 @@ function plotTable(intrig,outtrig)
 end
 
 function plotTimeLock()
-	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
+	[p f e] = fileparts(ana.EDFFile);
+	h = figure('Name',['TL Data: ' f '.' e],'Units','normalized',...
 		'Position',[0 0.025 0.25 0.9]);
 	if length(timelock) > 8
 		tl = tiledlayout(h,'flow','TileSpacing','compact');
@@ -180,7 +186,7 @@ function plotTimeLock()
 	end
 	mn = inf; mx = -inf;
 	c=[0.1 0.1 0.1 ; 0.9 0.2 0.2 ; 0.8 0.8 0.8 ; 0.2 0.9 0.2 ; 0.2 0.2 0.9; 0.2 0.9 0.9; 0.7 0.7 0.2];
-	%c = parula(6);
+	%c = parula(7);
 	for jj = 1:length(timelock)
 		nexttile(tl,jj)
 		cfg = [];
@@ -221,7 +227,8 @@ function plotTimeLock()
 end
 
 function plotFreqPower()
-	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
+	[~, f, e] = fileparts(ana.EDFFile);
+	h = figure('Name',['TL Data: ' f '.' e],'Units','normalized',...
 		'Position',[0.25 0.025 0.25 0.9]);
 	if length(timelock) > 8
 		tl = tiledlayout(h,'flow','TileSpacing','compact');
@@ -229,6 +236,8 @@ function plotFreqPower()
 		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
 	end
 	ff = 1/info.ana.VEP.Flicker;
+	c=[0.1 0.1 0.1 ; 0.9 0.2 0.2 ; 0.8 0.8 0.8 ; 0.2 0.9 0.2 ; 0.2 0.2 0.9; 0.2 0.9 0.9; 0.7 0.7 0.2];
+	%c = parula(7);
 	mn = inf; mx = -inf;
 	mint = ana.analRange(1);
 	maxt = ana.analRange(2);
@@ -271,7 +280,7 @@ function plotFreqPower()
 					powf2(j) = mean([powf2(j) p2]);
 				end
 			end
-			plot(f,P);
+			plot(f,P,'Color',c(ch,:));
 			if min(ylim)<mn;mn=min(ylim);end
 			if max(ylim)>mx;mx=max(ylim);end
 		end
@@ -293,7 +302,8 @@ function plotFreqPower()
 	
 	
 	
-	h = figure('Name',['TL Data: ' ana.EDFFile],'Units','normalized',...
+	[~, f, e] = fileparts(ana.EDFFile);
+	h = figure('Name',['TL Data: ' f '.' e],'Units','normalized',...
 		'Position',[0.2 0.2 0.6 0.6]);
 	tl = tiledlayout(h,'flow','TileSpacing','compact');
 	nexttile(tl)
@@ -568,42 +578,71 @@ function [P, f, A, p1, p0, p2] = doFFT(p)
 end
 
 function makeSurrogate()
-	f = data_eeg.fsample; %f is the frequency, normally 1000 for LFPs
-	mydata = timelock{end};
-	tmult = (length(mydata.time)-1) / f; 
-
 	randPhaseRange			= 2*pi; %how much to randomise phase?
 	rphase					= 0; %default phase
 	basef					= 1; % base frequency
-	onsetf					= 5; %an onset at 0 frequency
+	onsetf					= 4; %an onset at 0 frequency
 	onsetLength				= 3; %length of onset signal
-	onsetDivisor			= 1.5; %scale the onset frequency
+	onsetDivisor			= 2.0; %scale the onset frequency
 	burstf					= 30; %small burst frequency
 	burstOnset				= 1.0; %time of onset of burst freq
-	burstLength				= 0.5; %length of burst
+	burstLength				= 1.0; %length of burst
 	powerDivisor			= 1; %how much to attenuate the secondary frequencies
 	group2Divisor			= 1; %do we use a diff divisor for group 2?
 	noiseDivisor			= 0.4; %scale noise to signal
 	piMult					= basef * 2; %resultant pi multiplier
 	burstMult				= burstf * 2; %resultant pi multiplier
 	onsetMult				= onsetf * 2; %onset multiplier
-	
-	time=mydata.time;
+	lowpassNoise			= true;
+	options = {['t|' num2str(randPhaseRange)], 'Random phase range in radians?';...
+		['t|' num2str(rphase)], 'Default phase?';...
+		['t|' num2str(basef)], 'Base Frequency (Hz)';...
+		['t|' num2str(onsetf)], 'Onset (time=0) Frequency (Hz)';...
+		['t|' num2str(onsetDivisor)], 'Onset F Power Divisor';...
+		['t|' num2str(burstf)], 'Burst Frequency (Hz)';...
+		['t|' num2str(burstOnset)], 'Burst Onset Time (s)';...
+		['t|' num2str(burstLength)], 'Burst Length (s)';...
+		['t|' num2str(powerDivisor)], 'Burst Power Divisor';...
+		['t|' num2str(group2Divisor)], 'Burst Power Divisor for Group 2';...
+		['t|' num2str(noiseDivisor)], 'Noise Divisor';...
+		'x|¤Lowpass?','Filter noise?';...
+		};
+	answer = menuN('Select Surrogate options:',options);
+	drawnow;
+	if iscell(answer) && ~isempty(answer)
+		randPhaseRange = eval(answer{1});
+		rphase = str2num(answer{2});
+		basef = str2num(answer{3});
+		onsetf = str2num(answer{4});
+		onsetDivisor = str2num(answer{5});
+		burstf = str2num(answer{6});
+		burstOnset = str2num(answer{7});
+		burstLength = str2num(answer{8});
+		powerDivisor = str2num(answer{9});
+		group2Divisor = str2num(answer{10});
+		noiseDivisor = str2num(answer{11});
+		lowpassNoise = logical(answer{12});
+	end
+
+	f = data_eeg.fsample; 
+	time = data_eeg.time{1};
 	maxtime = max(time);
 	if onsetLength > maxtime; onsetLength = maxTime - 0.1; end
 	if burstLength > maxtime; burstLength = maxTime - 0.1; end
 	
-	for k = 1:size(mydata.avg,1)
-		mx = max(mydata.avg(k,:));
-		mn = min(mydata.avg(k,:));
+	for k = 1:length(data_eeg.trial)
+		time = data_eeg.time{k};
+		tmult = (length(time)-1) / f; 
+		mx = max(data_eeg.trial{k}(end,:));
+		mn = min(data_eeg.trial{k}(end,:));
 		rn = mx - mn;
-		y = makeSurrogate();
+		y = createSurrogate();
 		y = y * rn; % scale to the voltage range of the original trial
 		y = y + mn;
-		mydata.avg(k,:) = y;
+		data_eeg.trial{k}(end,:) = y;
 	end
 	
-	function y = makeSurrogate()
+	function y = createSurrogate()
 		rphase = rand * randPhaseRange;
 		%base frequency
 		y = sin((0 : (pi*piMult)/f : (pi*piMult) * tmult)+rphase)';
@@ -629,7 +668,11 @@ function makeSurrogate()
 		en = st + length(yyy)-1;
 		y(st:en) = y(st:en) + yyy;
 		%add our noise
-		y = y + ((rand(size(y))-0.5)./noiseDivisor);
+		if lowpassNoise
+			y = y + ((lowpass(rand(size(y)),300,f)-0.5)./noiseDivisor);
+		else
+			y = y + ((rand(size(y))-0.5)./noiseDivisor);
+		end
 		%normalise our surrogate to be 0-1 range
 		y = y - min(y); y = y / max(y); % 0 - 1 range;
 		%make sure we are a column vector
