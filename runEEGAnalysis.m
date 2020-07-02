@@ -64,20 +64,36 @@ cfg.preTime			= ana.preTime;
 cfg.denoise			= false;
 cfg					= ft_definetrial(cfg);
 cfg					= rmfield(cfg,'denoise');
-cfg.dftfilter		= ana.dftfilter;
 cfg.demean			= ana.demean;
 if strcmpi(ana.demean,'yes') 
 	cfg.baselinewindow	= ana.baseline;
 end
+cfg.medianfilter	= ana.medianfilter;
+cfg.dftfilter		= ana.dftfilter;
 cfg.detrend			= ana.detrend;
 cfg.polyremoval		= ana.polyremoval;
 cfg.channel			= ana.dataChannels;
 if ana.rereference > 0 && any(ana.dataChannels == ana.rereference)
 	cfg.reref		= 'yes';
 	cfg.refchannel	= cfg.header.label{ana.rereference};
+	cfg.refmethod	= 'avg';
+end
+if ana.lowpass > 0 
+	cfg.lpfilter	= 'yes';
+	cfg.lpfreq		= ana.lowpass;
+	cfg.lpfilttype	= ana.filtertype;
+end
+if ana.highpass > 0
+	cfg.hpfilter	= 'yes';
+	cfg.hpfreq		= ana.highpass;
+	cfg.hpfilttype	= ana.filtertype;
 end
 data_eeg			= ft_preprocessing(cfg);
 info.data_cfg		= cfg;
+
+if ana.makeSurrogate
+	makeSurrogate();
+end
 
 if ana.rejectvisual
 	cfg				= [];
@@ -85,10 +101,6 @@ if ana.rejectvisual
 	cfg.latency		= 'all';
 	cfg.method		= ana.rejecttype;
 	data_eeg		= ft_rejectvisual(cfg,data_eeg);
-end
-
-if ana.makeSurrogate
-	makeSurrogate();
 end
 
 %------------------------------RUN TIMELOCK
@@ -220,7 +232,7 @@ function plotTimeLock()
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
 	for j = 1:length(timelock);nexttile(tl,j);ylim([mn mx]);end
-	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s | avg:%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval,num2str(ana.tlChannels));
+	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s lp=%.2f hp=%.2f | avg:%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval,ana.lowpass,ana.highpass,num2str(ana.tlChannels));
 	tl.XLabel.String = 'Time (s)';
 	tl.YLabel.String = 'Amplitude';
 	tl.Title.String = t;
