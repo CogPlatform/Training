@@ -206,16 +206,16 @@ function plotTimeLock()
 		cfg.linewidth = 1;
 		cfg.channel = ana.tlChannels;
 		ft_singleplotER(cfg,timelock{jj});
+		hold on
 		if isfield(timelock{jj},'avg')
-			hold on
 			for i = 1:length(timelock{jj}.label)
-				areabar(timelock{jj}.time,timelock{jj}.avg(i,:),timelock{jj}.var(i,:),c(i,:));
+				areabar(timelock{jj}.time,timelock{jj}.avg(i,:),...
+					timelock{jj}.var(i,:),c(i,:));
 			end
 		else
-			hold on
 			for i = 1:length(timelock{jj}.label)
-				dt = squeeze(timelock{jj}.trial(:,i,:))';
-				plot(timelock{jj}.time',dt,'k-','Color',c(i,:),'DisplayName',timelock{jj}.label{i});
+				plot(timelock{jj}.time',squeeze(timelock{jj}.trial(:,i,:))',...
+					'k-','Color',c(i,:),'DisplayName',timelock{jj}.label{i});
 			end
 		end
 		if isnumeric(ana.plotRange);xlim([ana.plotRange(1) ana.plotRange(2)]);end
@@ -231,7 +231,16 @@ function plotTimeLock()
 		hz = zoom;hz.ActionPostCallback = @myCallbackZoom;
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
-	for j = 1:length(timelock);nexttile(tl,j);ylim([mn mx]);end
+	interv = info.ana.VEP.Flicker;
+	nint = round(max(timelock{1}.time) / interv);
+	for j = 1:length(timelock);
+		nexttile(tl,j);
+		ylim([mn mx]);
+		for kk = 1:2:nint
+			rectangle('Position',[(kk-1)*interv mn interv mx-mn],...
+			'FaceColor',[0.8 0.8 0.8 0.1],'EdgeColor','none');
+		end
+	end
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s lp=%.2f hp=%.2f | avg:%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval,ana.lowpass,ana.highpass,num2str(ana.tlChannels));
 	tl.XLabel.String = 'Time (s)';
 	tl.YLabel.String = 'Amplitude';
