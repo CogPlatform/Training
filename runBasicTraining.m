@@ -39,9 +39,9 @@ ana.screenID	= max(Screen('Screens'));%-1;
 %===================Make a name for this run===================
 ana.timeExp		= fix(clock());
 if ~isempty(ana.subject)
-	nameExp		= ['basicTrain_' ana.stimulus '_' ana.subject];
+	nameExp		= [ana.subject];
 	c			= sprintf(' %i',ana.timeExp);
-	nameExp		= [nameExp c];
+	nameExp		= [nameExp c '_' ana.stimulus];
 	ana.nameExp = regexprep(nameExp,' ','_');
 else
 	ana.nameExp = 'debug';
