@@ -244,7 +244,7 @@ function plotTimeLock()
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s lp=%.2f hp=%.2f | avg:%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval,ana.lowpass,ana.highpass,num2str(ana.tlChannels));
 	tl.XLabel.String = 'Time (s)';
 	tl.YLabel.String = 'Amplitude';
-	tl.Title.String = t;
+	tl.Title.String = [t '\newlineComments: ' info.ana.comments];
 end
 
 function plotFreqPower()
@@ -319,7 +319,7 @@ function plotFreqPower()
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval);
 	tl.XLabel.String = 'Frequency (Hz)';
 	tl.YLabel.String = 'Power';
-	tl.Title.String = t;
+	tl.Title.String = [t '\newlineComments: ' info.ana.comments];
 	
 	
 	
