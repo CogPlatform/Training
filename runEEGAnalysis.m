@@ -4,6 +4,7 @@ ana.table.Data =[];
 ana.warning.Color = [ 0.5 0.5 0.5 ];
 drawnow;
 ft_defaults;
+ana.versionLabel.Text = 'V1.03';
 
 info = load(ana.MATFile);
 info.seq.getLabels();
@@ -260,15 +261,13 @@ function plotFreqPower()
 	c=[0.1 0.1 0.1 ; 0.9 0.2 0.2 ; 0.8 0.8 0.8 ; 0.2 0.9 0.2 ; 0.2 0.2 0.9; 0.2 0.9 0.9; 0.7 0.7 0.2];
 	%c = parula(7);
 	mn = inf; mx = -inf;
-	mint = ana.analRange(1);
-	maxt = ana.analRange(2);
 	outdt = [];
 	powf0 = zeros(1,length(timelock));
 	powf1 = powf0;
 	powf2 = powf0;
 	for j = 1:length(timelock)
-		minidx = findNearest(timelock{j}.time,mint);
-		maxidx = findNearest(timelock{j}.time,maxt);
+		minidx = findNearest(timelock{j}.time, ana.analRange(1));
+		maxidx = findNearest(timelock{j}.time, ana.analRange(2));
 		nexttile(tl,j)
 		hold on
 		a = 1;
@@ -316,7 +315,8 @@ function plotFreqPower()
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
 	for jj = 1:length(timelock);nexttile(tl,jj);ylim([mn mx]);xlim([-1 31]);end
-	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval);
+	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s ANALTIME: %.2f-%.2f',ana.dftfilter,...
+		ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval, ana.analRange(1), ana.analRange(2));
 	tl.XLabel.String = 'Frequency (Hz)';
 	tl.YLabel.String = 'Power';
 	tl.Title.String = [t '\newlineComments: ' info.ana.comments];
