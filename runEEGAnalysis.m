@@ -4,7 +4,8 @@ ana.table.Data =[];
 ana.warning.Color = [ 0.5 0.5 0.5 ];
 drawnow;
 ft_defaults;
-ana.versionLabel.Text = 'V1.03';
+ana.codeVersion = '1.03';
+ana.versionLabel.Text = [ana.versionLabel.UserData ' Code: V' ana.codeVersion];
 
 info = load(ana.MATFile);
 info.seq.getLabels();
