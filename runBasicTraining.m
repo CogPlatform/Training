@@ -192,6 +192,7 @@ try
 				end
 				stim.stimuli{1}.type			= 'checkerboard';
 				eT.secondScreen = false; %fix opengl window bug
+				eT.manualCalibration = false;
 			case {'Square','Sin'}
 				stim.stimuli{1}					= gratingStimulus();
 				if ana.size == 0 || ana.size == inf
@@ -219,6 +220,7 @@ try
 				stim.stimuli{1}.angleSigma		= ana.VEP.angleSigma;
 				stim.stimuli{1}.mask			= ana.VEP.mask;
 				eT.secondScreen = false; %fix opengl window bug
+				eT.manualCalibration = false;
 		end
 		stim.stimuli{1}.speed					= 0;
 		stim.stimuli{1}.phaseReverseTime		= ana.VEP.Flicker;
@@ -226,6 +228,7 @@ try
 		
 		stim.stimuli{2}							= discStimulus();
 		stim.stimuli{2}.size					= ana.spotSize+0.1;
+		stim.stimuli{2}.alpha					= 0.1;
 		stim.stimuli{2}.colour					= ana.backgroundColour;
 		stim.setup(sM);
 		if ana.spotSize < 1; stim.stimuli{2}.hide(); end
@@ -381,7 +384,7 @@ try
 			else
 				draw(stim);
 				if ana.isVEP
-					if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),0.05,true,0.1);end
+					if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),0.05,false,0.01);end
 				else
 					sM.drawCross(0.5,[],thisPos(1),thisPos(2),0.05,true,0.2);
 				end
@@ -515,7 +518,11 @@ end
 				case {'c'}
 					WaitSecs('YieldSecs',0.1);
 					fprintf('\n\n--->>> Entering calibration mode...\n');
-					trackerSetup(eT,eT.calibration);
+					if isempty(regexpi(ana.VEP.Type,'Sin|Square'))
+						trackerSetup(eT);
+					else
+						trackerSetup(eT,eT.calibration);
+					end
 					fixated = 'breakfix';
 					doBreak = true;
 				case {'1','1!','kp_end'}
