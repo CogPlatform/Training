@@ -341,7 +341,7 @@ try
 		fixated = ''; doBreak = false;
 		if ana.useTracker
 			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-				if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),0.05,true,0.1);end
+				if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
 				if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 				if ana.drawEye; drawEyePosition(eT,true); end
 				finishDrawing(sM);
@@ -362,7 +362,7 @@ try
 				continue
 			end
 		else
-			if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),0.05,true,0.1);end
+			if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			finishDrawing(sM);
 			flip(sM);
@@ -373,7 +373,7 @@ try
 		tick = 0;
 		kTimer = 0; % this is the timer to stop too many key events
 		thisResponse = -1; doBreak = false;
-		if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),0.05,true,0.1);end
+		if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		if ~ana.isVEP; play(sM.audio); end
@@ -384,7 +384,15 @@ try
 			else
 				draw(stim);
 				if ana.isVEP
-					if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),0.05,false,0.01);end
+					if ana.spotSize > 0
+						if ana.spotAlpha == 1
+							sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),...
+							ana.spotLine,true,ana.spotAlpha)
+						else
+							sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),...
+							ana.spotLine,true,ana.spotAlpha/2)
+						end
+					end
 				else
 					sM.drawCross(0.5,[],thisPos(1),thisPos(2),0.05,true,0.2);
 				end
