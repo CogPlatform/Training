@@ -4,11 +4,13 @@ ana.table.Data =[];
 ana.warning.Color = [ 0.5 0.5 0.5 ];
 drawnow;
 ft_defaults;
-ana.codeVersion = '1.03';
+ana.codeVersion = '1.04';
 ana.versionLabel.Text = [ana.versionLabel.UserData ' Code: V' ana.codeVersion];
+c=analysisCore.optimalColours(10);
 
 info = load(ana.MATFile);
 info.seq.getLabels();
+vars = getVariables();
 
 data_raw = []; trl=[]; triggers=[]; events=[]; timelock = []; freq = [];
 if ana.plotTriggers
@@ -48,8 +50,6 @@ if ana.plotTriggers
 	assignin('base','info',info);
 	return;
 end
-
-vars = getVariables();
 
 %---------------------------LOAD DATA AS TRIALS
 cfg					= [];
@@ -108,6 +108,7 @@ end
 %------------------------------RUN TIMELOCK
 varmap				= unique(data_eeg.trialinfo);
 timelock			= cell(length(varmap),1);
+avgfn				= eval(['@' ana.avgmethod]);
 if ana.doTimelock
 	for j = 1:length(varmap)
 		cfg				= [];
@@ -118,8 +119,18 @@ if ana.doTimelock
 		if ~isempty(ana.plotRange);	cfg.latency = ana.plotRange; end
 		timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
 	end
+	
 	plotTimeLock();
 	plotFreqPower();
+	
+	iscontrast=false;issf=false;
+	for i = 1:info.seq.nVars
+		if contains(info.seq.nVar(i).name,'sf');issf=true;end
+		if contains(info.seq.nVar(i).name,'contrast') && length(info.seq.nVar(i).values) > 2
+			iscontrast=true;
+		end
+	end
+	if iscontrast && issf; plotCSF(); end
 end
 
 %------------------------------RUN TIMEFREQ
@@ -150,6 +161,7 @@ info.freq				= freq;
 info.data_raw			= data_raw;
 info.data_eeg			= data_eeg;
 info.triggers			= triggers;
+info.ana2				= ana;
 assignin('base','info',info);
 
 plotTable(info.seq.outIndex, info.data_eeg.trialinfo);
@@ -199,30 +211,36 @@ function plotTimeLock()
 		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
 	end
 	mn = inf; mx = -inf;
-	c=[0.1 0.1 0.1 ; 0.9 0.2 0.2 ; 0.8 0.8 0.8 ; 0.2 0.9 0.2 ; 0.2 0.2 0.9; 0.2 0.9 0.9; 0.7 0.7 0.2];
-	%c = parula(7);
 	for jj = 1:length(timelock)
 		nexttile(tl,jj)
-		cfg = [];
-		cfg.interactive = 'no';
-		cfg.linewidth = 1;
-		cfg.channel = ana.tlChannels;
-		ft_singleplotER(cfg,timelock{jj});
 		hold on
 		if isfield(timelock{jj},'avg')
 			for i = 1:length(timelock{jj}.label)
-				areabar(timelock{jj}.time,timelock{jj}.avg(i,:),...
+				analysisCore.areabar(timelock{jj}.time,timelock{jj}.avg(i,:),...
 					timelock{jj}.var(i,:),c(i,:));
 			end
 		else
 			for i = 1:length(timelock{jj}.label)
 				plot(timelock{jj}.time',squeeze(timelock{jj}.trial(:,i,:))',...
-					'k-','Color',c(i,:),'DisplayName',timelock{jj}.label{i});
+					':','Color',c(i,:),'DisplayName',timelock{jj}.label{i});
+				plot(timelock{jj}.time',avgfn(squeeze(timelock{jj}.trial(:,i,:)))',...
+					'-','Color',c(i,:),'DisplayName',timelock{jj}.label{i});
 			end
 		end
 		if isnumeric(ana.plotRange);xlim([ana.plotRange(1) ana.plotRange(2)]);end
+		if length(ana.tlChannels)>1
+			cfg = [];
+			cfg.interactive = 'no';
+			cfg.linewidth = 1.5;
+			cfg.channel = ana.tlChannels;
+			ft_singleplotER(cfg,timelock{jj});
+		end
 		box on;grid on; grid minor; axis tight;
-		legend(cat(1,{'AVG'},timelock{1}.label));
+		if length(ana.tlChannels)>1 && jj == 1
+			legend(cat(1,timelock{1}.label,{'AVG'}));
+		elseif jj == 1
+			legend(timelock{1}.label);
+		end
 		if min(ylim)<mn;mn=min(ylim);end
 		if max(ylim)>mx;mx=max(ylim);end
 		l = line([0 0],ylim,'LineStyle','--','LineWidth',1.25,'Color',[.4 .4 .4]);
@@ -259,63 +277,60 @@ function plotFreqPower()
 		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
 	end
 	ff = 1/info.ana.VEP.Flicker;
-	c=[0.1 0.1 0.1 ; 0.9 0.2 0.2 ; 0.8 0.8 0.8 ; 0.2 0.9 0.2 ; 0.2 0.2 0.9; 0.2 0.9 0.9; 0.7 0.7 0.2];
-	%c = parula(7);
 	mn = inf; mx = -inf;
-	outdt = [];
-	powf0 = zeros(1,length(timelock));
-	powf1 = powf0;
-	powf2 = powf0;
+	powf(length(timelock),1) = struct('f0',[],'f1',[],'f2',[]);
+	PP = cell(length(timelock),1);
 	for j = 1:length(timelock)
 		minidx = findNearest(timelock{j}.time, ana.analRange(1));
 		maxidx = findNearest(timelock{j}.time, ana.analRange(2));
 		nexttile(tl,j)
 		hold on
-		a = 1;
 		for ch = 1:length(timelock{j}.label)
 			if isfield(timelock{j},'avg')
 				dt = timelock{j}.avg(ch,minidx:maxidx);
+				[P,f,~,f0,f1,f2] = doFFT(dt);
+				plot(f,P,'Color',c(ch,:));
+				if any(ana.tlChannels == ch)
+					powf(j).f0 = [powf(j).f0 f0];
+					powf(j).f1 = [powf(j).f1 f1];
+					powf(j).f2 = [powf(j).f2 f2];
+				end
+				if min(P)<mn;mn=min(P);end
+				if max(P)>mx;mx=max(P);end
 			else
-				dt = mean(squeeze(timelock{j}.trial(:,ch,:)));
-				dt = dt(minidx:maxidx);
-			end
-			if any(ana.tlChannels == ch)
-				outdt(j).dt{a} = dt;
-				a = a + 1;
-			end
-			[P,f,~,p1,p0,p2] = doFFT(dt);
-			if any(ana.tlChannels == ch)
-				if powf0(j) == 0
-					powf0(j) = p0;
-				else
-					powf0(j) = mean([powf0(j) p0]);
+				dt = squeeze(timelock{j}.trial(:,ch,minidx:maxidx));
+				[P,f,~,f0,f1,f2] = doFFT(avgfn(dt));
+				h=plot(f,P,'--','Color',c(ch,:));
+				set(get(get(h,'Annotation'),'LegendInformation'),'IconDisplayStyle','off')
+				for jj = 1:size(dt,1)
+					[P,f,~,f0,f1,f2] = doFFT(dt(jj,:));
+					PP{j}(jj,:) = P;
+					PP0(j,jj) = f0;
+					PP1(j,jj) = f1;
+					PP2(j,jj) = f2;
+					if min(PP{j}(jj,:))<mn;mn=min(PP{j}(jj,:));end
+					if max(PP{j}(jj,:))>mx;mx=max(PP{j}(jj,:));end
+					if any(ana.tlChannels == ch)
+						powf(j).f0 = [powf(j).f0 f0];
+						powf(j).f1 = [powf(j).f1 f1];
+						powf(j).f2 = [powf(j).f2 f2];
+					end
 				end
-				if powf1(j) == 0
-					powf1(j) = p1;
-				else
-					powf1(j) = mean([powf1(j) p1]);
-				end
-				if powf2(j) == 0
-					powf2(j) = p2;
-				else
-					powf2(j) = mean([powf2(j) p2]);
-				end
+				[avg,err] = analysisCore.stderr(PP{j}, ana.errormethod);
+				analysisCore.areabar(f,avg,err,c(ch,:));
 			end
-			plot(f,P,'Color',c(ch,:));
-			if min(ylim)<mn;mn=min(ylim);end
-			if max(ylim)>mx;mx=max(ylim);end
 		end
 		l = line([[ff ff]',[ff*2 ff*2]'],[ylim' ylim'],'LineStyle','--','LineWidth',1.25,'Color',[.4 .4 .4]);
 		l(1).Annotation.LegendInformation.IconDisplayStyle = 'off';
 		l(2).Annotation.LegendInformation.IconDisplayStyle = 'off';
-		legend(timelock{1}.label)
+		if j==1;legend(timelock{1}.label);end
 		box on;grid on; grid minor;
 		t = title(['Var: ' num2str(j) ' = ' vars{j}]);
 		t.ButtonDownFcn = @cloneAxes;
 		hz = zoom;hz.ActionPostCallback = @myCallbackZoom;
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
-	for jj = 1:length(timelock);nexttile(tl,jj);ylim([mn mx]);xlim([-1 31]);end
+	for jj = 1:length(timelock);nexttile(tl,jj);ylim([mn mx]);xlim([-1 35]);end
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s ANALTIME: %.2f-%.2f',ana.dftfilter,...
 		ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval, ana.analRange(1), ana.analRange(2));
 	tl.XLabel.String = 'Frequency (Hz)';
@@ -323,18 +338,29 @@ function plotFreqPower()
 	tl.Title.String = [t '\newlineComments: ' info.ana.comments];
 	
 	
-	
+	%===============================TUNING CURVES=================================%
 	[~, f, e] = fileparts(ana.EDFFile);
 	h = figure('Name',['TL Data: ' f '.' e],'Units','normalized',...
 		'Position',[0.2 0.2 0.6 0.6]);
 	tl = tiledlayout(h,'flow','TileSpacing','compact');
 	nexttile(tl)
+	for i = 1:length(powf)
+		if isfield(timelock{j},'avg')
+			powf0(i,1) = avgfn(powf(i).f0); powf0err(i) = 0;
+			powf1(i,1) = avgfn(powf(i).f1); powf1err(i) = 0;
+			powf2(i,1) = avgfn(powf(i).f2); powf2err(i) = 0;
+		else
+			[powf0(i,1),powf0err(i,:)] = analysisCore.stderr(powf(i).f0, ana.errormethod);
+			[powf1(i,1),powf1err(i,:)] = analysisCore.stderr(powf(i).f1, ana.errormethod);
+			[powf2(i,1),powf2err(i,:)] = analysisCore.stderr(powf(i).f2, ana.errormethod);
+		end
+	end
 	xa = 1:length(powf0);
 	if info.seq.addBlank
 		xb = [xa(end) xa(1:end-1)];
 		for jj = 1:length(xb)
 			if jj == 1
-				xlab{jj} = ['ctrl:' num2str(xb(jj))];
+				xlab{jj} = ['blank:' num2str(xb(jj))];
 			else
 				xlab{jj} = num2str(xb(jj));
 			end
@@ -342,24 +368,34 @@ function plotFreqPower()
 		f0 = [powf0(end) powf0(1:end-1)];
 		f1 = [powf1(end) powf1(1:end-1)];
 		f2 = [powf2(end) powf2(1:end-1)];
+		f0err = [powf0err(end,:) powf0err(1:end-1,:)];
+		f1err = [powf1err(end,:) powf1err(1:end-1,:)];
+		f2err = [powf2err(end,:) powf2err(1:end-1,:)];
 	else
 		xb = xa;
-		f0 = powf0;
-		f1 = powf1;
-		f2 = powf2;
+		f0 = powf0;	f1 = powf1;	f2 = powf2;
+		f0err = powf0err; f1err = powf1err; f2err = powf2err;
 		for jj = 1:length(xb)
 			xlab{jj} = num2str(xb(jj));
 		end
 	end
-	info.fpower.f0 = f0;
-	info.fpower.f1 = f1;
-	info.fpower.f2 = f2;
+	info.fpower.f0 = f0; info.fpower.f0err = f0err;
+	info.fpower.f1 = f1; info.fpower.f1err = f1err;
+	info.fpower.f2 = f2; info.fpower.f2err = f2err;
 	info.fpower.x = xb;
 	info.fpower.xlab = xlab;
-	pl = plot(xa,[f0;f1;f2],'Marker','o');
-	pl(1).Parent.XTick = xa;
-	pl(1).Parent.XTickLabel = xlab;
-	pl(1).Parent.XTickLabelRotation=45;
+	if max(f0err)==0
+		pl = plot(xa,[f0;f1;f2],'Marker','o');
+		pl(1).Parent.XTick = xa;
+		pl(1).Parent.XTickLabel = xlab;
+		pl(1).Parent.XTickLabelRotation=45;
+	else
+		pl = analysisCore.areabar(xa,f0,f0err,'Marker','o');
+		pl = pl.plot;
+		pl(1).Parent.XTick = xa;
+		pl(1).Parent.XTickLabel = xlab;
+		pl(1).Parent.XTickLabelRotation=45;
+	end
 	legend({'Zero','First','Second'});
 	title(['Flicker Frequency: ' num2str(ff) 'Hz'])
 	xlabel('Variable #');
@@ -395,29 +431,42 @@ function plotFreqPower()
 				p{jj} = [ctrl p{jj}];
 			end
 		end
-
+		ymax = max([powf0 powf1 powf2]);
+		ymax = ymax + (ymax/20);
 		for jj = 1 : length(p)
 			nexttile(tl)
-			ymax = max([powf0 powf1 powf2]);
-			ymax = ymax + (ymax/20);
+			
 			pl = plot(1:length(p{jj}),[powf0(p{jj}); powf1(p{jj}); powf2(p{jj})],'Marker','o');
 			pl(1).Parent.XTick = 1:length(p{jj});
 			pl(1).Parent.XTickLabel = v1;
 			pl(1).Parent.XTickLabelRotation=45;
 			xlim([0.75 length(p{jj})+0.25]);
 			ylim([0 ymax]);
-			legend({'Zero','First','Second'})
 			title(['Power at ' info.seq.nVar(2).name ': ' num2str(v2(jj))]);
 			xlabel(info.seq.nVar(1).name);
 			ylabel('FFT Power');
+			box on;grid on; grid minor;
 		end
 	end
 	tl.Title.String = ['Tuning Averages for Channels ' num2str(ana.tlChannels)];
 	figure(h);drawnow
 end
 
+function plotCSF()
+	if isfield(timelock{j},'avg'); return; end
+	[~, f, e] = fileparts(ana.EDFFile);
+	h = figure('Name',['CSF Data: ' f '.' e],'Units','normalized',...
+		'Position',[0.4 0.025 0.25 0.9]);
+	if length(timelock) > 8
+		tl = tiledlayout(h,'flow','TileSpacing','compact');
+	else
+		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
+	end
+end
+
 function plotFrequency()
-	h = figure('Name',['TF Data: ' ana.EDFFile],'Units','normalized',...
+	[~, f, e] = fileparts(ana.EDFFile);
+	h = figure('Name',['TF Data: ' f '.' e],'Units','normalized',...
 		'Position',[0.6 0.025 0.25 0.9]);
 	if length(freq) > 8
 		tl = tiledlayout(h,'flow','TileSpacing','compact');
@@ -563,7 +612,7 @@ function [idx,val,delta]=findNearest(in,value)
 	delta = abs(value - val);
 end
 
-function [P, f, A, p1, p0, p2] = doFFT(p)	
+function [P, f, A, p0, p1, p2] = doFFT(p)	
 	useX = true;
 	useHanning = true;
 	L = length(p);
@@ -596,6 +645,11 @@ function [P, f, A, p1, p0, p2] = doFFT(p)
 	p0 = P(idx);
 	idx = analysisCore.findNearest(f, ff*2);
 	p2 = P(idx);
+
+end
+
+function doCSF()
+	
 
 end
 
