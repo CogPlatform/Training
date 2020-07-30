@@ -19,7 +19,13 @@ if ana.plotTriggers
 	cfgRaw.dataset		= ana.EDFFile;
 	cfgRaw.header		= ft_read_header(cfgRaw.dataset); 
 	disp('============= HEADER INFO, please check! ====================');
-	disp(cfgRaw.header); disp(cfgRaw.header.orig)
+	disp(cfgRaw.header); disp(cfgRaw.header.orig);
+	if cfgRaw.header.nChans ~= ana.pDiode
+		ana.pDiode = cfgRaw.header.nChans;
+		ana.bitChannels = ana.pDiode-8:ana.pDiode-1;
+		ana.dataChannels = 1:ana.bitChannels(1)-1;
+		warning('GUI channel assignments are incorrect!')
+	end
 	cfgRaw.continuous	= 'yes';
 	cfgRaw.channel		= 'all';
 	cfgRaw.demean		= 'yes';
@@ -55,6 +61,12 @@ end
 cfg					= [];
 cfg.dataset			= ana.EDFFile;
 cfg.header			= ft_read_header(cfg.dataset); disp(cfg.header);
+if cfg.header.nChans ~= ana.pDiode
+	ana.pDiode = cfg.header.nChans;
+	ana.bitChannels = ana.pDiode-8:ana.pDiode-1;
+	ana.dataChannels = 1:ana.bitChannels(1)-1;
+	warning('GUI channel assignments are incorrect!')
+end
 cfg.continuous		= 'yes';
 cfg.trialfun		= 'loadCOGEEG';
 cfg.chanindx		= ana.bitChannels;
@@ -110,23 +122,23 @@ varmap				= unique(data_eeg.trialinfo);
 timelock			= cell(length(varmap),1);
 avgfn				= eval(['@' ana.avgmethod]);
 if ana.doTimelock
-	for j = 1:length(varmap)
+	for jv = 1:length(varmap)
 		cfg				= [];
-		cfg.trials		= find(data_eeg.trialinfo==varmap(j));
+		cfg.trials		= find(data_eeg.trialinfo==varmap(jv));
 		cfg.covariance	= ana.tlcovariance;
 		cfg.keeptrials	= ana.tlkeeptrials;
 		cfg.removemean	= ana.tlremovemean;
 		if ~isempty(ana.plotRange);	cfg.latency = ana.plotRange; end
-		timelock{j}		= ft_timelockanalysis(cfg,data_eeg);
+		timelock{jv}		= ft_timelockanalysis(cfg,data_eeg);
 	end
 	
 	plotTimeLock();
 	plotFreqPower();
 	
 	iscontrast=false;issf=false;
-	for i = 1:info.seq.nVars
-		if contains(info.seq.nVar(i).name,'sf');issf=true;end
-		if contains(info.seq.nVar(i).name,'contrast') && length(info.seq.nVar(i).values) > 2
+	for iic = 1:info.seq.nVars
+		if contains(info.seq.nVar(iic).name,'sf');issf=true;end
+		if contains(info.seq.nVar(iic).name,'contrast') && length(info.seq.nVar(iic).values) > 2
 			iscontrast=true;
 		end
 	end
@@ -137,9 +149,9 @@ end
 
 freq					= cell(length(varmap),1);
 if ana.doTimeFreq
-	for j = 1:length(varmap)
+	for jtf = 1:length(varmap)
 		cfg				= [];
-		cfg.trials		= find(data_eeg.trialinfo==varmap(j));
+		cfg.trials		= find(data_eeg.trialinfo==varmap(jtf));
 		cfg.channel		= 1;
 		cfg.method		= 'mtmconvol';
 		cfg.taper		= ana.freqtaper;
@@ -151,7 +163,7 @@ if ana.doTimeFreq
 		else
 			cfg.toi		= min(data_eeg.time{1}):0.05:max(data_eeg.time{1});
 		end
-		freq{j}			= ft_freqanalysis(cfg,data_eeg);
+		freq{jtf}			= ft_freqanalysis(cfg,data_eeg);
 	end
 	plotFrequency();
 end
@@ -253,7 +265,7 @@ function plotTimeLock()
 	end
 	interv = info.ana.VEP.Flicker;
 	nint = round(max(timelock{1}.time) / interv);
-	for j = 1:length(timelock);
+	for j = 1:length(timelock)
 		nexttile(tl,j);
 		ylim([mn mx]);
 		for kk = 1:2:nint
@@ -280,6 +292,7 @@ function plotFreqPower()
 	mn = inf; mx = -inf;
 	powf(length(timelock),1) = struct('f0',[],'f1',[],'f2',[]);
 	PP = cell(length(timelock),1);
+	tlNames = {data_eeg.hdr.label{ana.tlChannels}};
 	for j = 1:length(timelock)
 		minidx = findNearest(timelock{j}.time, ana.analRange(1));
 		maxidx = findNearest(timelock{j}.time, ana.analRange(2));
@@ -290,7 +303,7 @@ function plotFreqPower()
 				dt = timelock{j}.avg(ch,minidx:maxidx);
 				[P,f,~,f0,f1,f2] = doFFT(dt);
 				plot(f,P,'Color',c(ch,:));
-				if any(ana.tlChannels == ch)
+				if any(contains(tlNames,timelock{j}.label{ch}))
 					powf(j).f0 = [powf(j).f0 f0];
 					powf(j).f1 = [powf(j).f1 f1];
 					powf(j).f2 = [powf(j).f2 f2];
@@ -299,7 +312,7 @@ function plotFreqPower()
 				if max(P)>mx;mx=max(P);end
 			else
 				dt = squeeze(timelock{j}.trial(:,ch,minidx:maxidx));
-				[P,f,~,f0,f1,f2] = doFFT(avgfn(dt));
+				[P,f] = doFFT(avgfn(dt));
 				h=plot(f,P,'--','Color',c(ch,:));
 				set(get(get(h,'Annotation'),'LegendInformation'),'IconDisplayStyle','off')
 				for jj = 1:size(dt,1)
@@ -346,9 +359,9 @@ function plotFreqPower()
 	nexttile(tl)
 	for i = 1:length(powf)
 		if isfield(timelock{j},'avg')
-			powf0(i,1) = avgfn(powf(i).f0); powf0err(i) = 0;
-			powf1(i,1) = avgfn(powf(i).f1); powf1err(i) = 0;
-			powf2(i,1) = avgfn(powf(i).f2); powf2err(i) = 0;
+			powf0(i,1) = avgfn(powf(i).f0); powf0err(i,1) = 0;
+			powf1(i,1) = avgfn(powf(i).f1); powf1err(i,1) = 0;
+			powf2(i,1) = avgfn(powf(i).f2); powf2err(i,1) = 0;
 		else
 			[powf0(i,1),powf0err(i,:)] = analysisCore.stderr(powf(i).f0, ana.errormethod);
 			[powf1(i,1),powf1err(i,:)] = analysisCore.stderr(powf(i).f1, ana.errormethod);
@@ -365,12 +378,12 @@ function plotFreqPower()
 				xlab{jj} = num2str(xb(jj));
 			end
 		end
-		f0 = [powf0(end) powf0(1:end-1)];
-		f1 = [powf1(end) powf1(1:end-1)];
-		f2 = [powf2(end) powf2(1:end-1)];
-		f0err = [powf0err(end,:) powf0err(1:end-1,:)];
-		f1err = [powf1err(end,:) powf1err(1:end-1,:)];
-		f2err = [powf2err(end,:) powf2err(1:end-1,:)];
+		f0 = [powf0(end); powf0(1:end-1)]';
+		f1 = [powf1(end); powf1(1:end-1)]';
+		f2 = [powf2(end); powf2(1:end-1)]';
+		f0err = [powf0err(end,:); powf0err(1:end-1,:)]';
+		f1err = [powf1err(end,:); powf1err(1:end-1,:)]';
+		f2err = [powf2err(end,:); powf2err(1:end-1,:)]';
 	else
 		xb = xa;
 		f0 = powf0;	f1 = powf1;	f2 = powf2;
@@ -431,16 +444,16 @@ function plotFreqPower()
 				p{jj} = [ctrl p{jj}];
 			end
 		end
-		ymax = max([powf0 powf1 powf2]);
+		ymax = max(max([f0 f1 f2]));
 		ymax = ymax + (ymax/20);
 		for jj = 1 : length(p)
 			nexttile(tl)
-			
-			pl = plot(1:length(p{jj}),[powf0(p{jj}); powf1(p{jj}); powf2(p{jj})],'Marker','o');
+			points=[f0(p{jj}); f1(p{jj}); f2(p{jj})]';
+			pl = plot(1:length(p{jj}),points,'Marker','o');
 			pl(1).Parent.XTick = 1:length(p{jj});
 			pl(1).Parent.XTickLabel = v1;
 			pl(1).Parent.XTickLabelRotation=45;
-			xlim([0.75 length(p{jj})+0.25]);
+			xlim([0.9 length(p{jj})+0.1]);
 			ylim([0 ymax]);
 			title(['Power at ' info.seq.nVar(2).name ': ' num2str(v2(jj))]);
 			xlabel(info.seq.nVar(1).name);
@@ -453,7 +466,7 @@ function plotFreqPower()
 end
 
 function plotCSF()
-	if isfield(timelock{j},'avg'); return; end
+	if isfield(timelock{1},'avg'); return; end
 	[~, f, e] = fileparts(ana.EDFFile);
 	h = figure('Name',['CSF Data: ' f '.' e],'Units','normalized',...
 		'Position',[0.4 0.025 0.25 0.9]);
