@@ -224,7 +224,9 @@ function plotTimeLock()
 		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
 	end
 	mn = inf; mx = -inf;
+	fprintf('\n--->>> Plotting Time-Locked Potentials: ');
 	for jj = 1:length(timelock)
+		fprintf(' #%i\n', jj);
 		nexttile(tl,jj)
 		hold on
 		if isfield(timelock{jj},'avg')
@@ -266,6 +268,7 @@ function plotTimeLock()
 		hz = zoom;hz.ActionPostCallback = @myCallbackZoom;
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
+	fprintf(' ... DONE\n');
 	interv = info.ana.VEP.Flicker;
 	nint = round(max(timelock{1}.time) / interv);
 	for j = 1:length(timelock)
@@ -278,7 +281,7 @@ function plotTimeLock()
 	end
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s lp=%.2f hp=%.2f | avg:%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval,ana.lowpass,ana.highpass,num2str(ana.tlChannels));
 	tl.XLabel.String = 'Time (s)';
-	tl.YLabel.String = 'Amplitude';
+	tl.YLabel.String = 'Amplitude (mV)';
 	tl.Title.String = [t '\newlineComments: ' info.ana.comments];
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -298,7 +301,9 @@ function plotFreqPower()
 	powf(length(timelock),1) = struct('f0',[],'f1',[],'f2',[]);
 	PP = cell(length(timelock),1);
 	tlNames = {data_eeg.hdr.label{ana.tlChannels}};
+	fprintf('\n--->>> Plotting FFT Power: ');
 	for j = 1:length(timelock)
+		fprintf(' #%i...',j);
 		minidx = analysisCore.findNearest(timelock{j}.time, ana.analRange(1));
 		maxidx = analysisCore.findNearest(timelock{j}.time, ana.analRange(2));
 		nexttile(tl,j)
@@ -348,6 +353,7 @@ function plotFreqPower()
 		hz = zoom;hz.ActionPostCallback = @myCallbackZoom;
 		hp = pan;hp.ActionPostCallback = @myCallbackZoom;
 	end
+	fprintf(' ... DONE!\n');
 	for jj = 1:length(timelock);nexttile(tl,jj);ylim([0 mx]);xlim([-1 35]);end
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s ANALTIME: %.2f-%.2f',ana.dftfilter,...
 		ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval, ana.analRange(1), ana.analRange(2));
@@ -366,6 +372,7 @@ function plotFreqPower()
 		'Position',[0.2 0.2 0.6 0.6]);
 	tl = tiledlayout(h,'flow','TileSpacing','compact');
 	nexttile(tl)
+	disp('--->>> Plotting Tuning Curves: ')
 	for i = 1:length(powf)
 		if isfield(timelock{j},'avg')
 			powf0(i,1) = avgfn(powf(i).f0); powf0err(i,1) = 0;
