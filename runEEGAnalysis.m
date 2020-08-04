@@ -514,11 +514,11 @@ function plotFreqPower()
 	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%CSF
 	
-	[~, f, e] = fileparts(ana.EDFFile);
-	h = figure('Name',['TL Data: ' f '.' e],'Units','normalized',...
-		'Position',[0.2 0.2 0.6 0.6]);
-	tl = tiledlayout(h,'flow','TileSpacing','compact');
-	nexttile(tl)
+% 	[~, f, e] = fileparts(ana.EDFFile);
+% 	h = figure('Name',['TL Data: ' f '.' e],'Units','normalized',...
+% 		'Position',[0.2 0.2 0.6 0.6]);
+% 	tl = tiledlayout(h,'flow','TileSpacing','compact');
+% 	nexttile(tl)
 	
 	
 	
