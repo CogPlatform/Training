@@ -4,9 +4,9 @@ ana.table.Data =[];
 ana.warning.Color = [ 0.5 0.5 0.5 ];
 drawnow;
 ft_defaults;
-ana.codeVersion = '1.04';
+ana.codeVersion = '1.05';
 ana.versionLabel.Text = [ana.versionLabel.UserData ' Code: V' ana.codeVersion];
-c=analysisCore.optimalColours(10);
+colours = analysisCore.optimalColours(10);
 info = load(ana.MATFile);
 info.seq.getLabels();
 vars = getVariables();
@@ -65,8 +65,6 @@ if cfg.header.nChans ~= ana.pDiode
 	ana.pDiode = cfg.header.nChans;
 	ana.bitChannels = ana.pDiode-8:ana.pDiode-1;
 	ana.dataChannels = 1:ana.bitChannels(1)-1;
-	disp('============= HEADER INFO, please check! ====================');
-	disp(cfg.header)
 	warndlg('GUI channel assignments are incorrect, will correct this time!')
 end
 cfg.continuous		= 'yes';
@@ -216,7 +214,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function plotTimeLock()
 	[p f e] = fileparts(ana.EDFFile);
-	h = figure('Name',['TL Data: ' f '.' e],'Units','normalized',...
+	h = figure('Name',['TL Data: ' f e],'Units','normalized',...
 		'Position',[0 0.025 0.25 0.9]);
 	if length(timelock) > 8
 		tl = tiledlayout(h,'flow','TileSpacing','compact');
@@ -227,29 +225,29 @@ function plotTimeLock()
 	fprintf('\n--->>> Plotting Time-Locked Potentials: ');
 	for jj = 1:length(timelock)
 		fprintf(' #%i\n', jj);
-		nexttile(tl,jj)
+		nexttile(tl,jj); 
+		if length(ana.tlChannels)>1
+			cfg = [];
+			cfg.linecolor = 'gbywrgbkywrgbkywrgbkywlrb';
+			cfg.interactive = 'no';
+			cfg.linewidth = 2;
+			cfg.channel = ana.tlChannels;
+			ft_singleplotER(cfg,timelock{jj});
+		end
 		hold on
 		if isfield(timelock{jj},'avg')
 			for i = 1:length(timelock{jj}.label)
 				analysisCore.areabar(timelock{jj}.time,timelock{jj}.avg(i,:),...
-					timelock{jj}.var(i,:),c(i,:));
+					timelock{jj}.var(i,:),colours(i,:));
 			end
 		else
 			for i = 1:length(timelock{jj}.label)
-				plot(timelock{jj}.time',squeeze(timelock{jj}.trial(:,i,:))',...
-					':','Color',c(i,:),'DisplayName',timelock{jj}.label{i});
+				h=plot(timelock{jj}.time',squeeze(timelock{jj}.trial(:,i,:))',...
+					':','Color',colours(i,:),'DisplayName',timelock{jj}.label{i});
+				for hl=1:length(h);h(hl).Annotation.LegendInformation.IconDisplayStyle = 'off';end
 				plot(timelock{jj}.time',avgfn(squeeze(timelock{jj}.trial(:,i,:)))',...
-					'-','Color',c(i,:),'LineWidth',1.5,'DisplayName',timelock{jj}.label{i});
+					'-','Color',colours(i,:),'LineWidth',1.5,'DisplayName',timelock{jj}.label{i});
 			end
-		end
-		if length(ana.tlChannels)>1
-			cfg = [];
-			cfg.linecolor = 'kgrbywrgbkywrgbkywrgbkyw';
-			cfg.interactive = 'no';
-			cfg.linewidth = 1.5;
-			cfg.channel = ana.tlChannels;
-			hold on
-			ft_singleplotER(cfg,timelock{jj});
 		end
 		if isnumeric(ana.plotRange);xlim([ana.plotRange(1) ana.plotRange(2)]);end
 		box on;grid on; grid minor; axis tight;
@@ -289,7 +287,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function plotFreqPower()
 	[~, f, e] = fileparts(ana.EDFFile);
-	h = figure('Name',['TL Data: ' f '.' e],'Units','normalized',...
+	h = figure('Name',['TL Data: ' f e],'Units','normalized',...
 		'Position',[0.25 0.025 0.25 0.9]);
 	if length(timelock) > 8
 		tl = tiledlayout(h,'flow','TileSpacing','compact');
@@ -301,7 +299,7 @@ function plotFreqPower()
 	powf(length(timelock),1) = struct('f0',[],'f1',[],'f2',[]);
 	PP = cell(length(timelock),1);
 	tlNames = {data_eeg.hdr.label{ana.tlChannels}};
-	fprintf('\n--->>> Plotting FFT Power: ');
+	fprintf('--->>> Plotting FFT Power for Condition: ');
 	for j = 1:length(timelock)
 		fprintf(' #%i...',j);
 		minidx = analysisCore.findNearest(timelock{j}.time, ana.analRange(1));
@@ -309,10 +307,13 @@ function plotFreqPower()
 		nexttile(tl,j)
 		hold on
 		for ch = 1:length(timelock{j}.label)
+			powf(j).label = timelock{j}.label;
+			powf(j).trials = timelock{j}.cfg.trials;
+			powf(j).trialinfo = timelock{j}.trialinfo;
 			if isfield(timelock{j},'avg')
 				dt = timelock{j}.avg(ch,minidx:maxidx);
 				[P,f,~,f0,f1,f2] = doFFT(dt);
-				plot(f,P,'Color',c(ch,:));
+				plot(f,P,'Color',colours(ch,:));
 				if any(contains(tlNames,timelock{j}.label{ch}))
 					powf(j).f0 = [powf(j).f0 f0];
 					powf(j).f1 = [powf(j).f1 f1];
@@ -323,8 +324,8 @@ function plotFreqPower()
 			else
 				dt = squeeze(timelock{j}.trial(:,ch,minidx:maxidx));
 				[P,f] = doFFT(avgfn(dt));
-				h=plot(f,P,'--','Color',c(ch,:));
-				set(get(get(h,'Annotation'),'LegendInformation'),'IconDisplayStyle','off')
+				h=plot(f,P,'--','Color',colours(ch,:));
+				h.Annotation.LegendInformation.IconDisplayStyle = 'off';
 				for jj = 1:size(dt,1)
 					[P,f,~,f0,f1,f2] = doFFT(dt(jj,:));
 					PP{j}(jj,:) = P;
@@ -338,7 +339,7 @@ function plotFreqPower()
 					end
 				end
 				[avg,err] = analysisCore.stderr(PP{j}, ana.errormethod, [], ana.pvalue, [], avgfn);
-				analysisCore.areabar(f,avg,err,c(ch,:));
+				analysisCore.areabar(f,avg,err,colours(ch,:));
 				if min(avg)<mn;mn=min(avg);end
 				if max(avg)>mx;mx=max(avg);end
 			end
@@ -368,7 +369,7 @@ function plotFreqPower()
 	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%TUNING CURVES
 	[~, f, e] = fileparts(ana.EDFFile);
-	h = figure('Name',['TL Data: ' f '.' e],'Units','normalized',...
+	h = figure('Name',['TL Data: ' f e],'Units','normalized',...
 		'Position',[0.2 0.2 0.6 0.6]);
 	tl = tiledlayout(h,'flow','TileSpacing','compact');
 	nexttile(tl)
@@ -394,12 +395,12 @@ function plotFreqPower()
 				xlab{jj} = num2str(xb(jj));
 			end
 		end
-		f0 = [powf0(end); powf0(1:end-1)]';
-		f1 = [powf1(end); powf1(1:end-1)]';
-		f2 = [powf2(end); powf2(1:end-1)]';
-		f0err = [powf0err(end,:); powf0err(1:end-1,:)]';
-		f1err = [powf1err(end,:); powf1err(1:end-1,:)]';
-		f2err = [powf2err(end,:); powf2err(1:end-1,:)]';
+		f0 = [powf0(end); powf0(1:end-1)];
+		f1 = [powf1(end); powf1(1:end-1)];
+		f2 = [powf2(end); powf2(1:end-1)];
+		f0err = [powf0err(end,:); powf0err(1:end-1,:)];
+		f1err = [powf1err(end,:); powf1err(1:end-1,:)];
+		f2err = [powf2err(end,:); powf2err(1:end-1,:)];
 	else
 		xb = xa;
 		f0 = powf0;	f1 = powf1;	f2 = powf2;
@@ -408,8 +409,8 @@ function plotFreqPower()
 			xlab{jj} = num2str(xb(jj));
 		end
 	end
-	if size(f1err,1)==2
-		thrsh = f1err(2,1);
+	if size(f1err,2)==2
+		thrsh = f1err(1,2);
 	else
 		if isempty(regexpi(ana.errormethod,'SE|SD'))
 			thrsh = f1(1) + f1err(1);
@@ -420,26 +421,27 @@ function plotFreqPower()
 	info.fpower.f0 = f0; info.fpower.f0err = f0err;
 	info.fpower.f1 = f1; info.fpower.f1err = f1err;
 	info.fpower.f2 = f2; info.fpower.f2err = f2err;
-	info.fpower.x = xb;
-	info.fpower.xlab = xlab;
+	info.fpower.x = xb; info.fpower.xlab = xlab;
+	info.fpower.powf0 = powf0; info.fpower.powf1 = powf1; info.fpower.powf2 = powf2;
+	info.fpower.powf0err = powf0err; info.fpower.powf1err = powf1err; info.fpower.powf2err = powf2err;
 	opts = {'Marker','.','MarkerSize',12};
 	if max(f0err)==0
 		pl = plot(xa,[f0;f1;f2],opts{:});
-		pl(1).Color = c(1,:);pl(2).Color = c(2,:);pl(3).Color = c(3,:);
+		pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
 		pl(1).Parent.XTick = xa;
 		pl(1).Parent.XTickLabel = xlab;
 		pl(1).Parent.XTickLabelRotation=45;
 	else
 		hold on
-		pl = analysisCore.areabar(xa,f0,f0err,c(1,:),0.2,opts{:});
-		pl = analysisCore.areabar(xa,f1,f1err,c(2,:),0.2,opts{:});
-		pl = analysisCore.areabar(xa,f2,f2err,c(3,:),0.2,opts{:});
+		pl = analysisCore.areabar(xa,f0,f0err,colours(1,:),0.2,opts{:});
+		pl = analysisCore.areabar(xa,f1,f1err,colours(2,:),0.2,opts{:});
+		pl = analysisCore.areabar(xa,f2,f2err,colours(3,:),0.2,opts{:});
 		pl = pl.plot;
-		l = line(xlim, [thrsh thrsh],'LineStyle','--','LineWidth',2,'Color',[.9 0 0]);
-		l.Annotation.LegendInformation.IconDisplayStyle = 'off';
 		pl(1).Parent.XTick = xa;
 		pl(1).Parent.XTickLabel = xlab;
 		pl(1).Parent.XTickLabelRotation=45;
+		lp = line(xlim, [thrsh thrsh],'LineStyle','--','LineWidth',2,'Color',[.9 0 0]);
+		lp.Annotation.LegendInformation.IconDisplayStyle = 'off';
 	end
 	xlim([0.9 length(xa)+0.1]);
 	ymax = max(ylim);
@@ -492,14 +494,14 @@ function plotFreqPower()
 			if max(f0err)==0
 				points=[f0(p{jj}); f1(p{jj}); f2(p{jj})]';
 				pl = plot(1:length(p{jj}),points,opts{:});
-				pl(1).Color = c(1,:);pl(2).Color = c(2,:);pl(3).Color = c(3,:);
+				pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
 			else
-				pl = analysisCore.areabar(1:length(p{jj}),f0(p{jj}),f0err(:,p{jj}),c(1,:),0.1,opts{:});
-				pl = analysisCore.areabar(1:length(p{jj}),f1(p{jj}),f1err(:,p{jj}),c(2,:),0.2,opts{:});
-				pl = analysisCore.areabar(1:length(p{jj}),f2(p{jj}),f2err(:,p{jj}),c(3,:),0.1,opts{:});
+				pl = analysisCore.areabar(1:length(p{jj}),f0(p{jj}),f0err(:,p{jj}),colours(1,:),0.1,opts{:});
+				pl = analysisCore.areabar(1:length(p{jj}),f1(p{jj}),f1err(:,p{jj}),colours(2,:),0.2,opts{:});
+				pl = analysisCore.areabar(1:length(p{jj}),f2(p{jj}),f2err(:,p{jj}),colours(3,:),0.1,opts{:});
 				pl = pl.plot;
-				l = line([1 length(p{jj})], [thrsh thrsh],'LineStyle','--','LineWidth',2,'Color',[.9 0 0]);
-				l.Annotation.LegendInformation.IconDisplayStyle = 'off';
+				lp = line([1 length(p{jj})], [thrsh thrsh],'LineStyle','--','LineWidth',2,'Color',[.9 0 0]);
+				lp.Annotation.LegendInformation.IconDisplayStyle = 'off';
 			end
 			pl(1).Parent.XTick = 1:length(p{jj});
 			pl(1).Parent.XTickLabel = v1;
@@ -536,7 +538,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function plotFrequency()
 	[~, f, e] = fileparts(ana.EDFFile);
-	h = figure('Name',['TF Data: ' f '.' e],'Units','normalized',...
+	h = figure('Name',['TF Data: ' f e],'Units','normalized',...
 		'Position',[0.6 0.025 0.25 0.9]);
 	if length(freq) > 8
 		tl = tiledlayout(h,'flow','TileSpacing','compact');
