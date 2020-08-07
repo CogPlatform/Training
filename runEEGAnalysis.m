@@ -309,7 +309,7 @@ function plotFreqPower()
 		for ch = 1:length(timelock{j}.label)
 			powf(j).label = timelock{j}.label;
 			powf(j).trials = timelock{j}.cfg.trials;
-			powf(j).trialinfo = timelock{j}.trialinfo;
+			powf(j).trialinfo = unique(timelock{j}.trialinfo);
 			if isfield(timelock{j},'avg')
 				dt = timelock{j}.avg(ch,minidx:maxidx);
 				[P,f,~,f0,f1,f2] = doFFT(dt);
@@ -385,7 +385,7 @@ function plotFreqPower()
 			[powf2(i,1),powf2err(i,:)] = analysisCore.stderr(powf(i).f2, ana.errormethod, [], ana.pvalue, [], avgfn);
 		end
 	end
-	xa = 1:length(powf0);
+	xa = 1:size(powf0,1)';
 	if info.seq.addBlank
 		xb = [xa(end) xa(1:end-1)];
 		for jj = 1:length(xb)
