@@ -252,7 +252,7 @@ function plotTimeLock()
 		if isnumeric(ana.plotRange);xlim([ana.plotRange(1) ana.plotRange(2)]);end
 		box on;grid on; grid minor; axis tight;
 		if length(ana.tlChannels)>1 && jj == 1
-			legend(cat(1,timelock{1}.label,{'AVG'}));
+			legend(cat(1,{'AVG'},timelock{1}.label));
 		elseif jj == 1
 			legend(timelock{1}.label);
 		end
@@ -309,7 +309,9 @@ function plotFreqPower()
 		for ch = 1:length(timelock{j}.label)
 			powf(j).label = timelock{j}.label;
 			powf(j).trials = timelock{j}.cfg.trials;
-			powf(j).trialinfo = unique(timelock{j}.trialinfo);
+			if isfield(timelock,'trialinfo')
+				powf(j).trialinfo = unique(timelock{j}.trialinfo);
+			end
 			if isfield(timelock{j},'avg')
 				dt = timelock{j}.avg(ch,minidx:maxidx);
 				[P,f,~,f0,f1,f2] = doFFT(dt);
@@ -426,7 +428,7 @@ function plotFreqPower()
 	info.fpower.powf0err = powf0err; info.fpower.powf1err = powf1err; info.fpower.powf2err = powf2err;
 	opts = {'Marker','.','MarkerSize',12};
 	if max(f0err)==0
-		pl = plot(xa,[f0;f1;f2],opts{:});
+		pl = plot(xa,[f0';f1';f2'],opts{:});
 		pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
 		pl(1).Parent.XTick = xa;
 		pl(1).Parent.XTickLabel = xlab;
@@ -492,13 +494,13 @@ function plotFreqPower()
 		for jj = 1 : length(p)
 			nexttile(tl); hold on
 			if max(f0err)==0
-				points=[f0(p{jj}); f1(p{jj}); f2(p{jj})]';
+				points=[f0(p{jj})'; f1(p{jj})'; f2(p{jj})']';
 				pl = plot(1:length(p{jj}),points,opts{:});
 				pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
 			else
-				pl = analysisCore.areabar(1:length(p{jj}),f0(p{jj}),f0err(:,p{jj}),colours(1,:),0.1,opts{:});
-				pl = analysisCore.areabar(1:length(p{jj}),f1(p{jj}),f1err(:,p{jj}),colours(2,:),0.2,opts{:});
-				pl = analysisCore.areabar(1:length(p{jj}),f2(p{jj}),f2err(:,p{jj}),colours(3,:),0.1,opts{:});
+				pl = analysisCore.areabar(1:length(p{jj}),f0(p{jj}),f0err(p{jj},:),colours(1,:),0.1,opts{:});
+				pl = analysisCore.areabar(1:length(p{jj}),f1(p{jj}),f1err(p{jj},:),colours(2,:),0.2,opts{:});
+				pl = analysisCore.areabar(1:length(p{jj}),f2(p{jj}),f2err(p{jj},:),colours(3,:),0.1,opts{:});
 				pl = pl.plot;
 				lp = line([1 length(p{jj})], [thrsh thrsh],'LineStyle','--','LineWidth',2,'Color',[.9 0 0]);
 				lp.Annotation.LegendInformation.IconDisplayStyle = 'off';
