@@ -44,7 +44,7 @@ function handles = areabar(xvalues,ydata,error,c1,alpha,varargin)
 	handles.plot = plot(xvalues,ydata,varargin{:});
 	set(gca,'NextPlot',NextPlot);
 	%set(gca,'PlotBoxAspectRatioMode','manual');
-	uistack(handles.plot,'top')
+	%uistack(handles.plot,'top')
 	set(gca,'Layer','bottom');
 	if alpha == 1; set(gcf,'Renderer','painters'); end
 	box on;
