@@ -13,11 +13,14 @@ d.colour = [0.2 0.2 0.2];
 d.size = 30;
 
 %load('~/MatlabFiles/Calibrations/TobiiTX300_SET2_MonitorCalibration.mat');
-load('~/Code/Training/AorusFI27QP_2560x1440x120Hz.mat');
+%load('~/Code/Training/AorusFI27QP_2560x1440x120Hz.mat');
+%load('~/MatlabFiles/Calibration/Display++Color++Mode-Ubuntu-RadeonPsychlab.mat')
+c = calibrateLuminance;
+%c.choice = 2;
 %c.plot;
-c.choice = 2;
-s.gammaTable = c;
-s.bitDepth = 'Native10Bit';
+%s.gammaTable = c;
+s.bitDepth = 'Native10bit';
+resolution = 2^10;
 sv = s.open();
 c.screenVals = sv;
 g.setup(s);
@@ -29,9 +32,10 @@ c.openSpectroCAL();
 c.spectroCalLaser(true);
 input('Align Laser then press enter to start...')
 c.spectroCalLaser(false);
+Priority(MaxPriority(s.win));
 WaitSecs(0.5);
 
-ctest = [0.01];
+ctest = [];
 clear Y YY YYY A B;
 for loop = 1:length(ctest)
 	
@@ -79,7 +83,7 @@ for loop = 1:length(phs)
 	s.flip();
 	WaitSecs(0.1);
 	[~,~,YY(loop)] = c.getSpectroCALValues();
-	fprintf('Phase is: %.3f, Luminance is %.2f\n',phs(loop),YY(loop));
+	fprintf('Phase is: %.2f, Luminance is %.4f\n',phs(loop),YY(loop));
 end
 
 h=figure;
@@ -92,8 +96,8 @@ ylabel('Output Luminance (cd/m^2)');
 drawnow;
 
 s.flip();
-range = 0:1/2^10:1;
-steps=225:250;
+range = 0:1/resolution:1;
+steps = floor(length(range)/2):floor(length(range)/2)+25;
 for loop = steps
 	d.colourOut = [range(loop) range(loop) range(loop) 1];
 	d.update();
@@ -106,12 +110,13 @@ end
 YYY=YYY(steps);
 nexttile
 plot(range(steps),YYY,'r-o');
-title(['Luminance 2^{10}']);
+title([s.bitDepth ' Luminance: ' num2str(resolution)]);
 xlabel('Grayscale Step 0-1')
 ylabel('Output Luminance (cd/m^2)');
 box on;grid on
 drawnow;
 
+ListenChar(0);ShowCursor;Priority(0);
 g.reset;
 d.reset;
 s.close;
