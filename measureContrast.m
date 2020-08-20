@@ -1,7 +1,6 @@
-s=screenManager;
-g=gratingStimulus;
-load('/home/cog5/MatlabFiles/Calibrations/TobiiTX300_SET2_MonitorCalibration.mat');
-%c.plot;
+s = screenManager;
+g = gratingStimulus;
+d = discStimulus;
 
 %g.type='square';
 g.mask = false;
@@ -10,27 +9,36 @@ g.tf=0;
 g.sf = 0.1;
 g.contrast = 0.5;
 
+d.colour = [0.2 0.2 0.2];
+d.size = 30;
+
+%load('~/MatlabFiles/Calibrations/TobiiTX300_SET2_MonitorCalibration.mat');
+load('~/Code/Training/AorusFI27QP_2560x1440x120Hz.mat');
+%c.plot;
+c.choice = 2;
 s.gammaTable = c;
+s.bitDepth = 'Native10Bit';
 sv = s.open();
 c.screenVals = sv;
 g.setup(s);
+d.setup(s);
 g.draw();
 s.flip();
 
 c.openSpectroCAL();
 c.spectroCalLaser(true);
-%input('Align Laser then press enter to start...')
+input('Align Laser then press enter to start...')
 c.spectroCalLaser(false);
 WaitSecs(0.5);
 
-ctest = [];
-
+ctest = [0.01];
+clear Y YY YYY A B;
 for loop = 1:length(ctest)
 	
 	g.driftPhase = 0;
 	g.contrastOut = ctest(loop);
 	
-	for i = 1:20
+	for i = 1:10
 		g.draw();
 		s.flip();
 		WaitSecs(0.1);
@@ -38,8 +46,8 @@ for loop = 1:length(ctest)
 		g.driftPhase = g.driftPhase + 180;
 	end
 
-	A = Y(1:2:19);
-	B = Y(2:2:20);
+	A = Y(1:2:9);
+	B = Y(2:2:10);
 
 	h=figure;
 	tl = tiledlayout(h,'flow');
@@ -48,15 +56,13 @@ for loop = 1:length(ctest)
 	plot(A,'ko');
 	hold on;
 	plot(B,'ro');
-	ylabel('Luminance');
-
+	box on;grid on
 	nexttile;
-	boxplot([A,B],[ones(1,10),ones(1,10)*2],'Notch','on','Labels',{'phase0','phase180'});
-	ylabel('Luminance');
-
+	boxplot([A,B],[ones(1,5),ones(1,5)*2],'Notch','on','Labels',{'phase0','phase180'});
+	box on;grid on
 	tl.YLabel.String = 'Luminance (cd/m^2)';
 	tl.Title.String = ['Contrast: ' num2str(g.contrastOut)];
-	
+	drawnow;
 end
 
 phs = [0:22.5:360];
@@ -65,21 +71,49 @@ g.contrastOut = 0.01;
 g.driftPhase = phs(1);
 g.draw();
 s.flip();
-WaitSecs
+WaitSecs(0.5);
 
 for loop = 1:length(phs)
 	g.driftPhase = phs(loop);
-	fprintf('Phase is: %.2f\n',phs(loop));
 	g.draw();
 	s.flip();
 	WaitSecs(0.1);
 	[~,~,YY(loop)] = c.getSpectroCALValues();
+	fprintf('Phase is: %.3f, Luminance is %.2f\n',phs(loop),YY(loop));
 end
 
-figure
-plot(phs,YY,'r-o');
+h=figure;
+tl = tiledlayout(h,'flow');
+nexttile
+plot(phs,YY,'r-o');box on;grid on
 title(['Contrast: ' num2str(g.contrastOut)]);
+xlabel('Phase (deg)')
+ylabel('Output Luminance (cd/m^2)');
+drawnow;
+
+s.flip();
+range = 0:1/2^10:1;
+steps=225:250;
+for loop = steps
+	d.colourOut = [range(loop) range(loop) range(loop) 1];
+	d.update();
+	d.draw();
+	s.flip();
+	WaitSecs(0.1);
+	[~,~,YYY(loop)] = c.getSpectroCALValues();
+	fprintf('Loop %i - In/out Luminance %.4f = %.4f\n',loop,range(loop),YYY(loop));
+end
+YYY=YYY(steps);
+nexttile
+plot(range(steps),YYY,'r-o');
+title(['Luminance 2^{10}']);
+xlabel('Grayscale Step 0-1')
+ylabel('Output Luminance (cd/m^2)');
+box on;grid on
+drawnow;
 
 g.reset;
+d.reset;
 s.close;
+c.closeSpectroCAL
 c.close;
