@@ -12,13 +12,16 @@ g.contrast = 0.5;
 d.colour = [0.2 0.2 0.2];
 d.size = 30;
 
-%load('~/MatlabFiles/Calibrations/TobiiTX300_SET2_MonitorCalibration.mat');
-%load('~/Code/Training/AorusFI27QP_2560x1440x120Hz.mat');
-%load('~/MatlabFiles/Calibration/Display++Color++Mode-Ubuntu-RadeonPsychlab.mat')
-c = calibrateLuminance;
-%c.choice = 2;
-%c.plot;
-%s.gammaTable = c;
+if true
+	%load('~/MatlabFiles/Calibrations/TobiiTX300_SET2_MonitorCalibration.mat');
+	load('~/Code/Training/AorusFI27QP_2560x1440x120Hz.mat');
+	%load('~/MatlabFiles/Calibration/Display++Color++Mode-Ubuntu-RadeonPsychlab.mat')
+	%c.choice = 2;
+	%c.plot;
+	s.gammaTable = c;
+else
+	c = calibrateLuminance;
+end
 s.bitDepth = 'Native10bit';
 resolution = 2^10;
 sv = s.open();

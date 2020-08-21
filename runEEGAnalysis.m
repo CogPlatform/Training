@@ -11,6 +11,7 @@ info = load(ana.MATFile);
 info.seq.getLabels();
 vars = getVariables();
 data_raw = []; trl=[]; triggers=[]; events=[]; timelock = []; freq = [];
+mV = 1e3;
 
 %========================================================PLOT RAW DATA
 if ana.plotTriggers
@@ -84,24 +85,38 @@ if strcmpi(ana.demean,'yes')
 end
 cfg.medianfilter	= ana.medianfilter;
 cfg.dftfilter		= ana.dftfilter;
+cfg.dftfreq			= [50 100 150];
 cfg.detrend			= ana.detrend;
 cfg.polyremoval		= ana.polyremoval;
 cfg.channel			= ana.dataChannels;
 if ana.rereference > 0 && any(ana.dataChannels == ana.rereference)
 	cfg.reref		= 'yes';
 	cfg.refchannel	= cfg.header.label{ana.rereference};
-	cfg.refmethod	= 'avg';
+	cfg.refmethod	= ana.rerefMethod;
 end
-if ana.lowpass > 0 
-	cfg.lpfilter	= 'yes';
-	cfg.lpfreq		= ana.lowpass;
-	cfg.lpfilttype	= ana.filtertype;
+if ana.bandpass == true && ana.lowpass > 0 && ana.highpass > 0
+	cfg.bpfilter	= 'yes';
+	cfg.bpfreq		= [ana.highpass ana.lowpass];
+	cfg.bpfilttype	= ana.filtertype;
+	cfg.bpfiltdir   = ana.direction;
+	if ana.order > 0; cfg.bpfiltord = ana.order; end
+else
+	if ana.lowpass > 0 
+		cfg.lpfilter	= 'yes';
+		cfg.lpfreq		= ana.lowpass;
+		cfg.lpfilttype	= ana.filtertype;
+		cfg.lpfiltdir   = ana.direction;
+		if ana.order > 0; cfg.lpfiltord = ana.order; end
+	end
+	if ana.highpass > 0
+		cfg.hpfilter	= 'yes';
+		cfg.hpfreq		= ana.highpass;
+		cfg.hpfilttype	= ana.filtertype;
+		cfg.hpfiltdir   = ana.direction;
+		if ana.order > 0; cfg.hpfiltord = ana.order; end
+	end
 end
-if ana.highpass > 0
-	cfg.hpfilter	= 'yes';
-	cfg.hpfreq		= ana.highpass;
-	cfg.hpfilttype	= ana.filtertype;
-end
+if ana.plotFilter; cfg.plotfiltresp = 'yes'; end
 data_eeg			= ft_preprocessing(cfg);
 info.data_cfg		= cfg;
 
@@ -222,36 +237,39 @@ function plotTimeLock()
 		tl = tiledlayout(h,length(timelock),1,'TileSpacing','compact');
 	end
 	mn = inf; mx = -inf;
-	fprintf('\n--->>> Plotting Time-Locked Potentials: ');
+	fprintf('\n--->>> Plotting Time-Locked Potentials: \n');
 	for jj = 1:length(timelock)
-		fprintf(' #%i\n', jj);
+		if jj == 1;fprintf(' #%03i...\n', jj);else; fprintf('\b\b\b\b\b\b\b\b\b #%03i...\n', jj);end
 		nexttile(tl,jj); 
-		if length(ana.tlChannels)>1
-			cfg = [];
-			cfg.linecolor = 'gbywrgbkywrgbkywrgbkywlrb';
-			cfg.interactive = 'no';
-			cfg.linewidth = 2;
-			cfg.channel = ana.tlChannels;
-			ft_singleplotER(cfg,timelock{jj});
-		end
+% 		if length(ana.tlChannels)>1
+% 			cfg = [];
+% 			cfg.linecolor = 'gbywrgbkywrgbkywrgbkywlrb';
+% 			cfg.interactive = 'no';
+% 			cfg.linewidth = 2;
+% 			cfg.channel = ana.tlChannels;
+% 			ft_singleplotER(cfg,timelock{jj});
+% 		end
 		hold on
 		if isfield(timelock{jj},'avg')
 			for i = 1:length(timelock{jj}.label)
-				analysisCore.areabar(timelock{jj}.time,timelock{jj}.avg(i,:),...
-					timelock{jj}.var(i,:),colours(i,:));
+				analysisCore.areabar(timelock{jj}.time, timelock{jj}.avg(i,:)*mV,...
+					timelock{jj}.var(i,:)*mV,colours(i,:));
 			end
 		else
 			for i = 1:length(timelock{jj}.label)
-				h=plot(timelock{jj}.time',squeeze(timelock{jj}.trial(:,i,:))',...
-					':','Color',colours(i,:),'DisplayName',timelock{jj}.label{i});
-				for hl=1:length(h);h(hl).Annotation.LegendInformation.IconDisplayStyle = 'off';end
-				plot(timelock{jj}.time',avgfn(squeeze(timelock{jj}.trial(:,i,:)))',...
+				h=plot(timelock{jj}.time',squeeze(timelock{jj}.trial(:,i,:))'*mV,...
+					':','Color',colours(i,:),'DisplayName',timelock{jj}.label{i},'ButtonDownFcn', @clickMe);
+				for hl=1:length(h)
+					h(hl).Annotation.LegendInformation.IconDisplayStyle = 'off';
+					h(hl).UserData = ['Trial ' num2str(timelock{jj}.cfg.trials(hl))];
+				end
+				plot(timelock{jj}.time',avgfn(squeeze(timelock{jj}.trial(:,i,:)))'*mV,...
 					'-','Color',colours(i,:),'LineWidth',1.5,'DisplayName',timelock{jj}.label{i});
 			end
 		end
 		if isnumeric(ana.plotRange);xlim([ana.plotRange(1) ana.plotRange(2)]);end
 		box on;grid on; grid minor; axis tight;
-		if length(ana.tlChannels)>1 && jj == 1
+		if length(ana.tlChannels)>1 && jj == 1000
 			legend(cat(1,{'AVG'},timelock{1}.label));
 		elseif jj == 1
 			legend(timelock{1}.label);
@@ -279,7 +297,7 @@ function plotTimeLock()
 	end
 	t = sprintf('TL: dft=%s demean=%s (%.2f %.2f) detrend=%s poly=%s lp=%.2f hp=%.2f | avg:%s',ana.dftfilter,ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval,ana.lowpass,ana.highpass,num2str(ana.tlChannels));
 	tl.XLabel.String = 'Time (s)';
-	tl.YLabel.String = 'Amplitude (mV)';
+	tl.YLabel.String = 'Amplitude (\muv)';
 	tl.Title.String = [t '\newlineComments: ' info.ana.comments];
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -296,12 +314,12 @@ function plotFreqPower()
 	end
 	ff = 1/info.ana.VEP.Flicker;
 	mn = inf; mx = -inf;
-	powf(length(timelock),1) = struct('f0',[],'f1',[],'f2',[]);
+	powf(length(timelock),1) = struct('f0',[],'f1',[],'f2',[],'A',[]);
 	PP = cell(length(timelock),1);
 	tlNames = {data_eeg.hdr.label{ana.tlChannels}};
-	fprintf('--->>> Plotting FFT Power for Condition: ');
+	fprintf('--->>> Plotting FFT Power for Condition: \n');
 	for j = 1:length(timelock)
-		fprintf(' #%i...',j);
+		if j == 1;fprintf(' #%03i...\n',j);else;fprintf('\b\b\b\b\b\b\b\b\b #%03i...\n',j);end
 		minidx = analysisCore.findNearest(timelock{j}.time, ana.analRange(1));
 		maxidx = analysisCore.findNearest(timelock{j}.time, ana.analRange(2));
 		nexttile(tl,j)
@@ -313,31 +331,34 @@ function plotFreqPower()
 				powf(j).trialinfo = unique(timelock{j}.trialinfo);
 			end
 			if isfield(timelock{j},'avg')
-				dt = timelock{j}.avg(ch,minidx:maxidx);
-				[P,f,~,f0,f1,f2] = doFFT(dt);
+				dt = timelock{j}.avg(ch,minidx:maxidx)*mV;
+				[P,f,A,f0,f1,f2] = doFFT(dt);
 				plot(f,P,'Color',colours(ch,:));
 				if any(contains(tlNames,timelock{j}.label{ch}))
 					powf(j).f0 = [powf(j).f0 f0];
 					powf(j).f1 = [powf(j).f1 f1];
 					powf(j).f2 = [powf(j).f2 f2];
+					powf(j).A  = [powf(j).A rad2deg(A)];
 				end
 				if min(P)<mn;mn=min(P);end
 				if max(P)>mx;mx=max(P);end
 			else
-				dt = squeeze(timelock{j}.trial(:,ch,minidx:maxidx));
+				dt = squeeze(timelock{j}.trial(:,ch,minidx:maxidx))*mV;
 				[P,f] = doFFT(avgfn(dt));
 				h=plot(f,P,'--','Color',colours(ch,:));
 				h.Annotation.LegendInformation.IconDisplayStyle = 'off';
 				for jj = 1:size(dt,1)
-					[P,f,~,f0,f1,f2] = doFFT(dt(jj,:));
+					[P,f,A,f0,f1,f2] = doFFT(dt(jj,:));
 					PP{j}(jj,:) = P;
 					PP0(j,jj) = f0;
 					PP1(j,jj) = f1;
 					PP2(j,jj) = f2;
+					PPA(j,jj) = rad2deg(A);
 					if any(contains(tlNames,timelock{j}.label{ch}))
 						powf(j).f0 = [powf(j).f0 f0];
 						powf(j).f1 = [powf(j).f1 f1];
 						powf(j).f2 = [powf(j).f2 f2];
+						powf(j).A  = [powf(j).A rad2deg(A)];
 					end
 				end
 				[avg,err] = analysisCore.stderr(PP{j}, ana.errormethod, [], ana.pvalue, [], avgfn);
@@ -362,9 +383,9 @@ function plotFreqPower()
 		ana.demean,ana.baseline(1),ana.baseline(2),ana.detrend,ana.polyremoval, ana.analRange(1), ana.analRange(2));
 	tl.XLabel.String = 'Frequency (Hz)';
 	if isfield(timelock{j},'avg')
-		tl.YLabel.String = 'FFT Power';
+		tl.YLabel.String = 'FFT Power \muv';
 	else
-		tl.YLabel.String = ['FFT Power \pm' ana.errormethod];
+		tl.YLabel.String = ['FFT Power \muv \pm' ana.errormethod];
 	end
 	tl.Title.String = [t '\newlineComments: ' info.ana.comments];
 	
@@ -375,19 +396,21 @@ function plotFreqPower()
 		'Position',[0.2 0.2 0.6 0.6]);
 	tl = tiledlayout(h,'flow','TileSpacing','compact');
 	nexttile(tl)
-	disp('--->>> Plotting Tuning Curves: ')
+	disp('--->>> Plotting Tuning Curves:')
 	for i = 1:length(powf)
 		if isfield(timelock{j},'avg')
 			powf0(i,1) = avgfn(powf(i).f0); powf0err(i,1) = 0;
 			powf1(i,1) = avgfn(powf(i).f1); powf1err(i,1) = 0;
 			powf2(i,1) = avgfn(powf(i).f2); powf2err(i,1) = 0;
+			powA(i,1)  = avgfn(powf(i).A); powAerr(i,1) = 0;
 		else
 			[powf0(i,1),powf0err(i,:)] = analysisCore.stderr(powf(i).f0, ana.errormethod, [], ana.pvalue, [], avgfn);
 			[powf1(i,1),powf1err(i,:)] = analysisCore.stderr(powf(i).f1, ana.errormethod, [], ana.pvalue, [], avgfn);
 			[powf2(i,1),powf2err(i,:)] = analysisCore.stderr(powf(i).f2, ana.errormethod, [], ana.pvalue, [], avgfn);
+			[powA(i,1),powAerr(i,:)]   = analysisCore.stderr(powf(i).A, ana.errormethod, [], ana.pvalue, [], avgfn);
 		end
 	end
-	xa = 1:size(powf0,1)';
+	xa = 1:size(powf0,1);
 	if info.seq.addBlank
 		xb = [xa(end) xa(1:end-1)];
 		for jj = 1:length(xb)
@@ -400,13 +423,15 @@ function plotFreqPower()
 		f0 = [powf0(end); powf0(1:end-1)];
 		f1 = [powf1(end); powf1(1:end-1)];
 		f2 = [powf2(end); powf2(1:end-1)];
+		A  = [powA(end); powA(1:end-1)];
 		f0err = [powf0err(end,:); powf0err(1:end-1,:)];
 		f1err = [powf1err(end,:); powf1err(1:end-1,:)];
 		f2err = [powf2err(end,:); powf2err(1:end-1,:)];
+		Aerr = [powAerr(end,:); powAerr(1:end-1,:)];
 	else
 		xb = xa;
-		f0 = powf0;	f1 = powf1;	f2 = powf2;
-		f0err = powf0err; f1err = powf1err; f2err = powf2err;
+		f0 = powf0;	f1 = powf1;	f2 = powf2; a = powA;
+		f0err = powf0err; f1err = powf1err; f2err = powf2err; Aerr = powAerr;
 		for jj = 1:length(xb)
 			xlab{jj} = num2str(xb(jj));
 		end
@@ -423,11 +448,15 @@ function plotFreqPower()
 	info.fpower.f0 = f0; info.fpower.f0err = f0err;
 	info.fpower.f1 = f1; info.fpower.f1err = f1err;
 	info.fpower.f2 = f2; info.fpower.f2err = f2err;
+	info.fpower.A = A; info.fpower.Aerr = Aerr;
 	info.fpower.x = xb; info.fpower.xlab = xlab;
-	info.fpower.powf0 = powf0; info.fpower.powf1 = powf1; info.fpower.powf2 = powf2;
-	info.fpower.powf0err = powf0err; info.fpower.powf1err = powf1err; info.fpower.powf2err = powf2err;
-	opts = {'Marker','.','MarkerSize',12};
+	info.fpower.powf0 = powf0; info.fpower.powf1 = powf1; info.fpower.powf2 = powf2; info.fpower.powA = powA;
+	info.fpower.powf0err = powf0err; info.fpower.powf1err = powf1err; info.fpower.powf2err = powf2err; info.fpower.powAerr = powAerr;
+	opts = {'Marker','.','MarkerSize',16};
 	if max(f0err)==0
+		yyaxis right
+		plot(xa,A','g--');
+		yyaxis left
 		pl = plot(xa,[f0';f1';f2'],opts{:});
 		pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
 		pl(1).Parent.XTick = xa;
@@ -435,6 +464,9 @@ function plotFreqPower()
 		pl(1).Parent.XTickLabelRotation=45;
 	else
 		hold on
+		yyaxis right
+		analysisCore.areabar(xa,A,Aerr,[0 1 0],0.2);
+		yyaxis left
 		pl = analysisCore.areabar(xa,f0,f0err,colours(1,:),0.2,opts{:});
 		pl = analysisCore.areabar(xa,f1,f1err,colours(2,:),0.2,opts{:});
 		pl = analysisCore.areabar(xa,f2,f2err,colours(3,:),0.2,opts{:});
@@ -492,12 +524,19 @@ function plotFreqPower()
 % 		end
 % 		ymax = ymax + (ymax/20); 
 		for jj = 1 : length(p)
+			if jj == 1;fprintf(' #%03i...\n', jj);else; fprintf('\b\b\b\b\b\b\b\b\b #%03i...\n', jj);end
 			nexttile(tl); hold on
 			if max(f0err)==0
+				yyaxis right;
+				plot(1:length(p{jj}),A(p{jj})','g--');
+				yyaxis left;
 				points=[f0(p{jj})'; f1(p{jj})'; f2(p{jj})']';
 				pl = plot(1:length(p{jj}),points,opts{:});
 				pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
 			else
+				yyaxis right
+				analysisCore.areabar(1:length(p{jj}),A(p{jj}),A(p{jj},:),[0 1 0],0.1);
+				yyaxis left
 				pl = analysisCore.areabar(1:length(p{jj}),f0(p{jj}),f0err(p{jj},:),colours(1,:),0.1,opts{:});
 				pl = analysisCore.areabar(1:length(p{jj}),f1(p{jj}),f1err(p{jj},:),colours(2,:),0.2,opts{:});
 				pl = analysisCore.areabar(1:length(p{jj}),f2(p{jj}),f2err(p{jj},:),colours(3,:),0.1,opts{:});
@@ -522,6 +561,7 @@ function plotFreqPower()
 	end
 	tl.Title.String = ['Tuning Averages for Channels ' num2str(ana.tlChannels)];
 	figure(h);drawnow
+	fprintf(' ... DONE!\n');
 	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%CSF
 	
@@ -676,6 +716,24 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function clickMe(src, ~)
+	if ~exist('src','var')
+		return
+	end
+	
+	if src.LineWidth < 1
+		src.LineWidth = 1; src.LineStyle =  '-';
+	else
+		src.LineWidth = 0.5; src.LineStyle =  ':';
+	end
+	ud = get(src,'UserData');
+	if ~isempty(ud)
+		disp(ud);
+	end
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function cloneAxes(src,~)
 	disp('Cloning axis!')
 	if ~isa(src,'matlab.graphics.axis.Axes')
@@ -691,8 +749,8 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [P, f, A, p0, p1, p2] = doFFT(p)	
-	useX = true;
-	useHanning = true;
+	normalise = true;
+	useHanning = false;
 	L = length(p);
 	
 	fs = data_eeg.fsample;
@@ -705,10 +763,10 @@ function [P, f, A, p0, p1, p2] = doFFT(p)
 		Pi = fft(p);
 	end
 
-	if useX
-		P = abs(Pi/L);
-		P=P(1:floor(L/2)+1);
-		P(2:end-1) = 2*P(2:end-1);
+	if normalise
+		P2 = abs(Pi/L);
+		P=P2(1:floor(L/2)+1);
+		P(2:end-1) = P(2:end-1)*2;
 		f = fs * (0:(L/2))/L;
 	else
 		NumUniquePts = ceil((L+1)/2);
