@@ -7,16 +7,17 @@ function motiontest1()
 	dotColour = [0 0 0]';
 	dotSize = 0.5;
 	nDots = 35;
+	backlight = false;
 
 	ptb = mySetup(screen,bgColour,screenSize);
 
 	% ---- setup dot motion path
-	nSteps = cycleTime * ptb.fps;
+	nSteps = floor(cycleTime * ptb.fps);
 	xMod = sin(linspace(0,2*pi,nSteps));
 	xShift = (xMod * (ptb.w/2));
 	maxdelta = max(abs(diff(xShift)));
 	mindelta = min(abs(diff(xShift)));
-	fprintf('\nMAX SPEED = %.2g deg/sec @ %3.2f FPS\n',(maxdelta/ptb.ppd) * ptb.fps, ptb.fps)
+	fprintf('\nMAX SPEED = %.2f deg/sec @ %.2f FPS\n',(maxdelta/ptb.ppd) * ptb.fps, ptb.fps)
 	yPos = linspace(0, ptb.h, nDots)-(ptb.h/2);
 	xPos = repmat(xShift(1),1,length(yPos));
 	xy = [xPos;yPos];
@@ -33,15 +34,19 @@ function motiontest1()
 	Priority(MaxPriority(ptb.win)); %bump our priority to maximum allowed
 	vbl(1) = Screen('Flip', ptb.win);
 	
+	
 	while ~CloseWin
-		Screen('FillRect',ptb.win,bgColour);
-		%Screen('DrawDots', windowPtr, xy [,size] [,color] [,center] [,dot_type][, lenient]);
-		Screen('DrawDots', ptb.win, xy, dotSize * ptb.ppd, dotColour, [ptb.w/2 ptb.h/2], 3, 1);
-		Screen('DrawingFinished', ptb.win);
+		if backlight && mod(looper+1,2)
+			Screen('FillRect',ptb.win,bgColour);
+		else
+			Screen('FillRect',ptb.win,bgColour);
+			%Screen('DrawDots', winPtr, xy [,size] [,color] [,center] [,dot_type][, lenient]);
+			Screen('DrawDots', ptb.win, xy, dotSize * ptb.ppd, dotColour, [ptb.w/2 ptb.h/2], 3, 1);
+		end
 		vbl(end+1) = Screen('Flip', ptb.win, vbl(end) + ptb.ifi/2);
 
 		looper = looper + 1;
-		if looper > length(xShift); looper = 1; end
+		if looper >= length(xShift); looper = 1; end
 		xy(1,:) = repmat(xShift(looper),1,length(xPos));
 
 		% ---- handle keyboard
@@ -81,7 +86,7 @@ function motiontest1()
 		end
 	end
 	Screen('Flip',ptb.win);
-	figure;plot(diff(vbl)*1e3);title(sprintf('VBL Times, should be ~%.2f ms',ptb.ifi*1e3));ylabel('Time (ms)');
+	figure;plot(diff(vbl(2:end))*1e3);title(sprintf('VBL Times, should be ~%.2f ms',ptb.ifi*1e3));ylabel('Time (ms)');
 end
 
 function ptb = mySetup(screen, bgColour, ws)
