@@ -86,7 +86,7 @@ function motiontest1()
 		end
 	end
 	Screen('Flip',ptb.win);
-	figure;plot(diff(vbl(2:end))*1e3);title(sprintf('VBL Times, should be ~%.2f ms',ptb.ifi*1e3));ylabel('Time (ms)');
+	figure;plot(diff(vbl(3:end))*1e3);title(sprintf('VBL Times, should be ~%.2f ms',ptb.ifi*1e3));ylabel('Time (ms)');
 end
 
 function ptb = mySetup(screen, bgColour, ws)
@@ -94,7 +94,7 @@ function ptb = mySetup(screen, bgColour, ws)
 	PsychDefaultSetup(2);
 	KbName('UnifyKeyNames');
 	Screen('Preference', 'SkipSyncTests', 0);
-	Screen('Preference', 'Verbosity', 5);
+	Screen('Preference', 'Verbosity', 3);
 	Screen('Preference','SyncTestSettings', 0.0008);
 	if isempty(screen); screen = max(Screen('Screens')); end
 	ptb.ScreenID = screen;

@@ -1,20 +1,19 @@
 function runEEGAnalysis(ana)
-ts=tic;
-ana.table.Data =[]; 
-ana.warning.Color = [ 0.5 0.5 0.5 ];
 ft_defaults;
-ana.codeVersion = '1.06';
-ana.versionLabel.Text = [ana.versionLabel.UserData ' Code: V' ana.codeVersion];
-colours = analysisCore.optimalColours(10);
-info = load(ana.MATFile);
-info.origSettings = info.ana; info = rmfield(info,'ana');
-info.sM=[]; info.eT=[];
+ana.table.Data			=[]; 
+ana.warning.Color		= [ 0.5 0.5 0.5 ];
+ana.codeVersion			= '1.06';
+ana.versionLabel.Text	= [ana.versionLabel.UserData ' Code: V' ana.codeVersion];
+colours					= analysisCore.optimalColours(10);
+info					= load(ana.MATFile);
+info.origSettings		= info.ana; info = rmfield(info,'ana');
+info.sM=[]; info.eT=[]; info.origSettings.cal=[];info.origSettings.outcal=[];
 info.seq.getLabels();
-vars = getVariables();
+vars					= getVariables();
 data_raw = []; trl=[]; triggers=[]; events=[]; timelock = []; freq = [];
-fprintf('\n\n\n=====>>>>> EEG Analysis Initiated... <<<<<=====\n');
+fprintf('\n\n\n=====>>>>> EEG Analysis Initiated... <<<<<=====\n'); ts=tic;
 
-%========================================================PLOT RAW DATA
+%=====================================================PLOT RAW DATA TRIGGERS
 if ana.plotTriggers
 	info.seq.showLog(); drawnow;
 	cfgRaw				= [];
@@ -24,7 +23,7 @@ if ana.plotTriggers
 	disp('============= HEADER INFO, please check! ====================');
 	disp(cfgRaw.header); disp(cfgRaw.header.orig);
 	if cfgRaw.header.nChans ~= ana.pDiode
-		ana.pDiode = cfgRaw.header.nChans;
+		ana.pDiode		= cfgRaw.header.nChans;
 		ana.bitChannels = ana.pDiode-8:ana.pDiode-1;
 		ana.dataChannels = 1:ana.bitChannels(1)-1;
 		warndlg('GUI channel assignments are incorrect, will correct this time!')
@@ -57,51 +56,51 @@ if ana.plotTriggers
 	info.triggers		= triggers;
 	info.trl			= trl;
 	assignin('base','info',info);
-	return;
+	return; %we don't do any further analysis
 end
 
-%================================================LOAD DATA AS TRIALS
-cfg					= [];
-cfg.dataset			= ana.EDFFile;
-cfg.header			= ft_read_header(cfg.dataset); disp(cfg.header);
-if contains(cfg.header.chanunit{1},'mV'); mV = 1e3; else; mV = 0; end
+%====================================================PARSE DATA AS TRIALS
+cfg						= [];
+cfg.dataset				= ana.EDFFile;
+cfg.header				= ft_read_header(cfg.dataset); disp(cfg.header);
+if contains(cfg.header.chanunit{1},'mV'); mV = 1e3; else; mV = 1; end %convert to microvolts
 if cfg.header.nChans ~= ana.pDiode
-	ana.pDiode = cfg.header.nChans;
-	ana.bitChannels = ana.pDiode-8:ana.pDiode-1;
-	ana.dataChannels = 1:ana.bitChannels(1)-1;
-	warndlg('GUI channel assignments are incorrect, will correct this time!')
+	ana.pDiode			= cfg.header.nChans;
+	ana.bitChannels		= ana.pDiode-8:ana.pDiode-1;
+	ana.dataChannels	= 1:ana.bitChannels(1)-1;
+	warndlg('GUI channel assignments were incorrect, will correct this time!')
 end
-cfg.continuous		= 'yes';
-cfg.trialfun		= 'loadCOGEEG';
-cfg.chanindx		= ana.bitChannels;
-cfg.threshold		= ana.threshold;
-cfg.jitter			= ana.jitter;
-cfg.minTrigger		= ana.minTrigger;
-cfg.correctID		= ana.correctID;
-cfg.preTime			= ana.preTime;
-cfg.denoise			= false;
-cfg					= ft_definetrial(cfg);
-cfg					= rmfield(cfg,'denoise');
-cfg.demean			= ana.demean;
+cfg.continuous			= 'yes';
+cfg.trialfun			= 'loadCOGEEG';
+cfg.chanindx			= ana.bitChannels;
+cfg.threshold			= ana.threshold;
+cfg.jitter				= ana.jitter;
+cfg.minTrigger			= ana.minTrigger;
+cfg.correctID			= ana.correctID;
+cfg.preTime				= ana.preTime;
+cfg.denoise				= false;
+cfg						= ft_definetrial(cfg); %find trials
+cfg						= rmfield(cfg,'denoise');
+cfg.demean				= ana.demean;
 if strcmpi(ana.demean,'yes') 
 	cfg.baselinewindow	= ana.baseline;
 end
-cfg.medianfilter	= ana.medianfilter;
-cfg.dftfilter		= ana.dftfilter;
-cfg.dftfreq			= [50 100 150];
-cfg.detrend			= ana.detrend;
-cfg.polyremoval		= ana.polyremoval;
-cfg.channel			= ana.dataChannels;
+cfg.medianfilter		= ana.medianfilter;
+cfg.dftfilter			= ana.dftfilter;
+cfg.dftfreq				= [50 100 150];
+cfg.detrend				= ana.detrend;
+cfg.polyremoval			= ana.polyremoval;
+cfg.channel				= ana.dataChannels;
 if ana.rereference > 0 && any(ana.dataChannels == ana.rereference)
-	cfg.reref		= 'yes';
-	cfg.refchannel	= cfg.header.label{ana.rereference};
-	cfg.refmethod	= ana.rerefMethod;
+	cfg.reref			= 'yes';
+	cfg.refchannel		= cfg.header.label{ana.rereference};
+	cfg.refmethod		= ana.rerefMethod;
 end
 if ana.bandpass == true && ana.lowpass > 0 && ana.highpass > 0
-	cfg.bpfilter	= 'yes';
-	cfg.bpfreq		= [ana.highpass ana.lowpass];
-	cfg.bpfilttype	= ana.filtertype;
-	cfg.bpfiltdir   = ana.direction;
+	cfg.bpfilter		= 'yes';
+	cfg.bpfreq			= [ana.highpass ana.lowpass];
+	cfg.bpfilttype		= ana.filtertype;
+	cfg.bpfiltdir		= ana.direction;
 	if ana.order > 0; cfg.bpfiltord = ana.order; end
 else
 	if ana.lowpass > 0 
@@ -120,24 +119,23 @@ else
 	end
 end
 if ana.plotFilter; cfg.plotfiltresp = 'yes'; end
-data_eeg			= ft_preprocessing(cfg);
-%info.data_cfg		= cfg;
+data_eeg				= ft_preprocessing(cfg); %Load and filter data
 
 if ana.makeSurrogate
-	makeSurrogate();
+	makeSurrogate(); %create some artificial data
 end
 
 info.rejected = [];
-if ana.rejectvisual
-	cfg				= [];
-	cfg.box			= 'yes';
-	cfg.latency		= 'all';
-	cfg.method		= ana.rejecttype;
-	index			= 1:length(data_eeg.trial);
+if ana.rejectvisual % visual reject and load/save selected trials to GUI
+	cfg					= [];
+	cfg.box				= 'yes';
+	cfg.latency			= 'all';
+	cfg.method			= ana.rejecttype;
+	index				= 1:length(data_eeg.trial);
 	if ~isempty(ana.rejecttrials)
-		cfg.trials	= setdiff(index,ana.rejecttrials);
+		cfg.trials		= setdiff(index,ana.rejecttrials);
 	end
-	data_eeg		= ft_rejectvisual(cfg,data_eeg);
+	data_eeg			= ft_rejectvisual(cfg,data_eeg);
 	if length(data_eeg.trial) < length(index)
 		info.rejected	= setdiff(index,data_eeg.cfg.trials);
 		disp(['Rejected Trials: ' num2str(info.rejected)]);
@@ -145,10 +143,10 @@ if ana.rejectvisual
 	end
 end
 
-%================================================RUN TIMELOCK
-varmap				= unique(data_eeg.trialinfo);
-timelock			= cell(length(varmap),1);
-avgfn				= eval(['@nan' ana.avgmethod]);
+%================================================RUN TIMELOCK ANALYSIS
+varmap					= unique(data_eeg.trialinfo);
+timelock				= cell(length(varmap),1);
+avgfn					= eval(['@nan' ana.avgmethod]);
 if ana.doTimelock
 	for jv = 1:length(varmap)
 		cfg				= [];
@@ -157,14 +155,15 @@ if ana.doTimelock
 		cfg.keeptrials	= ana.tlkeeptrials;
 		cfg.removemean	= ana.tlremovemean;
 		if ~isempty(ana.plotRange);	cfg.latency = ana.plotRange; end
-		timelock{jv}		= ft_timelockanalysis(cfg,data_eeg);
+		timelock{jv}	= ft_timelockanalysis(cfg,data_eeg);
 	end
 	
 	plotTimeLock();
 	plotFreqPower();
+	plotCSF();
 end
 
-%================================================RUN TIMEFREQ
+%================================================RUN TIMEFREQ ANALYSIS
 freq					= cell(length(varmap),1);
 if ana.doTimeFreq
 	for jtf = 1:length(varmap)
@@ -189,12 +188,13 @@ end
 %info.timelock			= timelock;
 %info.freq				= freq;
 info.data_raw			= data_raw;
-info.data_eeg			= data_eeg;
+%info.data_eeg			= data_eeg;
 info.triggers			= triggers;
 info.analSettings		= ana;
 assignin('base','info',info);
+%assignin('base','timelock',timelock);
 
-plotTable(info.seq.outIndex, info.data_eeg.trialinfo);
+plotTable(info.seq.outIndex, data_eeg.trialinfo);
 fprintf('===>>> Analysis took %.2f seconds\n', toc(ts));
 
 
@@ -202,12 +202,14 @@ fprintf('===>>> Analysis took %.2f seconds\n', toc(ts));
 %================================================================SUB FUNCTIONS
 %=============================================================================
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%GET VARS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function vars = getVariables()
 	if isprop(info.seq,'varLabels')
-		vars = info.seq.varLabels;
+		vars			= info.seq.varLabels;
 	else
-		vars = cell(info.seq.minBlocks,1);
-		cellfun
+		vars			= cell(info.seq.minBlocks,1);
 	end
 end
 
@@ -317,6 +319,7 @@ function plotTimeLock()
 	if ~isempty(info.rejected); t = [t '\newlineRejected Trials: ' num2str(info.rejected)]; end
 	tl.Title.String = [t '\newlineComments: ' info.origSettings.comments];
 end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%PLOT POWER ACROSS FREQUENCY
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -512,72 +515,114 @@ function plotFreqPower()
 	title(['Flicker Frequency: ' num2str(ff) 'Hz'])
 	xlabel('Variable #');
 	
-	if any(contains(daT.Properties.VariableNames,'contrast')) && info.seq.nVars == 2
-		lst = info.seq.varList;
-		minv = [];
-		for jj = 1 : info.seq.nVars
-			lv = info.seq.nVar(jj).values;
-			minv(jj) = length(unique(lv));
-		end
-		v1 = [lst{:,3}];
-		v1 = unique(v1);
-		v1(isnan(v1))=[];
-		v2 = [lst{:,4}];
-		v2 = unique(v2);
-		ctrl = [];
-		for jj = 1 : length(v2)
-			if isnan(v2(jj))
-				ctrl = find(isnan([lst{:,4}]));
-				ctrl = ctrl(1);
-			else
-				p{jj} = find([lst{:,4}] == v2(jj));
-			end
-		end
-		if ~isempty(ctrl)
-			v1 = [0 v1];
-			for jj = 1 : length(p)
-				p{jj} = [ctrl p{jj}];
-			end
+	if info.seq.nVars == 2
+		v1 = []; v2 = []; v1.threshold = thrsh; v2.threshold = thrsh;
+		v1.name = daT.Properties.VariableNames{5};
+		v2.name = daT.Properties.VariableNames{6};
+		v1.values = unique(daT.(v1.name)); v1.values(isnan(v1.values)) = [];
+		v2.values = unique(daT.(v2.name)); v2.values(isnan(v2.values)) = [];
+		v1.n = length(v1.values);
+		v2.n = length(v2.values);
+		if contains(daT.Properties.RowNames{1},'blank')
+			v1.hasBlank = true; v2.hasBlank = true;
+		else
+			v1.hasBlank = false; v2.hasBlank = false;
 		end
 		
-		if info.seq.addBlank
-			for blf = 1:length(p)
-				p{blf}(1) = 1;
-				p{blf}(2:end) = p{blf}(2:end)+1;
-			end
-		end
-		for jj = 1 : length(p)
-			if jj == 1;fprintf(' #%03i...\n', jj);else; fprintf('\b\b\b\b\b\b\b\b\b #%03i...\n', jj);end
-			nexttile(tl); hold on
-			if max(daT.f0err(1))==0
-				yyaxis right;
-				plot(1:length(p{jj}),daT.A(p{jj})','g--');
-				yyaxis left;
-				points=[daT.f0(p{jj})'; daT.f1(p{jj})'; daT.f2(p{jj})']';
-				pl = plot(1:length(p{jj}),points,opts{:});
-				pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
+		for jj = 1:v1.n
+			if contains(daT.Properties.RowNames{1},'blank')
+				v1.idx{jj} = [1];
+				v1.label{jj} = [0];
 			else
-				yyaxis right
-				analysisCore.areabar(1:length(p{jj}),daT.A(p{jj}),daT.Aerr(p{jj},:),[0 1 0],0.1);
-				ylabel('Angle (deg)')
-				yyaxis left
-				pl = analysisCore.areabar(1:length(p{jj}),daT.f0(p{jj}),daT.f0err(p{jj},:),colours(1,:),0.07,opts{:});
-				pl = analysisCore.areabar(1:length(p{jj}),daT.f1(p{jj}),daT.f1err(p{jj},:),colours(2,:),0.2,opts{:});
-				pl = analysisCore.areabar(1:length(p{jj}),daT.f2(p{jj}),daT.f2err(p{jj},:),colours(3,:),0.07,opts{:});
-				pl = pl.plot;
-				lp = line([1 length(p{jj})], [thrsh thrsh],'LineStyle','--','LineWidth',2,'Color',[.9 0 0]);
-				lp.Annotation.LegendInformation.IconDisplayStyle = 'off';
+				v1.idx{jj} = [];
+				v1.label{jj} = [];
 			end
-			pl(1).Parent.XTick = 1:length(p{jj});
-			pl(1).Parent.XTickLabel = v1;
-			pl(1).Parent.XTickLabelRotation=45;
-			xlim([0.9 length(p{jj})+0.1]);
-			ylim([0 ymax]);
-			title(['Power at ' info.seq.nVar(2).name ': ' num2str(v2(jj))]);
-			xlabel(info.seq.nVar(1).name);
-			box on;grid on; grid minor;
+			v1.idx{jj} = [v1.idx{jj}; find(daT.(v1.name) == v1.values(jj))];
+			v1.label{jj} = [v1.label{jj}; v2.values];
+		end
+		
+		for jj = 1:v2.n
+			if contains(daT.Properties.RowNames{1},'blank')
+				v2.idx{jj} = [1];
+				v2.label{jj} = [0];
+			else
+				v2.idx{jj} = [];
+				v2.label{jj} = [];
+			end
+			v2.idx{jj} = [v2.idx{jj}; find(daT.(v2.name) == v2.values(jj))];
+			v2.label{jj} = [v2.label{jj}; v1.values];
+		end
+		ana.removeBlank=true;
+		v1.x = 1:length(v1.idx{1});
+		v1.nOther = v2.n;
+		v1.nameOther = v2.name;
+		if v1.hasBlank; v1.labels = [0 v2.values']; else; v1.labels = [v2.values']; end
+		v2.x = 1:length(v2.idx{1});
+		v2.nOther = v1.n;
+		v2.nameOther = v1.name;
+		if v2.hasBlank; v2.labels = [0 v1.values']; else; v2.labels = [v1.values']; end
+		for xx = 1 : 2
+			if xx == 1; pI = v2; pO = v1; else; pI = v1; pO = v2; end
+			for jj = 1 : length(pI.idx)
+				if jj == 1;fprintf(' #%03i...\n', jj);else; fprintf('\b\b\b\b\b\b\b\b\b #%03i...\n', jj);end
+				nexttile(tl); hold on
+				if ana.linearAxis == true
+					x = pI.x;
+				else
+					x = pI.labels;
+				end
+				if max(max(daT.f0err))==0
+					yyaxis right;
+					plot(x,daT.A(pI.idx{jj})','g--');
+					yyaxis left;
+					points=[daT.f0(pI.idx{jj})'; daT.f1(pI.idx{jj})'; daT.f2(pI.idx{jj})']';
+					pl = plot(x,points,opts{:});
+					pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
+					if contains(pI.nameOther,'contrast')
+						if pI.hasBlank && ana.removeBlank
+							y=daT.f1(pI.idx{jj}) - daT.f1(1);
+						else
+							y=daT.f1(pI.idx{jj});
+						end
+						l = fitlm(x,y);
+						plot(l);
+					end
+				else
+					yyaxis right
+					analysisCore.areabar(x,daT.A(pI.idx{jj}),daT.Aerr(pI.idx{jj},:),[0 1 0],0.1);
+					ylabel('Angle (deg)')
+					yyaxis left
+					pl = analysisCore.areabar(x, daT.f0(pI.idx{jj}), daT.f0err(pI.idx{jj},:),colours(1,:),0.07,opts{:});
+					pl = analysisCore.areabar(x, daT.f1(pI.idx{jj}), daT.f1err(pI.idx{jj},:),colours(2,:),0.2,opts{:});
+					pl = analysisCore.areabar(x, daT.f2(pI.idx{jj}), daT.f2err(pI.idx{jj},:),colours(3,:),0.07,opts{:});
+					pl = pl.plot;
+					lp = line([x(1) x(end)], [thrsh thrsh],'LineStyle','--','LineWidth',2,'Color',[.9 0 0]);
+					lp.Annotation.LegendInformation.IconDisplayStyle = 'off';
+					if contains(pI.nameOther,'contrast')
+						if pI.hasBlank && ana.removeBlank
+							y=daT.f1(pI.idx{jj}) - daT.f1(1);
+						else
+							y=daT.f1(pI.idx{jj});
+						end
+						l = fitlm(x,y);
+						plot(l);
+					end
+				end
+				
+				pl(1).Parent.XTick = x;
+				pl(1).Parent.XTickLabel = pI.label{jj};
+				pl(1).Parent.XTickLabelRotation=45;
+				xlim([x(1) - (x(end)/20) x(end) + (x(end)/20)]);
+				ylim([0 ymax]);
+				t=title(['Power at ' pI.name ': ' num2str(pI.values(jj))]);
+				t.ButtonDownFcn = @cloneAxes;
+				xlabel(pO.name);
+				box on;grid on; grid minor;
+			end
 		end
 	end
+	info.v1 = v1;
+	info.v2 = v2;
 	if isfield(timelock{j},'avg')
 		tl.YLabel.String = 'FFT Power';
 	else
@@ -586,6 +631,15 @@ function plotFreqPower()
 	tl.Title.String = ['Tuning Averages for Channels ' num2str(ana.tlChannels)];
 	figure(h);drawnow
 	fprintf(' ... DONE!\n');
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%PLOT TIME FREQUENCY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function plotCSF()
+	
+	
+	
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
