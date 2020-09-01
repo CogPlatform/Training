@@ -2,7 +2,7 @@ function runEEGAnalysis(ana)
 ft_defaults;
 ana.table.Data			=[]; 
 ana.warning.Color		= [ 0.5 0.5 0.5 ];
-ana.codeVersion			= '1.06';
+ana.codeVersion			= '1.07';
 ana.versionLabel.Text	= [ana.versionLabel.UserData ' Code: V' ana.codeVersion];
 colours					= analysisCore.optimalColours(10);
 info					= load(ana.MATFile);
@@ -342,8 +342,7 @@ function plotFreqPower()
 	daT{:,'Labels'} = vars;
 	daT{:,'Trials'} = info.seq.varList(:,2);
 	for vi = 1 : info.seq.nVars
-		daT{:,vi+3} = cell2mat(info.seq.varList(:,vi+2));
-		daT.Properties.VariableNames{vi+3} = info.seq.nVar(vi).name;
+		daT{:,info.seq.nVar(vi).name} = cell2mat(info.seq.varList(:,vi+2));
 	end
 	fprintf('--->>> Plotting FFT Power for Condition: \n');
 	for j = 1:length(timelock)
@@ -426,8 +425,8 @@ function plotFreqPower()
 	
 	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%TUNING CURVES
-	[~, f, e] = fileparts(ana.EDFFile);
-	h = figure('Name',['TL Data: ' f e],'Units','normalized',...
+	[~, fL, eXT] = fileparts(ana.EDFFile);
+	h = figure('Name',['F: ' fL eXT],'Units','normalized',...
 		'Position',[0.2 0.2 0.6 0.6]);
 	tl = tiledlayout(h,'flow','TileSpacing','compact');
 	nexttile(tl)
@@ -487,7 +486,7 @@ function plotFreqPower()
 	opts = {'Marker','.','MarkerSize',16,'LineStyle','-'};
 	if max(daT.f0err)==0
 		yyaxis right
-		plot(daT.Order,daT.A,'g--');
+		plot(daT.Order,daT.A,'o--');
 		yyaxis left
 		pl = plot(daT.Order,[daT.f0 daT.f1 daT.f2],opts{:});
 		pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
@@ -497,11 +496,11 @@ function plotFreqPower()
 	else
 		hold on
 		yyaxis right
-		analysisCore.areabar(daT.Order,daT.A,daT.Aerr,[0 1 0.3],0.2);
+		analysisCore.areabar(daT.Order,daT.A,daT.Aerr,[1 0.5 0],0.2);
 		yyaxis left
-		pl = analysisCore.areabar(daT.Order,daT.f0,daT.f0err,colours(1,:),0.2,opts{:});
-		pl = analysisCore.areabar(daT.Order,daT.f1,daT.f1err,colours(2,:),0.2,opts{:});
-		pl = analysisCore.areabar(daT.Order,daT.f2,daT.f2err,colours(3,:),0.2,opts{:});
+		pl = analysisCore.areabar(daT.Order,daT.f0,daT.f0err,colours(1,:),0.1,opts{:});
+		pl = analysisCore.areabar(daT.Order,daT.f1,daT.f1err,colours(2,:),0.25,opts{:});
+		pl = analysisCore.areabar(daT.Order,daT.f2,daT.f2err,colours(3,:),0.1,opts{:});
 		pl = pl.plot;
 		pl(1).Parent.XTick = daT.Order;
 		pl(1).Parent.XTickLabel = daT.Properties.RowNames';
@@ -552,7 +551,7 @@ function plotFreqPower()
 			v2.idx{jj} = [v2.idx{jj}; find(daT.(v2.name) == v2.values(jj))];
 			v2.label{jj} = [v2.label{jj}; v1.values];
 		end
-		ana.removeBlank=true;
+		
 		v1.x = 1:length(v1.idx{1});
 		v1.nOther = v2.n;
 		v1.nameOther = v2.name;
@@ -562,7 +561,14 @@ function plotFreqPower()
 		v2.nameOther = v1.name;
 		if v2.hasBlank; v2.labels = [0 v1.values']; else; v2.labels = [v1.values']; end
 		for xx = 1 : 2
-			if xx == 1; pI = v2; pO = v1; else; pI = v1; pO = v2; end
+			if xx == 1
+				pI = v2; pO = v1; 
+			else
+				pI = v1; pO = v2; 
+				h = figure('Name',['F: ' fL eXT],'Units','normalized',...
+					'Position',[0.1 0.1 0.8 0.8]);
+				tl = tiledlayout(h,'flow','TileSpacing','compact');
+			end
 			for jj = 1 : length(pI.idx)
 				if jj == 1;fprintf(' #%03i...\n', jj);else; fprintf('\b\b\b\b\b\b\b\b\b #%03i...\n', jj);end
 				nexttile(tl); hold on
@@ -573,28 +579,44 @@ function plotFreqPower()
 				end
 				if max(max(daT.f0err))==0
 					yyaxis right;
-					plot(x,daT.A(pI.idx{jj})','g--');
+					plot(x,daT.A(pI.idx{jj})','o--');
 					yyaxis left;
-					points=[daT.f0(pI.idx{jj})'; daT.f1(pI.idx{jj})'; daT.f2(pI.idx{jj})']';
+					if xx == 1
+						points=[daT.f0(pI.idx{jj})'; daT.f1(pI.idx{jj})'; daT.f2(pI.idx{jj})']';
+					else
+						points=daT.f1(pI.idx{jj});
+					end
 					pl = plot(x,points,opts{:});
-					pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
+					if xx == 1
+						pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
+					else
+						pl(1).Color = colours(2,:);
+					end
 					if contains(pI.nameOther,'contrast')
 						if pI.hasBlank && ana.removeBlank
 							y=daT.f1(pI.idx{jj}) - daT.f1(1);
 						else
 							y=daT.f1(pI.idx{jj});
 						end
-						l = fitlm(x,y);
+						if ~isempty(ana.excludePoints) && ~contains(ana.excludePoints,'all')
+							midx = eval(ana.excludePoints);
+						else
+							midx = 1:length(x);
+						end
+						l = fitlm(x(midx),y(midx),'linear','VarNames',{'contrast','power'});
 						plot(l);
+						anova(l,'summary')
 					end
 				else
 					yyaxis right
-					analysisCore.areabar(x,daT.A(pI.idx{jj}),daT.Aerr(pI.idx{jj},:),[0 1 0],0.1);
+					analysisCore.areabar(x,daT.A(pI.idx{jj}),daT.Aerr(pI.idx{jj},:),[1 0.5 0],0.1);
 					ylabel('Angle (deg)')
 					yyaxis left
-					pl = analysisCore.areabar(x, daT.f0(pI.idx{jj}), daT.f0err(pI.idx{jj},:),colours(1,:),0.07,opts{:});
+					if xx == 1
+						pl = analysisCore.areabar(x, daT.f0(pI.idx{jj}), daT.f0err(pI.idx{jj},:),colours(1,:),0.07,opts{:});
+						pl = analysisCore.areabar(x, daT.f2(pI.idx{jj}), daT.f2err(pI.idx{jj},:),colours(3,:),0.07,opts{:});
+					end
 					pl = analysisCore.areabar(x, daT.f1(pI.idx{jj}), daT.f1err(pI.idx{jj},:),colours(2,:),0.2,opts{:});
-					pl = analysisCore.areabar(x, daT.f2(pI.idx{jj}), daT.f2err(pI.idx{jj},:),colours(3,:),0.07,opts{:});
 					pl = pl.plot;
 					lp = line([x(1) x(end)], [thrsh thrsh],'LineStyle','--','LineWidth',2,'Color',[.9 0 0]);
 					lp.Annotation.LegendInformation.IconDisplayStyle = 'off';
@@ -604,8 +626,14 @@ function plotFreqPower()
 						else
 							y=daT.f1(pI.idx{jj});
 						end
-						l = fitlm(x,y);
+						if ~isempty(ana.excludePoints) && ~contains(ana.excludePoints,'all')
+							midx = eval(ana.excludePoints);
+						else
+							midx = 1:length(x);
+						end
+						l = fitlm(x(midx),y(midx),'linear','VarNames',{'contrast','power'});
 						plot(l);
+						anova(l,'summary')
 					end
 				end
 				
@@ -613,7 +641,7 @@ function plotFreqPower()
 				pl(1).Parent.XTickLabel = pI.label{jj};
 				pl(1).Parent.XTickLabelRotation=45;
 				xlim([x(1) - (x(end)/20) x(end) + (x(end)/20)]);
-				ylim([0 ymax]);
+				ylim([-inf ymax]);
 				t=title(['Power at ' pI.name ': ' num2str(pI.values(jj))]);
 				t.ButtonDownFcn = @cloneAxes;
 				xlabel(pO.name);
