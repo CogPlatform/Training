@@ -2,7 +2,7 @@ function runEEGAnalysis(ana)
 ft_defaults;
 ana.table.Data			=[]; 
 ana.warning.Color		= [ 0.5 0.5 0.5 ];
-ana.codeVersion			= '1.07';
+ana.codeVersion			= '1.08';
 ana.versionLabel.Text	= [ana.versionLabel.UserData ' Code: V' ana.codeVersion];
 colours					= analysisCore.optimalColours(10);
 info					= load(ana.MATFile);
@@ -561,6 +561,7 @@ function plotFreqPower()
 		v2.nameOther = v1.name;
 		if v2.hasBlank; v2.labels = [0 v1.values']; else; v2.labels = [v1.values']; end
 		for xx = 1 : 2
+			l=[];
 			if xx == 1
 				pI = v2; pO = v1; 
 			else
@@ -603,9 +604,9 @@ function plotFreqPower()
 						else
 							midx = 1:length(x);
 						end
-						l = fitlm(x(midx),y(midx),'linear','VarNames',{'contrast','power'});
-						plot(l);
-						anova(l,'summary')
+						l{jj} = fitlm(x(midx),y(midx),'linear','VarNames',{'contrast','power'});
+						plot(l{jj});
+						anova(l{jj},'summary')
 					end
 				else
 					yyaxis right
@@ -631,9 +632,9 @@ function plotFreqPower()
 						else
 							midx = 1:length(x);
 						end
-						l = fitlm(x(midx),y(midx),'linear','VarNames',{'contrast','power'});
-						plot(l);
-						anova(l,'summary')
+						l{jj} = fitlm(x(midx),y(midx),'linear','VarNames',{'contrast','power'});
+						plot(l{jj});
+						anova(l{jj},'summary')
 					end
 				end
 				
@@ -647,6 +648,7 @@ function plotFreqPower()
 				xlabel(pO.name);
 				box on;grid on; grid minor;
 			end
+			if ~isempty(l);	info.fits = l; end
 		end
 	end
 	info.v1 = v1;
