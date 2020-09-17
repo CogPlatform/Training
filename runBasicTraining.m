@@ -112,7 +112,7 @@ try
 	if ~ana.useTracker || ana.isDummy
 		eT.isDummy			= true;
 	end
-	if length(Screen('Screens')) > 1 && ~eT.isDummy % ---- second screen for calibration
+	if length(Screen('Screens')) > 1 && ana.useTracker && ~eT.isDummy % ---- second screen for calibration
 		s					= screenManager;
 		s.verbose			= thisVerbose;
 		s.screen			= sM.screen - 1;
