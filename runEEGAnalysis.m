@@ -2,7 +2,7 @@ function runEEGAnalysis(ana)
 ft_defaults;
 ana.table.Data			=[]; 
 ana.warning.Color		= [ 0.5 0.5 0.5 ];
-ana.codeVersion			= '1.08';
+ana.codeVersion			= '1.09';
 ana.versionLabel.Text	= [ana.versionLabel.UserData ' Code: V' ana.codeVersion];
 colours					= analysisCore.optimalColours(10);
 info					= load(ana.MATFile);
@@ -82,6 +82,7 @@ cfg.denoise				= false;
 cfg						= ft_definetrial(cfg); %find trials
 cfg						= rmfield(cfg,'denoise');
 cfg.demean				= ana.demean;
+
 if strcmpi(ana.demean,'yes') 
 	cfg.baselinewindow	= ana.baseline;
 end
@@ -122,7 +123,9 @@ if ana.plotFilter; cfg.plotfiltresp = 'yes'; end
 data_eeg				= ft_preprocessing(cfg); %Load and filter data
 
 if ana.makeSurrogate
+	ts=tic;
 	makeSurrogate(); %create some artificial data
+	fprintf('\n===>>> Surrogate data took %.2f secs to generate...\n',toc(ts));
 end
 
 info.rejected = [];
@@ -599,7 +602,7 @@ function plotFreqPower()
 						else
 							y=daT.f1(pI.idx{jj});
 						end
-						if ~isempty(ana.excludePoints) && ~contains(ana.excludePoints,'all')
+						if ~isempty(ana.excludePoints) && ~contains(ana.excludePoints,'none')
 							midx = eval(ana.excludePoints);
 						else
 							midx = 1:length(x);
@@ -626,7 +629,7 @@ function plotFreqPower()
 						else
 							y=daT.f1(pI.idx{jj});
 						end
-						if ~isempty(ana.excludePoints) && ~contains(ana.excludePoints,'all')
+						if ~isempty(ana.excludePoints) && ~contains(ana.excludePoints,'none')
 							midx = eval(ana.excludePoints);
 						else
 							midx = 1:length(x);
@@ -846,13 +849,13 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [P, f, A, p0, p1, p2] = doFFT(p)	
-	normalise = true;
-	useHanning = ana.fftwindow;
-	L = length(p);
+function [P, f, A, p0, p1, p2] = doFFT(p,fs,ff,normalise,useHanning)
+	if ~exist('fs','var')||isempty(fs); fs = data_eeg.fsample; end
+	if ~exist('ff','var')||isempty(ff); ff = (1/info.origSettings.VEP.Flicker); end
+	if ~exist('normalise','var')||isempty(normalise); normalise = true; end
+	if ~exist('useHanning','var')||isempty(useHanning); useHanning = ana.fftwindow; end
 	
-	fs = data_eeg.fsample;
-	ff = (1/info.origSettings.VEP.Flicker);
+	L = length(p);
 	
 	if useHanning
 		win = hanning(L, 'periodic');
@@ -879,7 +882,6 @@ function [P, f, A, p0, p1, p2] = doFFT(p)
 	p0 = P(idx);
 	idx = analysisCore.findNearest(f, ff*2);
 	p2 = P(idx);
-
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -892,18 +894,18 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function makeSurrogate()
-	randPhaseRange			= 2*pi; %how much to randomise phase?
+	randPhaseRange			= 0; %how much to randomise phase?
 	rphase					= 0; %default phase
 	basef					= 1; % base frequency
-	onsetf					= 4; %an onset at 0 frequency
+	onsetf					= 10; %an onset at 0 frequency
 	onsetLength				= 3; %length of onset signal
-	onsetDivisor			= 2.0; %scale the onset frequency
+	onsetDivisor			= 0.5; %scale the onset frequency
 	burstf					= 30; %small burst frequency
 	burstOnset				= 1.0; %time of onset of burst freq
 	burstLength				= 1.0; %length of burst
-	powerDivisor			= 1; %how much to attenuate the secondary frequencies
+	powerDivisor			= 2.0; %how much to attenuate the secondary frequencies
 	group2Divisor			= 1; %do we use a diff divisor for group 2?
-	noiseDivisor			= 0.4; %scale noise to signal
+	noiseDivisor			= 1; %scale noise to signal
 	piMult					= basef * 2; %resultant pi multiplier
 	burstMult				= burstf * 2; %resultant pi multiplier
 	onsetMult				= onsetf * 2; %onset multiplier
@@ -939,32 +941,32 @@ function makeSurrogate()
 	end
 
 	f = data_eeg.fsample; 
-	time = data_eeg.time{1};
-	maxtime = max(time);
-	if onsetLength > maxtime; onsetLength = maxTime - 0.1; end
-	if burstLength > maxtime; burstLength = maxTime - 0.1; end
-	
+	maxTime = max(data_eeg.time{1});
+	if onsetLength > maxTime; onsetLength = maxTime - 0.1; end
+	if burstLength > maxTime; burstLength = maxTime - 0.1; end
+
 	for k = 1:length(data_eeg.trial)
 		time = data_eeg.time{k};
-		tmult = (length(time)-1) / f; 
-		mx = max(data_eeg.trial{k}(end,:));
-		mn = min(data_eeg.trial{k}(end,:));
+		tLength = length(data_eeg.time{k});
+		tmult = (tLength-1) / f; 
+		mx = max(data_eeg.trial{k}(ana.surrogateChannel,:));
+		mn = min(data_eeg.trial{k}(ana.surrogateChannel,:));
 		rn = mx - mn;
 		y = createSurrogate();
 		y = y * rn; % scale to the voltage range of the original trial
 		y = y + mn;
-		data_eeg.trial{k}(end,:) = y;
+		data_eeg.trial{k}(ana.surrogateChannel,:) = y;
 	end
 	
 	function y = createSurrogate()
 		rphase = rand * randPhaseRange;
 		%base frequency
 		y = sin((0 : (pi*piMult)/f : (pi*piMult) * tmult)+rphase)';
-		y = y(1:length(time));
+		y = y(1:tLength);
 		%burst frequency with different power in group 2 if present
 		rphase = rand * randPhaseRange;
 		yy = sin((0 : (pi*burstMult)/f : (pi*burstMult) * burstLength)+rphase)';
-		if 1
+		if false
 			yy = yy ./ group2Divisor;
 		else
 			yy = yy ./ powerDivisor;
@@ -976,10 +978,12 @@ function makeSurrogate()
 		%find our times to inject yy burst frequency
 		st = analysisCore.findNearest(time,burstOnset);
 		en = st + length(yy)-1;
-		y(st:en) = y(st:en) + yy;
+		if en > length(y); en = length(y); end
+		y(st:en) = y(st:en) + yy(1:length(st:en));
 		%add our fixed 0.4s intermediate onset freq
 		st = analysisCore.findNearest(time,0);
 		en = st + length(yyy)-1;
+		if en > length(y); en = length(y); end
 		y(st:en) = y(st:en) + yyy;
 		%add our noise
 		if lowpassNoise
