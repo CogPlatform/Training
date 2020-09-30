@@ -486,7 +486,7 @@ function plotFreqPower()
 	opts = {'Marker','.','MarkerSize',16,'LineStyle','-'};
 	if max(daT.f0err)==0
 		yyaxis right
-		plot(daT.Order,daT.A,'o--');
+		plot(daT.Order,daT.A,'o--'); ylabel('Phase (deg)')
 		yyaxis left
 		pl = plot(daT.Order,[daT.f0 daT.f1 daT.f2],opts{:});
 		pl(1).Color = colours(1,:);pl(2).Color = colours(2,:);pl(3).Color = colours(3,:);
@@ -496,7 +496,7 @@ function plotFreqPower()
 	else
 		hold on
 		yyaxis right
-		analysisCore.areabar(daT.Order,daT.A,daT.Aerr,[1 0.5 0],0.2);
+		analysisCore.areabar(daT.Order,daT.A,daT.Aerr,[1 0.5 0],0.2); ylabel('Phase (deg)')
 		yyaxis left
 		pl = analysisCore.areabar(daT.Order,daT.f0,daT.f0err,colours(1,:),0.1,opts{:});
 		pl = analysisCore.areabar(daT.Order,daT.f1,daT.f1err,colours(2,:),0.25,opts{:});
@@ -580,7 +580,7 @@ function plotFreqPower()
 				end
 				if max(max(daT.f0err))==0
 					yyaxis right;
-					plot(x,daT.A(pI.idx{jj})','o--');
+					plot(x,daT.A(pI.idx{jj})','o--');ylabel('Phase (deg)')
 					yyaxis left;
 					if xx == 1
 						points=[daT.f0(pI.idx{jj})'; daT.f1(pI.idx{jj})'; daT.f2(pI.idx{jj})']';
@@ -610,8 +610,7 @@ function plotFreqPower()
 					end
 				else
 					yyaxis right
-					analysisCore.areabar(x,daT.A(pI.idx{jj}),daT.Aerr(pI.idx{jj},:),[1 0.5 0],0.1);
-					ylabel('Angle (deg)')
+					analysisCore.areabar(x,daT.A(pI.idx{jj}),daT.Aerr(pI.idx{jj},:),[1 0.5 0],0.1);ylabel('Angle (deg)')
 					yyaxis left
 					if xx == 1
 						pl = analysisCore.areabar(x, daT.f0(pI.idx{jj}), daT.f0err(pI.idx{jj},:),colours(1,:),0.07,opts{:});
@@ -633,6 +632,8 @@ function plotFreqPower()
 							midx = 1:length(x);
 						end
 						l{jj} = fitlm(x(midx),y(midx),'linear','VarNames',{'contrast','power'});
+						info.fitX{jj} = x(midx);
+						info.fitY{jj} = y(midx);
 						plot(l{jj});
 						anova(l{jj},'summary')
 					end
