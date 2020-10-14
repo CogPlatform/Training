@@ -278,6 +278,7 @@ try
 	end
 	
 	pos = ana.positions;
+	posLoop = 1;
 	
 	%===========================prepare===========================
 	Priority(MaxPriority(sM.win)); %bump our priority to maximum allowed
@@ -299,8 +300,14 @@ try
 	while ~breakLoop
 		%=================================TRIAL SETUP================================
 		thisRun = thisRun + 1;
-		if ~ana.moveStim && ~ana.isVEP
-			thisPos = pos(randi(length(pos)),:);
+		if ana.moveStim && ~ana.isVEP
+			if ana.randomPosition
+				thisPos = pos(randi(length(pos)),:);
+			else
+				thisPos = pos(posLoop,:);
+				posLoop = posLoop + 1;
+				if posLoop > size(pos,1); posLoop = 1; end
+			end
 			eT.fixation.X = thisPos(1);
 			eT.fixation.Y = thisPos(2);
 			if ~ana.fixOnly
