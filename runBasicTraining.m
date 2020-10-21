@@ -61,7 +61,9 @@ try
 		sM.disableSyncTests = true; 
 	end
 	if ana.debug
-		sM.windowed			= [0 0 1400 1000]; sM.debug = true;
+		%sM.windowed			= [0 0 1400 1000]; 
+		sM.visualDebug		= true;
+		sM.debug			= true;
 		sM.verbosityLevel	= 5;
 	else
 		sM.debug			= false;
@@ -322,7 +324,7 @@ try
 		end
 		if ana.isVEP
 			thisRun = seq.outIndex(seq.totalRuns);
-			if isnan(seq.outValues{seq.totalRuns,1});
+			if isnan(seq.outValues{seq.totalRuns,1})
 				hide(stim);
 				fprintf('BLANK STIMULUS CONDITION\n');
 			else
@@ -331,7 +333,8 @@ try
 				stim.stimuli{1}.sfOut = seq.outValues{seq.totalRuns,1};
 				stim.stimuli{1}.contrastOut = seq.outValues{seq.totalRuns,2};
 			end
-			fprintf('\n===>>> BasicTraining START Run = %i (%i:%i) | %s | SF = %.2f | Contrast = %.2f\n', thisRun, seq.totalRuns, seq.nRuns, sM.fullName,stim.stimuli{1}.sfOut,stim.stimuli{1}.contrastOut);
+			fprintf('\n===>>> BasicTraining START Run = %i (%i:%i) | %s | SF = %.2f | Contrast = %.2f\n', ...
+			  thisRun, seq.totalRuns, seq.nRuns, sM.fullName,seq.outValues{seq.totalRuns,1},seq.outValues{seq.totalRuns,2});
 		end
 		
 		if ~ana.fixOnly
@@ -340,8 +343,8 @@ try
 		
 		eT.resetFixation();
 		
-		if ~ana.debug;ListenChar(-1);end
 		
+		if ~ana.debug;ListenChar(-1);end
 		%========================================================INITIATE FIXATION
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		trackerMessage(eT,'INITIATEFIX');
@@ -406,6 +409,7 @@ try
 			end
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[1 1 1]); end
 			if ana.drawEye; drawEyePosition(eT,true); end
+			if sM.visualDebug; sM.drawGrid(); end
 			finishDrawing(sM);
 			
 			if ~ana.fixOnly; animate(stim); end
