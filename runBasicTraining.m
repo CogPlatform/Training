@@ -347,7 +347,8 @@ try
 		if ~ana.debug;ListenChar(-1);end
 		%========================================================INITIATE FIXATION
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
-		trackerMessage(eT,'INITIATEFIX');
+		trackerMessage(eT,['MSG:Position=' num2str(thisPos)]);
+		trackerMessage(eT,'INITIATE_FIX');
 		fixated = ''; doBreak = false;
 		if ana.useTracker
 			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
@@ -355,13 +356,14 @@ try
 				if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 				if ana.drawEye; drawEyePosition(eT,true); end
 				finishDrawing(sM);
-				flip(sM);
+				vbl = flip(sM);
 				getSample(eT);
 				fixated=testSearchHoldFixation(eT,'fix','breakfix');
 				doBreak = checkKeys();
 				if doBreak; break; end
 			end
 			ListenChar(0);
+			trackerMessage(eT,'END_FIX',vbl)
 			if strcmpi(fixated,'breakfix')
 				fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', thisRun);
 				trackerMessage(eT,'TRIAL_RESULT -100');
@@ -418,7 +420,10 @@ try
 			doBreak = checkKeys(); if doBreak; break; end
 			
 			vbl = flip(sM,vbl); tick = tick + 1;
-			if tick==1 && ana.sendTrigger; lM.strobeServer(thisRun); end
+			if tick==1 
+				if ana.sendTrigger; lM.strobeServer(thisRun); end
+				trackerMessage(eT,'SHOW_STIMULUS',vbl);
+			end
 			
 			if ana.rewardDuring && tick == 60;rM.timedTTL(2,300);rewards=rewards+1;end
 		end
@@ -430,12 +435,12 @@ try
 		
 		%=============================================================CHECK RESPONSE
 		if strcmpi(fixated,'breakfix') || thisResponse == 0
-			trackerMessage(eT,'ENDVBL',vbl);
+			trackerMessage(eT,'END_VBL',vbl);
 			trackerMessage(eT,'TRIAL_RESULT -1');
 			trackerMessage(eT,'MSG:BreakFix');
 			if ~doBreak; incorrect(); end
 		elseif strcmpi(fixated,'fix') || thisResponse == 1
-			trackerMessage(eT,'ENDVBL',vbl);
+			trackerMessage(eT,'END_VBL',vbl);
 			trackerMessage(eT,'TRIAL_RESULT 1');
 			if ~doBreak; correct(); end
 		elseif ~doBreak
@@ -466,6 +471,7 @@ try
 			ana.trial(seq.totalRuns).tick = tick;
 		else
 			ana.trial(thisRun).result = thisResponse;
+			ana.trial(thisRun).position = thisPos;
 			ana.trial(thisRun).rewards = rewards;
 			ana.trial(thisRun).positive = pfeedback;
 			ana.trial(thisRun).negative = nfeedback;
