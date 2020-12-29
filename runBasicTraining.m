@@ -291,7 +291,7 @@ try
 		for i = 1:length(sd);lM.strobeServer(sd(i));WaitSecs(0.02);end
 	end
 	startRecording(eT); WaitSecs('YieldSecs',1);
-	trackerMessage(eT,'!!! Starting Demo...');
+	trackerMessage(eT,'!!! Starting Session...');
 	breakLoop		= false;
 	ana.trial		= struct();
 	thisRun			= 0;
@@ -341,14 +341,14 @@ try
 			update(stim); 
 		end
 		
-		eT.resetFixation();
+		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
+		trackerMessage(eT,['MSG:Position=' num2str(thisPos)]);
 		
+		eT.resetFixation();
 		
 		if ~ana.debug;ListenChar(-1);end
 		%========================================================INITIATE FIXATION
-		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
-		trackerMessage(eT,['MSG:Position=' num2str(thisPos)]);
-		trackerMessage(eT,'INITIATE_FIX');
+		tick = 0;
 		fixated = ''; doBreak = false;
 		if ana.useTracker
 			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
@@ -356,7 +356,8 @@ try
 				if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 				if ana.drawEye; drawEyePosition(eT,true); end
 				finishDrawing(sM);
-				vbl = flip(sM);
+				vbl = flip(sM); tick = tick + 1;
+				if tick == 1; trackerMessage(eT,'INITIATE_FIX',vbl); end
 				getSample(eT);
 				fixated=testSearchHoldFixation(eT,'fix','breakfix');
 				doBreak = checkKeys();
