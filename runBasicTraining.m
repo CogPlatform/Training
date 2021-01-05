@@ -163,23 +163,31 @@ try
 	eT.fixation.strict		= ana.strict;
 	
 	%===========================set up stimuli====================
+	
+	ana.fixOnly			= false;
+	ana.moveStim		= false;
+	ana.isVEP			= false;
+	ana.isGaze			= false;
+	seq.taskFinished	= false;
+	
 	if strcmpi(ana.stimulus,'Dancing Monkey')
 		stim				= movieStimulus();
 		stim.size			= ana.size;
 		stim.setup(sM);
-		ana.fixOnly			= false;
 		ana.moveStim		= true;
-		ana.isVEP			= false;
-		seq.taskFinished	= false;
 	elseif strcmpi(ana.stimulus,'Pictures')
 		stim				= imageStimulus();
 		stim.size			= ana.size;
 		stim.fileName		= ana.imageDir;
 		stim.setup(sM);
-		ana.fixOnly			= false;
 		ana.moveStim		= true;
-		ana.isVEP			= false;
-		seq.taskFinished	= false;
+		eT.secondScreen = false; %fix opengl window bug
+	elseif strcmpi(ana.stimulus,'Gaze Training')
+		stim				= imageStimulus();
+		stim.size			= 0;
+		stim.fileName		= ana.imageDir;
+		stim.setup(sM);
+		ana.isGaze			= true;
 		eT.secondScreen = false; %fix opengl window bug
 	elseif strcmpi(ana.stimulus,'VEP')
 		stim									= metaStimulus();
@@ -234,8 +242,6 @@ try
 		stim.stimuli{2}.colour					= ana.backgroundColour;
 		stim.setup(sM);
 		if ana.spotSize < 1; stim.stimuli{2}.hide(); end
-		ana.fixOnly			= false;
-		ana.moveStim		= false;
 		ana.isVEP			= true;
 		
 		%=====================Stimulus Sequence=========================
@@ -274,8 +280,6 @@ try
 		%===============================FIXATION ONLY
 		ana.fixOnly			= true;
 		ana.moveStim		= true;
-		ana.isVEP			= false;
-		seq.taskFinished	= false;
 		if ana.size == 0; ana.size = 0.6; end
 	end
 	
@@ -346,7 +350,7 @@ try
 		
 		eT.resetFixation();
 		
-		if ~ana.debug;ListenChar(-1);end
+		if ~ana.debug;ListenChar(-1); end
 		%========================================================INITIATE FIXATION
 		tick = 0;
 		fixated = ''; doBreak = false;
@@ -388,6 +392,7 @@ try
 		thisResponse = -1; doBreak = false;
 		if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
+		if ana.isGaze; eT.fixation.radius = 20; end 
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		if ~ana.isVEP; play(sM.audio); end
 		tStart = flip(sM); vbl = tStart;
@@ -407,7 +412,7 @@ try
 						end
 					end
 				else
-					sM.drawCross(0.5,[],thisPos(1),thisPos(2),0.05,true,0.2);
+% 					sM.drawCross(0.5,[],thisPos(1),thisPos(2),0.05,true,0.2);
 				end
 			end
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[1 1 1]); end
@@ -430,9 +435,10 @@ try
 		end
 		
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-		vbl=flip(sM);
+		vbl						= flip(sM);
 		if ana.sendTrigger;lM.strobeServer(255); end
-		tEnd = vbl;
+		tEnd					= vbl;
+		eT.fixation.radius		= ana.radius;
 		
 		%=============================================================CHECK RESPONSE
 		if strcmpi(fixated,'breakfix') || thisResponse == 0
