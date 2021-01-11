@@ -155,8 +155,8 @@ try
 	
 	% ---- initial fixation values.
 	eT.resetFixation();
-	eT.fixation.X			= 0;
-	eT.fixation.Y			= 0;
+	eT.fixation.X			= ana.XFix;
+	eT.fixation.Y			= ana.YFix;
 	eT.fixation.initTime	= ana.initTime;
 	eT.fixation.fixTime		= ana.fixTime;
 	eT.fixation.radius		= ana.radius;
@@ -348,42 +348,45 @@ try
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		trackerMessage(eT,['MSG:Position=' num2str(thisPos)]);
 		
-		eT.resetFixation();
-		
-		if ~ana.debug;ListenChar(-1); end
 		%========================================================INITIATE FIXATION
 		tick = 0;
+		eT.resetFixation();
 		fixated = ''; doBreak = false;
-		if ana.useTracker
-			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
+		if ana.initFix
+			if ana.useTracker
+				if ~ana.debug;ListenChar(-1); end
+				while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
+					if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
+					if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
+					if ana.drawEye; drawEyePosition(eT,true); end
+					finishDrawing(sM);
+					vbl = flip(sM); tick = tick + 1;
+					if tick == 1; trackerMessage(eT,'INITIATE_FIX',vbl); end
+					getSample(eT);
+					fixated=testSearchHoldFixation(eT,'fix','breakfix');
+					doBreak = checkKeys();
+					if doBreak; break; end
+				end
+				ListenChar(0);
+				trackerMessage(eT,'END_FIX',vbl)
+				if strcmpi(fixated,'breakfix')
+					fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', thisRun);
+					trackerMessage(eT,'TRIAL_RESULT -100');
+					trackerMessage(eT,'MSG:BreakInitialFix');
+					if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
+					Screen('Flip',sM.win); %flip the buffer
+					WaitSecs('YieldSecs',0.5);
+					continue
+				end
+			else
 				if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
 				if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-				if ana.drawEye; drawEyePosition(eT,true); end
 				finishDrawing(sM);
-				vbl = flip(sM); tick = tick + 1;
-				if tick == 1; trackerMessage(eT,'INITIATE_FIX',vbl); end
-				getSample(eT);
-				fixated=testSearchHoldFixation(eT,'fix','breakfix');
-				doBreak = checkKeys();
-				if doBreak; break; end
-			end
-			ListenChar(0);
-			trackerMessage(eT,'END_FIX',vbl)
-			if strcmpi(fixated,'breakfix')
-				fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', thisRun);
-				trackerMessage(eT,'TRIAL_RESULT -100');
-				trackerMessage(eT,'MSG:BreakInitialFix');
-				if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-				Screen('Flip',sM.win); %flip the buffer
-				WaitSecs('YieldSecs',0.5);
-				continue
+				flip(sM);
+				WaitSecs(0.5);
 			end
 		else
-			if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
-			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-			finishDrawing(sM);
-			flip(sM);
-			WaitSecs(0.5);
+			fixated = 'fix';
 		end
 		
 		%===========================================================SHOW STIMULUS
