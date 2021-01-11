@@ -322,7 +322,7 @@ try
 			end
 			fprintf('\n===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', thisRun, sM.fullName,thisPos(1),thisPos(2));
 		else
-			thisPos = [0, 0];
+			thisPos = [ana.XFix, ana.YFix];
 			eT.fixation.X = thisPos(1);
 			eT.fixation.Y = thisPos(2);
 		end
@@ -445,11 +445,14 @@ try
 		
 		%=============================================================CHECK RESPONSE
 		if strcmpi(fixated,'breakfix') || thisResponse == 0
+			flip(sM);
 			trackerMessage(eT,'END_VBL',vbl);
 			trackerMessage(eT,'TRIAL_RESULT -1');
 			trackerMessage(eT,'MSG:BreakFix');
+			fprintf('===>>> Fixation broken in %.2f secs\n',tEnd-tStart)
 			if ~doBreak; incorrect(); end
 		elseif strcmpi(fixated,'fix') || thisResponse == 1
+			flip(sM);
 			trackerMessage(eT,'END_VBL',vbl);
 			trackerMessage(eT,'TRIAL_RESULT 1');
 			if ~doBreak; correct(); end
@@ -587,15 +590,16 @@ end
 	end
 
 	function correct()
-		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; beep(sM.audio,'high'); end
+		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; end
+		beep(sM.audio,'high'); 
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
 		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
-		drawGreenSpot(sM,1);
+		if ana.visualFeedback;drawGreenSpot(sM,40);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
 		cloop=1;
 		while vbl <= ct + ana.ITI
-			if cloop<60; drawGreenSpot(sM,1); end
+			if ana.visualFeedback;if cloop<60; drawGreenSpot(sM,40); end; end
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			vbl=flip(sM); cloop=cloop+1;
 			doBreak = checkKeys();
@@ -615,12 +619,12 @@ end
 		fprintf('===>>> Incorrect given, timeout=%.2f!\n',ana.timeOut);
 		beep(sM.audio,'low');
 		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(251); end
-		drawRedSpot(sM,5);
+		if ana.visualFeedback;drawRedSpot(sM,40);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
 		cloop=1;
 		while vbl <= ct + ana.timeOut
-			if cloop<60; drawRedSpot(sM,5); end
+			if ana.visualFeedback;if cloop<60; drawRedSpot(sM,40); end; end
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			vbl=flip(sM);cloop=cloop+1;
 			doBreak = checkKeys();
