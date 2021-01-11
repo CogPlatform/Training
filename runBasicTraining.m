@@ -395,7 +395,7 @@ try
 		thisResponse = -1; doBreak = false;
 		if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-		if ana.isGaze; eT.fixation.radius = 20; end 
+		if ana.isGaze; eT.fixation.X = 0; eT.fixation.Y = 0; eT.fixation.radius = 20; end 
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		if ~ana.isVEP; play(sM.audio); end
 		tStart = flip(sM); vbl = tStart;
@@ -594,12 +594,12 @@ end
 		beep(sM.audio,'high'); 
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
 		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
-		if ana.visualFeedback;drawGreenSpot(sM,40);end
+		if ana.visualFeedback;drawGreenSpot(sM,80);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
 		cloop=1;
 		while vbl <= ct + ana.ITI
-			if ana.visualFeedback;if cloop<60; drawGreenSpot(sM,40); end; end
+			if ana.visualFeedback;if cloop<60; drawGreenSpot(sM,80); end; end
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			vbl=flip(sM); cloop=cloop+1;
 			doBreak = checkKeys();
@@ -616,15 +616,15 @@ end
 	end
 
 	function incorrect()
-		fprintf('===>>> Incorrect given, timeout=%.2f!\n',ana.timeOut);
 		beep(sM.audio,'low');
+		fprintf('===>>> Incorrect given, timeout=%.2f!\n',ana.timeOut);
 		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(251); end
-		if ana.visualFeedback;drawRedSpot(sM,40);end
+		if ana.visualFeedback;drawRedSpot(sM,80);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
 		cloop=1;
 		while vbl <= ct + ana.timeOut
-			if ana.visualFeedback;if cloop<60; drawRedSpot(sM,40); end; end
+			if ana.visualFeedback;if cloop<60; drawRedSpot(sM,80); end; end
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			vbl=flip(sM);cloop=cloop+1;
 			doBreak = checkKeys();
