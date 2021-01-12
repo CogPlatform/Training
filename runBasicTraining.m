@@ -391,11 +391,12 @@ try
 		
 		%===========================================================SHOW STIMULUS
 		tick = 0;
+		gracePeriod = round( ana.graceTime / sM.screenVals.ifi);
 		kTimer = 0; % this is the timer to stop too many key events
 		thisResponse = -1; doBreak = false;
 		if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-		if ana.isGaze; eT.fixation.X = 0; eT.fixation.Y = 0; eT.fixation.radius = 20; end 
+		if ana.isGaze; eT.fixation.X = 0; eT.fixation.Y = 0; eT.fixation.radius = 10; end 
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		if ~ana.isVEP; play(sM.audio); end
 		tStart = flip(sM); vbl = tStart;
@@ -425,7 +426,11 @@ try
 			
 			if ~ana.fixOnly; animate(stim); end
 			getSample(eT);
-			if ana.useTracker && ~isFixated(eT);fixated = 'breakfix'; break; end
+			if tick <= gracePeriod
+				fixated = 'fix';
+			else
+				if ana.useTracker && ~isFixated(eT);fixated = 'breakfix'; break; end
+			end
 			doBreak = checkKeys(); if doBreak; break; end
 			
 			vbl = flip(sM,vbl); tick = tick + 1;
