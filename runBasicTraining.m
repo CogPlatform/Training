@@ -114,9 +114,8 @@ try
 	if ~ana.isDummy; eT.verbose	= true; end
 	if ~ana.useTracker || ana.isDummy
 		eT.isDummy			= true;
-		ana.drawEye			= 'No';
 	end
-	if length(Screen('Screens')) > 1 && sM.screen - 1 >= 0 && ana.useTracker && ~eT.isDummy % ---- second screen for calibration
+	if length(Screen('Screens')) > 1 && sM.screen - 1 >= 0 && ana.useTracker% ---- second screen for calibration
 		s					= screenManager;
 		s.verbose			= thisVerbose;
 		s.screen			= sM.screen - 1;
@@ -128,7 +127,7 @@ try
 		s.bitDepth			= '';
 		s.blend				= sM.blend;
 	end
-	if exist('s','var')
+	if exist('s','var') && ~eT.isDummy 
 		initialise(eT,sM,s);
 	else
 		initialise(eT,sM);
@@ -295,8 +294,9 @@ try
 			if exist('s','var')
 				s.bitDepth = '8bit';
 				s.blend = true;
-				s.windowed = s.windowed / 2;
-				s.pixelsPerCm = 45;
+				[w,h] = Screen('WindowSize',s.screen);
+				s.windowed = [0 0 round(w/2) round(h/2)];
+				s.pixelsPerCm = 20;
 				s.open;
 				drawEye = 2;
 				refRate = 2; %refresh window every N frames
@@ -504,7 +504,7 @@ try
 				if seq.taskFinished;breakLoop = true;end
 			end
 			if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
-			if ana.useTracker && drawEye==2
+			if drawEye==2
 				drawEyePositions();
 			end
 			WaitSecs('UntilTime',tEnd+ana.ITI);
