@@ -52,9 +52,9 @@ cla(ana.plotAxis2);
 
 %==========================TRY==========================
 try
-	PsychDefaultSetup(2);
+	PsychDefaultSetup(2);Screen('Preference', 'SkipSyncTests', 0)
 	%===================open our screen====================
-	sM							= screenManager();
+	sM						= screenManager();
 	sM.screen				= ana.screenID;
 	sM.verbose				= thisVerbose;
 	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
@@ -72,6 +72,7 @@ try
 	sM.backgroundColour		= ana.backgroundColour;
 	sM.pixelsPerCm			= ana.pixelsPerCm;
 	sM.distance				= ana.distance;
+	sM.bitDepth				= 'FloatingPoint32BitIfPossible';
 	sM.blend				= true;
 	if isfield(ana,'screenCal') && exist(ana.screenCal, 'file')
 		load(ana.screenCal);
@@ -113,8 +114,9 @@ try
 	if ~ana.isDummy; eT.verbose	= true; end
 	if ~ana.useTracker || ana.isDummy
 		eT.isDummy			= true;
+		ana.drawEye			= 'No';
 	end
-	if length(Screen('Screens')) > 1 && ana.useTracker && ~eT.isDummy % ---- second screen for calibration
+	if length(Screen('Screens')) > 1 && sM.screen - 1 >= 0 && ana.useTracker && ~eT.isDummy % ---- second screen for calibration
 		s					= screenManager;
 		s.verbose			= thisVerbose;
 		s.screen			= sM.screen - 1;
@@ -123,9 +125,8 @@ try
 		s.distance			= sM.distance;
 		[w,h]				= Screen('WindowSize',s.screen);
 		s.windowed			= [0 0 round(w/1.5) round(h/1.2)];
-		s.bitDepth			= '8bit';
+		s.bitDepth			= '';
 		s.blend				= sM.blend;
-		s.disableSyncTests	= true;
 	end
 	if exist('s','var')
 		initialise(eT,sM,s);
@@ -286,6 +287,27 @@ try
 	pos = ana.positions;
 	posLoop = 1;
 	
+	%=================set up eye position drawing================
+	switch lower(ana.drawEye)
+		case 'same screen'
+			drawEye = 1;
+		case 'new screen'
+			if exist('s','var')
+				s.bitDepth = '8bit';
+				s.blend = true;
+				s.windowed = s.windowed / 2;
+				s.pixelsPerCm = 45;
+				s.open;
+				drawEye = 2;
+				refRate = 2; %refresh window every N frames
+			else
+				drawEye = 1;
+			end
+		otherwise
+			drawEye = 0;
+	end
+	
+	
 	%===========================prepare===========================
 	Priority(MaxPriority(sM.win)); %bump our priority to maximum allowed
 	if ana.sendTrigger
@@ -306,6 +328,8 @@ try
 	while ~breakLoop
 		%=================================TRIAL SETUP================================
 		thisRun = thisRun + 1;
+		tit = sprintf('\n===>>> BasicTraining START Run = %i | %s',...
+				thisRun, sM.fullName);
 		if ana.moveStim && ~ana.isVEP
 			if ana.randomPosition
 				thisPos = pos(randi(length(pos)),:);
@@ -320,7 +344,8 @@ try
 				stim.xPositionOut = thisPos(1);
 				stim.yPositionOut = thisPos(2);
 			end
-			fprintf('\n===>>> BasicTraining START Run = %i | %s | pos = %i %i\n', thisRun, sM.fullName,thisPos(1),thisPos(2));
+			tit = sprintf('%s pos = %i %i',...
+				tit,thisPos(1),thisPos(2));
 		else
 			thisPos = [ana.XFix, ana.YFix];
 			eT.fixation.X = thisPos(1);
@@ -337,13 +362,15 @@ try
 				stim.stimuli{1}.sfOut = seq.outValues{seq.totalRuns,1};
 				stim.stimuli{1}.contrastOut = seq.outValues{seq.totalRuns,2};
 			end
-			fprintf('\n===>>> BasicTraining START Run = %i (%i:%i) | %s | SF = %.2f | Contrast = %.2f\n', ...
+			tit = sprintf('\n===>>> BasicTraining START Run = %i (%i:%i) | %s | SF = %.2f | Contrast = %.2f\n', ...
 			  thisRun, seq.totalRuns, seq.nRuns, sM.fullName,seq.outValues{seq.totalRuns,1},seq.outValues{seq.totalRuns,2});
 		end
 		
 		if ~ana.fixOnly
 			update(stim); 
 		end
+		
+		fprintf('%s\n',tit);
 		
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		trackerMessage(eT,['MSG:Position=' num2str(thisPos)]);
@@ -358,14 +385,19 @@ try
 				while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 					if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
 					if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-					if ana.drawEye; drawEyePosition(eT,true); end
+					if drawEye==1 
+						drawEyePosition(eT,true);
+					elseif drawEye==2 && mod(tick,refRate)==0
+						drawText(s,tit);drawGrid(s);drawSpot(s,0.5,[1 1 0], eT.x, eT.y);
+					end
 					finishDrawing(sM);
-					vbl = flip(sM); tick = tick + 1;
 					if tick == 1; trackerMessage(eT,'INITIATE_FIX',vbl); end
 					getSample(eT);
 					fixated=testSearchHoldFixation(eT,'fix','breakfix');
 					doBreak = checkKeys();
 					if doBreak; break; end
+					vbl = flip(sM); tick = tick + 1;
+					if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
 				end
 				ListenChar(0);
 				trackerMessage(eT,'END_FIX',vbl)
@@ -420,7 +452,11 @@ try
 				end
 			end
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[1 1 1]); end
-			if ana.drawEye; drawEyePosition(eT,true); end
+			if drawEye==1 
+				drawEyePosition(eT,true);
+			elseif drawEye==2 && mod(tick,refRate)==0
+				drawGrid(s);drawSpot(s,0.5,[1 1 0], eT.x, eT.y);
+			end
 			if sM.visualDebug; sM.drawGrid(); end
 			finishDrawing(sM);
 			
@@ -438,7 +474,8 @@ try
 				if ana.sendTrigger; lM.strobeServer(thisRun); end
 				trackerMessage(eT,'SHOW_STIMULUS',vbl);
 			end
-			
+			if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
+
 			if ana.rewardDuring && tick == 60;rM.timedTTL(2,300);rewards=rewards+1;end
 		end
 		
@@ -447,18 +484,17 @@ try
 		if ana.sendTrigger;lM.strobeServer(255); end
 		tEnd					= vbl;
 		eT.fixation.radius		= ana.radius;
+		if drawEye==2;flip(s,[],[],2);end
 		
 		%=============================================================CHECK RESPONSE
 		if strcmpi(fixated,'breakfix') || thisResponse == 0
-			flip(sM);
-			trackerMessage(eT,'END_VBL',vbl);
+			trackerMessage(eT,'END_VBL',tEnd);
 			trackerMessage(eT,'TRIAL_RESULT -1');
 			trackerMessage(eT,'MSG:BreakFix');
 			fprintf('===>>> Fixation broken in %.2f secs\n',tEnd-tStart)
 			if ~doBreak; incorrect(); end
 		elseif strcmpi(fixated,'fix') || thisResponse == 1
-			flip(sM);
-			trackerMessage(eT,'END_VBL',vbl);
+			trackerMessage(eT,'END_VBL',tEnd);
 			trackerMessage(eT,'TRIAL_RESULT 1');
 			if ~doBreak; correct(); end
 		elseif ~doBreak
@@ -468,6 +504,9 @@ try
 				if seq.taskFinished;breakLoop = true;end
 			end
 			if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
+			if ana.useTracker && drawEye==2
+				drawEyePositions();
+			end
 			WaitSecs('UntilTime',tEnd+ana.ITI);
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 			flip(sM);
@@ -500,9 +539,9 @@ try
 	end %=====================================while ~breakLoop
 	
 	%===============================Clean up============================
-	fprintf('===>>> basicTraining Finished Trials: %i\n',thisRun);
-	Screen('DrawText', sM.win, '===>>> FINISHED!!!');
-	Screen('Flip',sM.win);
+	fprintf('\n===>>> basicTraining Finished Trials: %i\n',thisRun);
+	drawTextNow(sM, '===>>> FINISHED!!!');
+	if drawEye==2; drawTextNow(sM, '===>>> FINISHED!!!'); end
 	if ana.sendTrigger
 		sd = ana.timeExp;
 		sd(1)=20;
@@ -512,7 +551,9 @@ try
 	WaitSecs('YieldSecs', 0.25);
 	stopRecording(eT);
 	saveData(eT,false);
+	if exist('s','var') && isa(s,'screenManager'); s.close; end
 	close(sM);
+	if drawEye==2;close(s);end
 	
 	if exist(ana.ResultDir,'dir') > 0
 		cd(ana.ResultDir);
@@ -533,7 +574,8 @@ try
 catch ME
 	getReport(ME)
 	assignin('base','ana',ana)
-	if exist('sM','var'); close(sM); end
+	if exist('sM','var') && isa(sM,'screenManager'); close(sM); end
+	if exist('s','var') && isa(s,'screenManager'); close(s); end
 	ListenChar(0);ShowCursor;Priority(0);Screen('CloseAll');
 end
 
@@ -602,6 +644,7 @@ end
 		if ana.visualFeedback;drawGreenSpot(sM,80);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
+		if drawEye==2;drawEyePositions('Correct!');end
 		cloop=1;
 		while vbl <= ct + ana.ITI
 			if ana.visualFeedback;if cloop<60; drawGreenSpot(sM,80); end; end
@@ -611,7 +654,7 @@ end
 			if doBreak; break; end
 		end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-		vbl=flip(sM);
+		flip(sM);
 		thisResponse = 1;
 		pfeedback = pfeedback + 1;
 		if ana.isVEP
@@ -627,6 +670,7 @@ end
 		if ana.visualFeedback;drawRedSpot(sM,80);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		vbl=flip(sM); ct = vbl;
+		if drawEye==2; drawEyePositions('Incorrect!'); end
 		cloop=1;
 		while vbl <= ct + ana.timeOut
 			if ana.visualFeedback;if cloop<60; drawRedSpot(sM,80); end; end
@@ -636,9 +680,21 @@ end
 			if doBreak; break; end
 		end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-		vbl=flip(sM);
+		flip(sM);
 		thisResponse = 0;
 		nfeedback = nfeedback + 1;
+	end
+
+	function drawEyePositions(intext)
+		if ~isempty(eT.xAll) && ~isempty(eT.yAll) && (length(eT.xAll)==length(eT.yAll))
+			xy = [eT.xAll;eT.yAll];
+			drawDots(s,xy,8,[0.25 1 0 0.5]);
+			drawGrid(s);
+			if exist('intext','var') && ~isempty(intext); drawText(s,intext); end
+			drawScreenCenter(s);
+			flip(s,[],[],2);
+		end
+		
 	end
 
 end
