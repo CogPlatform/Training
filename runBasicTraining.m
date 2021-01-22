@@ -49,6 +49,7 @@ end
 
 cla(ana.plotAxis1);
 cla(ana.plotAxis2);
+rewardtime = 50; % in ms
 
 %==========================TRY==========================
 try
@@ -188,6 +189,12 @@ try
 		stim.fileName		= ana.imageDir;
 		stim.setup(sM);
 		ana.isGaze			= true;
+		picSize.X = 40; % in degree 
+		
+		if  stim.size >0
+			picSize.X = stim.size;
+		end
+		picSize.Y = picSize.X*3/4;
 		eT.secondScreen = false; %fix opengl window bug
 	elseif strcmpi(ana.stimulus,'VEP')
 		stim									= metaStimulus();
@@ -428,8 +435,8 @@ try
 		thisResponse = -1; doBreak = false;
 		if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-		if ana.isGaze; eT.fixation.X = 0; eT.fixation.Y = 0; eT.fixation.radius = 10; end 
-		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
+		if ana.isGaze; eT.fixation.X = 0; eT.fixation.Y = 0; eT.fixation.Xradius = picSize.X/2;eT.fixation.Yradius=picSize.Y/2; end 
+		if ana.rewardStart; rM.timedTTL(2,rewardtime); rewards=rewards+1; end
 		if ~ana.isVEP; play(sM.audio); end
 		tStart = flip(sM); vbl = tStart;
 		while vbl < tStart + ana.playTimes
@@ -476,7 +483,7 @@ try
 			end
 			if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
 
-			if ana.rewardDuring && tick == 60;rM.timedTTL(2,300);rewards=rewards+1;end
+			if ana.rewardDuring && tick == 60;rM.timedTTL(2,rewardtime);rewards=rewards+1;end
 		end
 		
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
@@ -498,7 +505,7 @@ try
 			trackerMessage(eT,'TRIAL_RESULT 1');
 			if ~doBreak; correct(); end
 		elseif ~doBreak
-			if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1;beep(sM.audio,'high'); end
+			if ana.rewardEnd; rM.timedTTL(2,rewardtime); rewards=rewards+1;beep(sM.audio,'high'); end
 			if ana.isVEP
 				updateTask(seq,true,tEnd-tStart); %updates our current run number
 				if seq.taskFinished;breakLoop = true;end
@@ -613,7 +620,7 @@ end
 				case {'1','1!','kp_end'}
 					if kTimer < vbl
 						kTimer = vbl + 0.2;
-						rM.timedTTL(2,300);
+						rM.timedTTL(2,rewardtime);
 						rewards = rewards + 1;
 					end
 				case {'2','2@','kp_down'}
@@ -637,7 +644,7 @@ end
 	end
 
 	function correct()
-		if ana.rewardEnd; rM.timedTTL(2,300); rewards=rewards+1; end
+		if ana.rewardEnd; rM.timedTTL(2,rewardtime); rewards=rewards+1; end
 		beep(sM.audio,'high'); 
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
 		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
