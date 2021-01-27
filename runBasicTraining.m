@@ -428,7 +428,7 @@ try
 		thisResponse = -1; doBreak = false;
 		if ana.spotSize > 0;sM.drawCross(ana.spotSize,[],thisPos(1),thisPos(2),ana.spotLine,true,ana.spotAlpha);end
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
-		if ana.isGaze; eT.fixation.X = 0; eT.fixation.Y = 0; eT.fixation.radius = 10; end 
+		if ana.isGaze; eT.fixation.X = 0; eT.fixation.Y = 0; eT.fixation.radius = 25; end 
 		if ana.rewardStart; rM.timedTTL(2,300); rewards=rewards+1; end
 		if ~ana.isVEP; play(sM.audio); end
 		tStart = flip(sM); vbl = tStart;
@@ -688,13 +688,12 @@ end
 	function drawEyePositions(intext)
 		if ~isempty(eT.xAll) && ~isempty(eT.yAll) && (length(eT.xAll)==length(eT.yAll))
 			xy = [eT.xAll;eT.yAll];
-			drawDots(s,xy,8,[0.25 1 0 0.5]);
+			drawDots(s,xy,8,[0.25 1 0 0.2]);
 			drawGrid(s);
 			if exist('intext','var') && ~isempty(intext); drawText(s,intext); end
 			drawScreenCenter(s);
 			flip(s,[],[],2);
 		end
-		
 	end
 
 end

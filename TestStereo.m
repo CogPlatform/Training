@@ -65,10 +65,10 @@ internalRotation = 0;
 rotateMode = kPsychUseTextureMatrixForRotation;
 gratingsize = 700;
 res = [gratingsize gratingsize];
-freq = 5/360;
+freq = 12/360;
 cyclespersecond = 1;
 angle = 0;
-amplitude = 1.0;
+amplitude = 0.4;
 AssertGLSL;
 % Phase is the phase shift in degrees (0-360 etc.)applied to the sine grating:
 phase = 0;
