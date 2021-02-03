@@ -57,6 +57,7 @@ try
 	sM						= screenManager();
 	sM.screen				= ana.screenID;
 	sM.verbose				= thisVerbose;
+	sM.bitDepth				= 'FloatingPoint32BitIfPossible';
 	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
 		sM.disableSyncTests = true; 
 	end
@@ -72,7 +73,6 @@ try
 	sM.backgroundColour		= ana.backgroundColour;
 	sM.pixelsPerCm			= ana.pixelsPerCm;
 	sM.distance				= ana.distance;
-	sM.bitDepth				= 'FloatingPoint32BitIfPossible';
 	sM.blend				= true;
 	if isfield(ana,'screenCal') && exist(ana.screenCal, 'file')
 		load(ana.screenCal);
