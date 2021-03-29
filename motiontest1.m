@@ -2,7 +2,7 @@ function motiontest1()
 
 	screen = 1;
 	screenSize = [];
-	cycleTime = 2; % time for one sweep, determines max speed
+	cycleTime = 1.5; % time for one sweep, determines max speed
 	bgColour = 0.55;
 	dotColour = [0 0 0]';
 	dotSize = 0.5;
@@ -31,8 +31,11 @@ function motiontest1()
 	quit = KbName('escape');
 	RestrictKeysForKbCheck([incB decB incD decD quit]);
 	looper = 1;
+	ListenChar(-1);
 	Priority(MaxPriority(ptb.win)); %bump our priority to maximum allowed
 	vbl(1) = Screen('Flip', ptb.win);
+	
+	fprintf('\n\nGet ready for motion');
 	
 	
 	while ~CloseWin
@@ -55,29 +58,29 @@ function motiontest1()
 		if ~isempty(name)  
 			switch name
 				case incB
-					bgColour = bgColour + 0.005;
+					bgColour = bgColour + 0.01;
 					if bgColour(1) > 1
 						bgColour = 0;
 					end
-					fprintf('bg = %.2g\n',bgColour)
+					fprintf('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b bg = %1.2f fg = %1.2f',bgColour(1),dotColour(1));
 				case decB
-					bgColour = bgColour - 0.005;
+					bgColour = bgColour - 0.01;
 					if bgColour(1) < 0
 						bgColour = 1;
 					end
-					fprintf('bg = %.2g\n',bgColour)
+					fprintf('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b bg = %1.2f fg = %1.2f',bgColour(1),dotColour(1));
 				case incD
-					dotColour = dotColour + 0.005;
+					dotColour = dotColour + 0.01;
 					if dotColour(1) > 1
 						dotColour = [0 0 0]';
 					end
-					fprintf('dc = %.2g\n',dotColour)
+					fprintf('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b bg = %1.2f fg = %1.2f',bgColour(1),dotColour(1));
 				case decD
-					dotColour = dotColour - 0.005;
+					dotColour = dotColour - 0.01;
 					if dotColour(1) < 0
 						dotColour = [1 1 1]';
 					end
-					fprintf('dc = %.2g\n',dotColour)
+					fprintf('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b bg = %1.2f fg = %1.2f',bgColour(1),dotColour(1));
 				case quit
 					CloseWin = true;
 				otherwise
@@ -115,6 +118,6 @@ end
 
 function myCleanup()
 	disp('Clearing up...')
-	Priority(0)
+	Priority(0);ListenChar(0);
 	sca
 end

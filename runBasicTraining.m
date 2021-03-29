@@ -58,6 +58,7 @@ try
 	sM						= screenManager();
 	sM.screen				= ana.screenID;
 	sM.verbose				= thisVerbose;
+	sM.bitDepth				= 'FloatingPoint32BitIfPossible';
 	if ana.debug || ismac || ispc || ~isempty(regexpi(ana.gpu.Vendor,'NVIDIA','ONCE'))
 		sM.disableSyncTests = true; 
 	end
@@ -73,7 +74,6 @@ try
 	sM.backgroundColour		= ana.backgroundColour;
 	sM.pixelsPerCm			= ana.pixelsPerCm;
 	sM.distance				= ana.distance;
-	sM.bitDepth				= 'FloatingPoint32BitIfPossible';
 	sM.blend				= true;
 	if isfield(ana,'screenCal') && exist(ana.screenCal, 'file')
 		load(ana.screenCal);
@@ -695,13 +695,12 @@ end
 	function drawEyePositions(intext)
 		if ~isempty(eT.xAll) && ~isempty(eT.yAll) && (length(eT.xAll)==length(eT.yAll))
 			xy = [eT.xAll;eT.yAll];
-			drawDots(s,xy,8,[0.25 1 0 0.5]);
+			drawDots(s,xy,8,[0.25 1 0 0.2]);
 			drawGrid(s);
 			if exist('intext','var') && ~isempty(intext); drawText(s,intext); end
 			drawScreenCenter(s);
 			flip(s,[],[],2);
 		end
-		
 	end
 
 end

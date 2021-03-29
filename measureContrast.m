@@ -2,19 +2,22 @@ s = screenManager;
 g = gratingStimulus;
 d = discStimulus;
 
+comment = 'Display++ in Mono++ mode';
+needGamma = false;
+
 %g.type='square';
 g.mask = false;
 g.size = 30;
 g.tf=0;
 g.sf = 0.1;
-g.contrast = 0.5;
+g.contrast = 0.1;
 
 d.colour = [0.2 0.2 0.2];
 d.size = 30;
 
-if true
+if needGamma
 	%load('~/MatlabFiles/Calibrations/TobiiTX300_SET2_MonitorCalibration.mat');
-	load('~/Code/Training/AorusFI27QP_2560x1440x120Hz.mat');
+	%load('~/Code/Training/AorusFI27QP_2560x1440x120Hz.mat');
 	%load('~/MatlabFiles/Calibration/Display++Color++Mode-Ubuntu-RadeonPsychlab.mat')
 	%c.choice = 2;
 	%c.plot;
@@ -22,8 +25,9 @@ if true
 else
 	c = calibrateLuminance;
 end
-s.bitDepth = 'Native10bit';
-resolution = 2^10;
+%s.bitDepth = 'Native10bit';
+s.bitDepth = 'EnableBits++Color++Output';
+resolution = 2^11;
 sv = s.open();
 c.screenVals = sv;
 g.setup(s);
@@ -84,12 +88,12 @@ for loop = 1:length(phs)
 	g.driftPhase = phs(loop);
 	g.draw();
 	s.flip();
-	WaitSecs(0.1);
+	WaitSecs(0.2);
 	[~,~,YY(loop)] = c.getSpectroCALValues();
 	fprintf('Phase is: %.2f, Luminance is %.4f\n',phs(loop),YY(loop));
 end
 
-h=figure;
+h=figure('Name',comment);
 tl = tiledlayout(h,'flow');
 nexttile
 plot(phs,YY,'r-o');box on;grid on
@@ -106,7 +110,7 @@ for loop = steps
 	d.update();
 	d.draw();
 	s.flip();
-	WaitSecs(0.1);
+	WaitSecs(0.2);
 	[~,~,YYY(loop)] = c.getSpectroCALValues();
 	fprintf('Loop %i - In/out Luminance %.4f = %.4f\n',loop,range(loop),YYY(loop));
 end
