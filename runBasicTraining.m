@@ -121,14 +121,16 @@ try
 		s.verbose			= thisVerbose;
 		s.screen			= sM.screen - 1;
 		s.backgroundColour	= sM.backgroundColour;
-		s.pixelsPerCm		= sM.pixelsPerCm;
 		s.distance			= sM.distance;
 		[w,h]				= Screen('WindowSize',s.screen);
-		s.windowed			= [0 0 round(w/1.5) round(h/1.2)];
+		s.windowed			= [0 0 round(w/2) round(h/2)];
 		s.bitDepth			= '';
 		s.blend				= sM.blend;
+		s.bitDepth			= '8bit';
+		s.blend				= true;
+		s.pixelsPerCm		= 30;
 	end
-	if exist('s','var') && ~eT.isDummy 
+	if exist('s','var')
 		initialise(eT,sM,s);
 	else
 		initialise(eT,sM);
@@ -298,15 +300,11 @@ try
 		case 'same screen'
 			drawEye = 1;
 		case 'new screen'
-			if exist('s','var')
-				s.bitDepth = '8bit';
-				s.blend = true;
-				[w,h] = Screen('WindowSize',s.screen);
-				s.windowed = [0 0 round(w/2) round(h/2)];
-				s.pixelsPerCm = 20;
-				s.open;
+			if exist('s','var') && isa(s,'screenManager')
+				if isempty(eT.operatorScreen); eT.operatorScreen = s; eT.secondScreen=true; end
+				if ~s.isOpen; s.open; end
 				drawEye = 2;
-				refRate = 2; %refresh window every N frames
+				refRate = 3; %refresh window every N frames
 			else
 				drawEye = 1;
 			end
@@ -395,7 +393,7 @@ try
 					if drawEye==1 
 						drawEyePosition(eT,true);
 					elseif drawEye==2 && mod(tick,refRate)==0
-						drawText(s,tit);drawGrid(s);drawSpot(s,0.5,[1 1 0], eT.x, eT.y);
+						drawText(s,tit);drawGrid(s);trackerDrawFixation(eT);
 					end
 					finishDrawing(sM);
 					if tick == 1; trackerMessage(eT,'INITIATE_FIX',vbl); end
@@ -462,7 +460,7 @@ try
 			if drawEye==1 
 				drawEyePosition(eT,true);
 			elseif drawEye==2 && mod(tick,refRate)==0
-				drawGrid(s);drawSpot(s,0.5,[1 1 0], eT.x, eT.y);
+				drawGrid(s);trackerDrawFixation(eT);
 			end
 			if sM.visualDebug; sM.drawGrid(); end
 			finishDrawing(sM);
