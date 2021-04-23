@@ -49,7 +49,7 @@ end
 
 cla(ana.plotAxis1);
 cla(ana.plotAxis2);
-rewardtime = 50; % in ms
+rewardtime = 250; % in ms, pump normally needs a minimum of 250ms to trigger
 
 %==========================TRY==========================
 try
@@ -185,17 +185,17 @@ try
 		eT.secondScreen = false; %fix opengl window bug
 	elseif strcmpi(ana.stimulus,'Gaze Training')
 		stim				= imageStimulus();
-		stim.size			= 0;
+		stim.size			= 30;
 		stim.fileName		= ana.imageDir;
 		stim.setup(sM);
 		ana.isGaze			= true;
-		picSize.X = 40; % in degree 
-		
+		picSize.X = 28; % in degree gazepic=1200*900,around 28degree
 		if  stim.size >0
 			picSize.X = stim.size;
 		end
 		picSize.Y = picSize.X*3/4;
 		eT.secondScreen = false; %fix opengl window bug
+		
 	elseif strcmpi(ana.stimulus,'VEP')
 		stim									= metaStimulus();
 		switch ana.VEP.Type
@@ -437,7 +437,7 @@ try
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		if ana.isGaze; eT.fixation.X = 0; eT.fixation.Y = 0; eT.fixation.Xradius = picSize.X/2;eT.fixation.Yradius=picSize.Y/2; end 
 		if ana.rewardStart; rM.timedTTL(2,rewardtime); rewards=rewards+1; end
-		if ~ana.isVEP; play(sM.audio); end
+% 		if ~ana.isVEP; play(sM.audio); end
 		tStart = flip(sM); vbl = tStart;
 		while vbl < tStart + ana.playTimes
 			if ana.fixOnly
