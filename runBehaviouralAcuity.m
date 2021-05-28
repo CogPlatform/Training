@@ -12,18 +12,15 @@ if ~rM.isOpen; open(rM); end %open our reward manager
 KbName('UnifyKeyNames');
 
 %===================Initiate out metadata===================
-ana.date = datestr(datetime);
-ana.version = Screen('Version');
-ana.computer = Screen('Computer');
+ana.date		= datestr(datetime);
+ana.version		= Screen('Version');
+ana.computer	= Screen('Computer');
 ana.gpu			= opengl('data');
 thisVerbose		= false;
 
 %===================experiment parameters===================
-if ana.debug
-	ana.screenID = 0;
-else
-	ana.screenID = max(Screen('Screens'));%-1;
-end
+ana.screenID	= max(Screen('Screens'));%-1;
+
 
 %==========================================================================
 %==================================================Make a name for this run
@@ -41,6 +38,7 @@ end
 cla(ana.plotAxis1);
 cla(ana.plotAxis2);
 cla(ana.plotAxis3);
+cla(ana.plotAxis4);
 
 nBlocks = ana.nBlocks;
 nBlocksOverall = nBlocks * length(ana.contrastRange);
@@ -58,14 +56,13 @@ disc.name = ['DISC' ana.nameExp];
 disc.colour = [0.5 0.5 0.5];
 disc.size = ana.discSize;
 disc.sigma = ana.sigma;
-
+% ---- target stimulus
 disc2 = discStimulus();
 disc2.name = ['DISC' ana.nameExp];
 disc2.colour = [0.5 0.7 0.5];
 disc2.size = 1.5;
 disc2.sigma = ana.sigma;
-
-% ---- mask stimulus
+% ---- grat stimulus
 grat = gratingStimulus();
 grat.mask = true;
 grat.name = ['GRAT' ana.nameExp];
@@ -185,7 +182,7 @@ eT.updateFixationValues(ana.XFix,ana.YFix,ana.initTime,ana.fixTime,ana.radius,an
 if ana.useStaircase == false
 	task = stimulusSequence();
 	task.name = ana.nameExp;
-	task.nBlocks = nBlocksOverall;
+	task.nBlocks = nBlocks;
 	task.nVar(1).name = 'contrast';
 	task.nVar(1).stimulus = 2;
 	task.nVar(1).values = ana.contrastRange;
@@ -197,6 +194,16 @@ else
 	usePriors = ana.usePriors;
 	grain = 100;
 	setupStairCase();
+end
+
+%=========================================TASK TYPE
+switch lower(ana.myFunc)
+	case 'blank alone'
+		taskType = 1;
+	case 'grating alone'
+		taskType = 2;
+	otherwise
+		taskType = 3;
 end
 
 %=================set up eye position drawing================
@@ -227,14 +234,10 @@ try %our main experimental try catch loop
 	ana.trial		= struct();
 	thisRun			= 0;
 	rewards			= 0;
-	pfeedback		= 0;
-	nfeedback		= 0;
-	loop			= 1;
 	breakLoop		= false;
 	fixated			= 'no';
 	response		= NaN;
 	responseRedo	= 0; %number of trials the subject was unsure and redid (left arrow)
-	ana.choicePosition = -11;
 	
 	%============================================================
 	while ~breakLoop && task.thisRun <= task.nRuns
@@ -247,7 +250,11 @@ try %our main experimental try catch loop
 			contrastOut = task.outValues{task.thisRun,1};
 		end
 		
-		stimuli{2}.xPositionOut = ana.choicePosition;
+		transitionTime = randi([ana.minTime*1e3, ana.maxTime*1e3]) / 1e3;
+		ana.task(task.thisRun).contrast = contrastOut;
+		ana.task(task.thisRun).transitionTime = transitionTime;
+		
+		stimuli{2}.xPositionOut = ana.targetPosition;
 		stimuli{3}.contrastOut = contrastOut;
 		hide(stimuli);
 		update(stimuli);
@@ -255,7 +262,7 @@ try %our main experimental try catch loop
 		eT.updateFixationValues(ana.XFix,ana.YFix,ana.initTime,ana.fixTime,ana.radius,ana.strict);
 		resetFixation(eT);
 		
-		fprintf('\n\n===>>>START %i: CONTRAST = %.2f\n',task.thisRun,contrastOut);
+		fprintf('\n\n===>>>START %i: CONTRAST = %.2f TRANSITION TIME = %.2f\n',task.thisRun,contrastOut,transitionTime);
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		
 		% ----- Initiate trial with a fixation
@@ -289,54 +296,59 @@ try %our main experimental try catch loop
 			trackerMessage(eT,'END_FIX',vbl)
 		end
 			
-		%======================================START
-		stimuli{1}.show(); stimuli{2}.show(); stimuli{3}.hide();
-		tStim = GetSecs() + sM.screenVals.ifi;  vbl = tStim;
-		%======================================BLANK
-% 		while vbl < tStim + 2 && response ~= BREAKFIX
-% 			draw(stimuli); %draw stimulus
-% 			sM.drawCross(ana.spotSize,[],0,0,ana.spotLine,true,ana.spotAlpha);
-% 			if drawEye==1 
-% 				drawEyePosition(eT,true);
-% 			elseif drawEye==2 && mod(tick,refRate)==0
-% 				drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
-% 			end
-% 			finishDrawing(sM);
-% 			getSample(eT);
-% 			isfix = isFixated(eT);
-% 			if ~isfix
-% 				fixated = 'breakfix';
-% 				response = BREAKFIX;
-% 				fprintf('BREAK in BLANK!\n');
-% 				statusMessage(eT,'Subject Broke Fixation!');
-% 				trackerMessage(eT,'MSG:BreakFix')
-% 				break;
-% 			end
-% 			vbl = Screen('Flip',sM.win, vbl + screenVals.halfisi); %flip the buffer
-% 			if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
-% 			tick = tick + 1;
-% 		end
-		%======================================GRATING
-		stimuli{1}.hide(); stimuli{2}.show(); stimuli{3}.show(); 
-		tGrat = vbl + sM.screenVals.ifi;
-		eT.updateFixationValues(ana.choicePosition,ana.YFix,1,0.5,ana.radius,ana.strict);
-		resetFixation(eT); fixated = '';
-		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && response ~= BREAKFIX
-			draw(stimuli); %draw stimulus
-			sM.drawCross(ana.spotSize,[0.5 0.5 0.5],eT.fixation.X,eT.fixation.Y,ana.spotLine,true,0.1);
-			if drawEye==1 
-				drawEyePosition(eT,true);
-			elseif drawEye==2 && mod(tick,refRate)==0
-				drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
+		if taskType == 1 || taskType == 3
+			%======================================START
+			stimuli{1}.show(); stimuli{2}.show(); stimuli{3}.hide();
+			tStim = GetSecs() + sM.screenVals.ifi;  vbl = tStim;
+			%======================================BLANK
+			while vbl < tStim + 2 && response ~= BREAKFIX
+				draw(stimuli); %draw stimulus
+				sM.drawCross(ana.spotSize,[],0,0,ana.spotLine,true,ana.spotAlpha);
+				if drawEye==1 
+					drawEyePosition(eT,true);
+				elseif drawEye==2 && mod(tick,refRate)==0
+					drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
+				end
+				finishDrawing(sM);
+				getSample(eT);
+				isfix = isFixated(eT);
+				if ~isfix
+					fixated = 'breakfix';
+					response = BREAKFIX;
+					fprintf('BREAK in BLANK!\n');
+					statusMessage(eT,'Subject Broke Fixation!');
+					trackerMessage(eT,'MSG:BreakFix')
+					break;
+				end
+				vbl = Screen('Flip',sM.win, vbl + screenVals.halfisi); %flip the buffer
+				if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
+				tick = tick + 1;
 			end
-			finishDrawing(sM);
-			getSample(eT);
-			fixated=testSearchHoldFixation(eT,'fix','breakfix');
-			doBreak = checkKeys();
-			if doBreak || strcmpi(fixated,'breakfix'); break; end
-			vbl = Screen('Flip',sM.win, vbl + screenVals.halfisi); %flip the buffer
-			if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
-			tick = tick + 1;
+		end
+		
+		if taskType == 2 || taskType == 3
+			%======================================GRATING
+			stimuli{1}.hide(); stimuli{2}.show(); stimuli{3}.show(); 
+			tGrat = vbl + sM.screenVals.ifi;
+			eT.updateFixationValues(ana.targetPosition,ana.YFix,1,0.5,ana.radius,ana.strict);
+			resetFixation(eT); fixated = '';
+			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && response ~= BREAKFIX
+				draw(stimuli); %draw stimulus
+				sM.drawCross(ana.spotSize,[0.5 0.5 0.5],eT.fixation.X,eT.fixation.Y,ana.spotLine,true,0.1);
+				if drawEye==1 
+					drawEyePosition(eT,true);
+				elseif drawEye==2 && mod(tick,refRate)==0
+					drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
+				end
+				finishDrawing(sM);
+				getSample(eT);
+				fixated=testSearchHoldFixation(eT,'fix','breakfix');
+				doBreak = checkKeys();
+				if doBreak || strcmpi(fixated,'breakfix'); break; end
+				vbl = Screen('Flip',sM.win, vbl + screenVals.halfisi); %flip the buffer
+				if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
+				tick = tick + 1;
+			end
 		end
 		
 		if strcmpi(fixated,'fix')
