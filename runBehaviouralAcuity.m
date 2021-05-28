@@ -59,7 +59,7 @@ disc.sigma = ana.sigma;
 % ---- target stimulus
 disc2 = discStimulus();
 disc2.name = ['DISC' ana.nameExp];
-disc2.colour = [0.5 0.7 0.5];
+disc2.colour = [0.5 0.5 0.5];
 disc2.size = 1.5;
 disc2.sigma = ana.sigma;
 % ---- grat stimulus
@@ -285,6 +285,10 @@ try %our main experimental try catch loop
 			tick = tick + 1;
 		end
 		if ~strcmpi(fixated,'fix')
+			if drawEye==2 && mod(tick,refRate)==0
+				drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
+				flip(s,[],[],2);
+			end
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', thisRun);
 			trackerMessage(eT,'TRIAL_RESULT -100');
 			trackerMessage(eT,'MSG:BreakInitialFix');
@@ -297,11 +301,13 @@ try %our main experimental try catch loop
 		end
 			
 		if taskType == 1 || taskType == 3
+			tick = 1;
 			%======================================START
-			stimuli{1}.show(); stimuli{2}.show(); stimuli{3}.hide();
+			stimuli{1}.show(); stimuli{2}.hide(); stimuli{3}.hide();
 			tStim = GetSecs() + sM.screenVals.ifi;  vbl = tStim;
 			%======================================BLANK
-			while vbl < tStim + 2 && response ~= BREAKFIX
+			while vbl < tStim + transitionTime && response ~= BREAKFIX
+				if tick == 30; stimuli{2}.show(); end
 				draw(stimuli); %draw stimulus
 				sM.drawCross(ana.spotSize,[],0,0,ana.spotLine,true,ana.spotAlpha);
 				if drawEye==1 
@@ -313,6 +319,10 @@ try %our main experimental try catch loop
 				getSample(eT);
 				isfix = isFixated(eT);
 				if ~isfix
+					if drawEye==2 && mod(tick,refRate)==0
+						drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
+						flip(s,[],[],2);
+					end
 					fixated = 'breakfix';
 					response = BREAKFIX;
 					fprintf('BREAK in BLANK!\n');
@@ -334,7 +344,8 @@ try %our main experimental try catch loop
 			resetFixation(eT); fixated = '';
 			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && response ~= BREAKFIX
 				draw(stimuli); %draw stimulus
-				sM.drawCross(ana.spotSize,[0.5 0.5 0.5],eT.fixation.X,eT.fixation.Y,ana.spotLine,true,0.1);
+				sM.drawCross(ana.spotSize,[],...
+					eT.fixation.X,eT.fixation.Y,ana.spotLine,true,0.2);
 				if drawEye==1 
 					drawEyePosition(eT,true);
 				elseif drawEye==2 && mod(tick,refRate)==0
@@ -350,17 +361,19 @@ try %our main experimental try catch loop
 				tick = tick + 1;
 			end
 		end
-		
+		timeOut = 2;
 		if strcmpi(fixated,'fix')
 			sM.audio.beep(1000,0.1,0.1);
 			response = YESSEE;
 			ana.trial(task.thisRun).response = response;
 			rM.timedTTL();
 			task.updateTask(response);
+			timOut = 1;
 		else
-			sM.audio.beep(100,0.4,0.4);
+			sM.audio.beep(100,0.5,0.5);
 			response = NOSEE;
 			ana.trial(task.thisRun).response = response;
+			timeOut = 2;
 		end
 		
 		tEnd = GetSecs;
@@ -370,7 +383,7 @@ try %our main experimental try catch loop
 		drawBackground(sM);
 		vbl = Screen('Flip',sM.win); %flip the buffer
 		t = vbl;
-		while vbl < t + 1
+		while vbl < t + timeOut
 			doBreak = checkKeys();
 			if doBreak || strcmpi(fixated,'breakfix'); break; end
 			vbl = flip(sM);
