@@ -283,7 +283,7 @@ try %our main experimental try catch loop
 		fprintf('\n\n===>>>START %i: CONTRAST = %.2f TRANSITION TIME = %.2f\n',task.thisRun,contrastOut,transitionTime);
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		
-		% ----- Initiate trial with a fixation
+		% ======================================================INITIATE TRIAL
 		vbl = flip(sM); tStart = vbl;
 		tick = 1; 
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
