@@ -21,7 +21,6 @@ thisVerbose		= false;
 %===================experiment parameters===================
 ana.screenID	= max(Screen('Screens'));%-1;
 
-
 %==========================================================================
 %==================================================Make a name for this run
 cd(ana.ResultDir)
@@ -50,30 +49,40 @@ NOSEE = 1; 	YESSEE = 2; UNSURE = 4; BREAKFIX = -1;
 
 %==========================================================================
 %======================================================stimulus objects
-% ---- main disc (stimulus and pedestal).
-disc = discStimulus();
-disc.name = ['DISC' ana.nameExp];
-disc.colour = [0.5 0.5 0.5];
-disc.size = ana.discSize;
-disc.sigma = ana.sigma;
+% ---- blank disc.
+blank = discStimulus();
+blank.name = ['DISC' ana.nameExp];
+blank.colour = [0.5 0.5 0.5];
+blank.size = ana.discSize;
+blank.sigma = ana.sigma;
 % ---- target stimulus
-disc2 = discStimulus();
-disc2.name = ['DISC' ana.nameExp];
-disc2.colour = [0.5 0.5 0.5];
-disc2.size = 1.5;
-disc2.sigma = ana.sigma;
+target = discStimulus();
+target.name = ['DISC' ana.nameExp];
+target.colour = [0.5 0.5 0.5];
+target.size = 1.5;
+target.sigma = 5;
 % ---- grat stimulus
 grat = gratingStimulus();
 grat.mask = true;
+grat.useAlpha = true;
 grat.name = ['GRAT' ana.nameExp];
-grat.size = disc.size;
+grat.size = blank.size;
 grat.sigma = ana.sigma;
+% ---- fixation cross
+fixX = fixationCrossStimulus();
+fixX.colour = [1 1 1];
+fixX.colour2 = [0 0 0];
+fixX.size = ana.spotSize;
+fixX.alpha = ana.spotAlpha;
+fixX.alpha2 = ana.spotAlpha;
+fixX.lineWidth = ana.spotLine;
 %----------combine them into a single meta stimulus
 stimuli = metaStimulus();
 stimuli.name = ana.nameExp;
-stimuli{1} = disc;
-stimuli{2} = disc2;
+stimuli{1} = blank;
+stimuli{2} = target;
 stimuli{3} = grat;
+stimuli{4} = fixX;
 
 %==========================================================================
 %======================================================open the PTB screens
@@ -197,13 +206,17 @@ else
 end
 
 %=========================================TASK TYPE
-switch lower(ana.myFunc)
-	case 'blank alone'
+switch ana.myFunc
+	case 'Blank Stage 1'
 		taskType = 1;
-	case 'grating alone'
+	case 'Blank Stage 2'
 		taskType = 2;
-	otherwise
+	case 'Grating Alone'
 		taskType = 3;
+	case 'Blank + Grating'
+		taskType = 4;
+	otherwise
+		taskType = 5;
 end
 
 %=================set up eye position drawing================
@@ -238,6 +251,8 @@ try %our main experimental try catch loop
 	fixated			= 'no';
 	response		= NaN;
 	responseRedo	= 0; %number of trials the subject was unsure and redid (left arrow)
+	startAlpha		= stimuli{4}.alphaOut;
+	startAlpha2		= stimuli{4}.alpha2Out;
 	
 	%============================================================
 	while ~breakLoop && task.thisRun <= task.nRuns
@@ -256,7 +271,10 @@ try %our main experimental try catch loop
 		
 		stimuli{2}.xPositionOut = ana.targetPosition;
 		stimuli{3}.contrastOut = contrastOut;
+		stimuli{4}.alpha		= startAlpha;
+		simuli{4}.alpha2		= startAlpha2;
 		hide(stimuli);
+		show(stimuli{4}); % fixation is visible
 		update(stimuli);
 		
 		eT.updateFixationValues(ana.XFix,ana.YFix,ana.initTime,ana.fixTime,ana.radius,ana.strict);
@@ -266,9 +284,10 @@ try %our main experimental try catch loop
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		
 		% ----- Initiate trial with a fixation
+		vbl = flip(sM); tStart = vbl;
 		tick = 1; 
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
-			sM.drawCross(ana.spotSize,[],0,0,ana.spotLine,true,ana.spotAlpha);
+			draw(stimuli);
 			if drawEye==1 
 				drawEyePosition(eT,true);
 			elseif drawEye==2 && mod(tick,refRate)==0
@@ -285,41 +304,54 @@ try %our main experimental try catch loop
 			tick = tick + 1;
 		end
 		if ~strcmpi(fixated,'fix')
-			if drawEye==2 && mod(tick,refRate)==0
-				drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
+			if drawEye==2
+				drawGrid(s);
+				trackerDrawFixation(eT);
+				trackerDrawEyePosition(eT);
+				trackerDrawText(eT,'Break Initial Fixation...')
 				flip(s,[],[],2);
 			end
 			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', thisRun);
 			trackerMessage(eT,'TRIAL_RESULT -100');
 			trackerMessage(eT,'MSG:BreakInitialFix');
 			Screen('Flip',sM.win); %flip the buffer
-			WaitSecs('YieldSecs',0.5);
 			response = BREAKFIX;
+			WaitSecs('YieldSecs',0.5);
 			continue
 		else
 			trackerMessage(eT,'END_FIX',vbl)
 		end
 			
-		if taskType == 1 || taskType == 3
+		% ======================================================TASKTYPE>0 (Blank)
+		if taskType > 0
 			tick = 1;
-			%======================================START
-			stimuli{1}.show(); stimuli{2}.hide(); stimuli{3}.hide();
-			tStim = GetSecs() + sM.screenVals.ifi;  vbl = tStim;
-			%======================================BLANK
-			while vbl < tStim + transitionTime && response ~= BREAKFIX
-				if tick == 30; stimuli{2}.show(); end
+			triggerTarget = true;
+			triggerFixOFF = true;
+			show(stimuli{1});
+			tBlank = vbl + sM.screenVals.ifi; 
+			while vbl < (tBlank + transitionTime) && response ~= BREAKFIX
+				thisT = vbl - tBlank;
 				draw(stimuli); %draw stimulus
-				sM.drawCross(ana.spotSize,[],0,0,ana.spotLine,true,ana.spotAlpha);
 				if drawEye==1 
 					drawEyePosition(eT,true);
 				elseif drawEye==2 && mod(tick,refRate)==0
 					drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
 				end
 				finishDrawing(sM);
+				if triggerTarget && thisT > ana.targetON
+					triggerTarget = false; show(stimuli{2}); 
+				end
+				if taskType > 1 && triggerFixOFF && thisT > ana.fixOFF
+					if stimuli{4}.alphaOut > 0;stimuli{4}.alphaOut = stimuli{4}.alphaOut - 0.05;end
+					if stimuli{4}.alpha2Out > 0;stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - 0.05;end
+					if stimuli{4}.alphaOut == 0 && stimuli{4}.alpha2Out == 0
+						triggerFixOFF = false;
+					end
+				end
 				getSample(eT);
 				isfix = isFixated(eT);
 				if ~isfix
-					if drawEye==2 && mod(tick,refRate)==0
+					if drawEye==2
 						drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
 						flip(s,[],[],2);
 					end
@@ -336,22 +368,36 @@ try %our main experimental try catch loop
 			end
 		end
 		
-		if taskType == 2 || taskType == 3
-			%======================================GRATING
-			stimuli{1}.hide(); stimuli{2}.show(); stimuli{3}.show(); 
-			tGrat = vbl + sM.screenVals.ifi;
-			eT.updateFixationValues(ana.targetPosition,ana.YFix,1,0.5,ana.radius,ana.strict);
+		%====================================================TASKTYPE > 2 GRATING
+		if taskType > 2
+			triggerFixOFF = true;
+			stimuli{1}.hide(); stimuli{3}.show();
+			stimuli{4}.xPositionOut = ana.targetPosition;
+			stimuli{4}.alpha		= startAlpha;
+			simuli{4}.alpha2		= startAlpha2;
+			eT.updateFixationValues(ana.targetPosition,ana.YFix,ana.initTarget,ana.fixTarget,ana.radius,ana.strict);
 			resetFixation(eT); fixated = '';
+			tGrat = vbl + sM.screenVals.ifi;
 			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && response ~= BREAKFIX
+				
+				thisT = vbl - tGrat;
+				
 				draw(stimuli); %draw stimulus
-				sM.drawCross(ana.spotSize,[],...
-					eT.fixation.X,eT.fixation.Y,ana.spotLine,true,0.2);
 				if drawEye==1 
 					drawEyePosition(eT,true);
 				elseif drawEye==2 && mod(tick,refRate)==0
 					drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
 				end
 				finishDrawing(sM);
+				
+				if triggerFixOFF && thisT > ana.fixOFF
+					if stimuli{4}.alphaOut > 0;stimuli{4}.alphaOut = stimuli{4}.alphaOut - 0.05;end
+					if stimuli{4}.alpha2Out > 0;stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - 0.05;end
+					if stimuli{4}.alphaOut == 0 && stimuli{4}.alpha2Out == 0
+						triggerFixOFF = false;
+					end
+				end
+				
 				getSample(eT);
 				fixated=testSearchHoldFixation(eT,'fix','breakfix');
 				doBreak = checkKeys();
@@ -361,16 +407,21 @@ try %our main experimental try catch loop
 				tick = tick + 1;
 			end
 		end
-		timeOut = 2;
+		if drawEye==2 
+			drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
+			trackerDrawText(eT,'Final Eye Position...');
+			flip(s,[],[],2);
+		end
+		timeOut = 3;
 		if strcmpi(fixated,'fix')
 			sM.audio.beep(1000,0.1,0.1);
 			response = YESSEE;
 			ana.trial(task.thisRun).response = response;
 			rM.timedTTL();
 			task.updateTask(response);
-			timOut = 1;
+			timeOut = 1;
 		else
-			sM.audio.beep(100,0.5,0.5);
+			sM.audio.beep(100,0.5,0.75);
 			response = NOSEE;
 			ana.trial(task.thisRun).response = response;
 			timeOut = 2;
