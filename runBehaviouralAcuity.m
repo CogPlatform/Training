@@ -89,6 +89,7 @@ stimuli{4} = fixX;
 PsychDefaultSetup(2);
 Screen('Preference', 'VisualDebugLevel', 3);
 Screen('Preference', 'SkipSyncTests', 0);
+Screen('Preference', 'DefaultFontSize',30);
 sM						= screenManager();
 sM.screen				= ana.screenID;
 sM.windowed				= ana.windowed;
@@ -241,6 +242,8 @@ try %our main experimental try catch loop
 %=====================================================================
 	%===========================prepare===========================
 	Priority(MaxPriority(sM.win)); %bump our priority to maximum allowed
+	if ~ana.debug; ListenChar(-1); end
+	commandwindow;
 	startRecording(eT); WaitSecs('YieldSecs',0.5);
 	trackerMessage(eT,'!!! Starting Session...');
 	breakLoop		= false;
@@ -253,6 +256,7 @@ try %our main experimental try catch loop
 	responseRedo	= 0; %number of trials the subject was unsure and redid (left arrow)
 	startAlpha		= stimuli{4}.alphaOut;
 	startAlpha2		= stimuli{4}.alpha2Out;
+	fadeAmount		= 0.01;
 	
 	%============================================================
 	while ~breakLoop && task.thisRun <= task.nRuns
@@ -292,7 +296,9 @@ try %our main experimental try catch loop
 			if drawEye==1 
 				drawEyePosition(eT,true);
 			elseif drawEye==2 && mod(tick,refRate)==0
-				drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
+				drawGrid(s);
+				trackerDrawFixation(eT);
+				trackerDrawEyePosition(eT);
 			end
 			finishDrawing(sM);
 			getSample(eT);
@@ -307,7 +313,6 @@ try %our main experimental try catch loop
 		if ~strcmpi(fixated,'fix')
 			if drawEye==2
 				drawGrid(s);
-				trackerDrawFixation(eT);
 				trackerDrawEyePosition(eT);
 				trackerDrawText(eT,'Break Initial Fixation...')
 				flip(s,[],[],2);
@@ -317,7 +322,7 @@ try %our main experimental try catch loop
 			trackerMessage(eT,'MSG:BreakInitialFix');
 			Screen('Flip',sM.win); %flip the buffer
 			response = BREAKFIX;
-			WaitSecs('YieldSecs',0.5);
+			WaitSecs('YieldSecs',0.75);
 			continue
 		else
 			trackerMessage(eT,'END_FIX',vbl)
@@ -331,6 +336,7 @@ try %our main experimental try catch loop
 			show(stimuli{1});
 			tBlank = vbl + sM.screenVals.ifi; 
 			while vbl < (tBlank + transitionTime) && response ~= BREAKFIX
+				
 				thisT = vbl - tBlank;
 				draw(stimuli); %draw stimulus
 				if drawEye==1 
@@ -339,23 +345,22 @@ try %our main experimental try catch loop
 					drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
 				end
 				finishDrawing(sM);
+				
 				if triggerTarget && thisT > ana.targetON
 					triggerTarget = false; show(stimuli{2}); 
 				end
 				if taskType > 1 && triggerFixOFF && thisT > ana.fixOFF
-					if stimuli{4}.alphaOut > 0;stimuli{4}.alphaOut = stimuli{4}.alphaOut - 0.05;end
-					if stimuli{4}.alpha2Out > 0;stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - 0.05;end
-					if stimuli{4}.alphaOut == 0 && stimuli{4}.alpha2Out == 0
+					if stimuli{4}.alphaOut >= fadeAmount;stimuli{4}.alphaOut = stimuli{4}.alphaOut - fadeAmount;end
+					if stimuli{4}.alpha2Out >= fadeAmount;stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - fadeAmount;end
+					if stimuli{4}.alphaOut <= 0 && stimuli{4}.alpha2Out <= 0
+						stimuli{4}.alphaOut = 0; stimuli{4}.alpha2Out = 0;
 						triggerFixOFF = false;
 					end
 				end
+				
 				getSample(eT);
 				isfix = isFixated(eT);
 				if ~isfix
-					if drawEye==2
-						drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
-						flip(s,[],[],2);
-					end
 					fixated = 'breakfix';
 					response = BREAKFIX;
 					fprintf('BREAK in BLANK!\n');
@@ -370,12 +375,12 @@ try %our main experimental try catch loop
 		end
 		
 		%====================================================TASKTYPE > 2 GRATING
-		if taskType > 2
+		if taskType > 2 && strcmpi(fixated,'fix')
 			triggerFixOFF = true;
 			stimuli{1}.hide(); stimuli{3}.show();
 			stimuli{4}.xPositionOut = ana.targetPosition;
 			stimuli{4}.alphaOut		= startAlpha;
-			simuli{4}.alpha2Out		= startAlpha2;
+			stimuli{4}.alpha2Out	= startAlpha2;
 			update(stimuli);
 			eT.updateFixationValues(ana.targetPosition,ana.YFix,ana.initTarget,ana.fixTarget,ana.radius,ana.strict);
 			resetFixation(eT); fixated = '';
@@ -385,17 +390,22 @@ try %our main experimental try catch loop
 				thisT = vbl - tGrat;
 				
 				draw(stimuli); %draw stimulus
+				
 				if drawEye==1 
 					drawEyePosition(eT,true);
 				elseif drawEye==2 && mod(tick,refRate)==0
-					drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
+					drawGrid(s);
+					trackerDrawFixation(eT);
+					trackerDrawEyePosition(eT);
 				end
+				
 				finishDrawing(sM);
 				
-				if triggerFixOFF && thisT > ana.fixOFF
-					if stimuli{4}.alphaOut > 0;stimuli{4}.alphaOut = stimuli{4}.alphaOut - 0.05;end
-					if stimuli{4}.alpha2Out > 0;stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - 0.05;end
-					if stimuli{4}.alphaOut == 0 && stimuli{4}.alpha2Out == 0
+				if triggerFixOFF && thisT > ana.fixOFF2
+					if stimuli{4}.alphaOut >= fadeAmount;stimuli{4}.alphaOut = stimuli{4}.alphaOut - fadeAmount;end
+					if stimuli{4}.alpha2Out >= fadeAmount;stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - fadeAmount;end
+					if stimuli{4}.alphaOut <= 0 && stimuli{4}.alpha2Out <= 0
+						stimuli{4}.alphaOut = 0; stimuli{4}.alpha2Out = 0;
 						triggerFixOFF = false;
 					end
 				end
@@ -404,17 +414,12 @@ try %our main experimental try catch loop
 				fixated=testSearchHoldFixation(eT,'fix','breakfix');
 				doBreak = checkKeys();
 				if doBreak || strcmpi(fixated,'breakfix'); break; end
+				
 				vbl = Screen('Flip',sM.win, vbl + screenVals.halfisi); %flip the buffer
 				if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
 				tick = tick + 1;
 			end
 		end
-		if drawEye==2 
-			drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
-			trackerDrawText(eT,'Final Eye Position...');
-			flip(s,[],[],2);
-		end
-		timeOut = 3;
 		if strcmpi(fixated,'fix')
 			sM.audio.beep(1000,0.1,0.1);
 			response = YESSEE;
@@ -422,11 +427,27 @@ try %our main experimental try catch loop
 			rM.timedTTL();
 			task.updateTask(response);
 			timeOut = 1;
+			if drawEye==2 
+				drawGrid(s);
+				trackerDrawFixation(eT);
+				trackerDrawEyePositions(eT);
+				trackerDrawEyePosition(eT);
+				trackerDrawText(eT,'Correct!!!...');
+				flip(s,[],[],2);
+			end
 		else
 			sM.audio.beep(100,0.5,0.75);
 			response = NOSEE;
 			ana.trial(task.thisRun).response = response;
 			timeOut = 2;
+			if drawEye==2 
+				drawGrid(s);
+				trackerDrawFixation(eT);
+				trackerDrawEyePositions(eT);
+				trackerDrawEyePosition(eT);
+				trackerDrawText(eT,'Incorrect!!!');
+				flip(s,[],[],2);
+			end
 		end
 		
 		tEnd = GetSecs;
@@ -495,24 +516,8 @@ end
 				case {'c'}
 					WaitSecs('YieldSecs',0.1);
 					fprintf('\n\n--->>> Entering calibration mode...\n');
-					if isempty(regexpi(ana.VEP.Type,'Sin|Square'))
-						trackerSetup(eT);
-					else
-						trackerSetup(eT,eT.calibration);
-					end
+					trackerSetup(eT,eT.calibration);
 					fixated = 'breakfix';
-					doBreak = true;
-				case {'1','1!','kp_end'}
-					if kTimer < vbl
-						kTimer = vbl + 0.2;
-						rM.timedTTL(2,rewardtime);
-						rewards = rewards + 1;
-					end
-				case {'2','2@','kp_down'}
-					correct();
-					doBreak = true;
-				case {'3','3#','kp_next'}
-					incorrect();
 					doBreak = true;
 			end
 		end
