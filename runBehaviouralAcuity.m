@@ -271,8 +271,9 @@ try %our main experimental try catch loop
 		
 		stimuli{2}.xPositionOut = ana.targetPosition;
 		stimuli{3}.contrastOut = contrastOut;
-		stimuli{4}.alpha		= startAlpha;
-		simuli{4}.alpha2		= startAlpha2;
+		stimuli{4}.alphaOut		= startAlpha;
+		stimuli{4}.alpha2Out	= startAlpha2;
+		stimuli{4}.xPositionOut = ana.XFix;
 		hide(stimuli);
 		show(stimuli{4}); % fixation is visible
 		update(stimuli);
@@ -373,8 +374,9 @@ try %our main experimental try catch loop
 			triggerFixOFF = true;
 			stimuli{1}.hide(); stimuli{3}.show();
 			stimuli{4}.xPositionOut = ana.targetPosition;
-			stimuli{4}.alpha		= startAlpha;
-			simuli{4}.alpha2		= startAlpha2;
+			stimuli{4}.alphaOut		= startAlpha;
+			simuli{4}.alpha2Out		= startAlpha2;
+			update(stimuli);
 			eT.updateFixationValues(ana.targetPosition,ana.YFix,ana.initTarget,ana.fixTarget,ana.radius,ana.strict);
 			resetFixation(eT); fixated = '';
 			tGrat = vbl + sM.screenVals.ifi;
