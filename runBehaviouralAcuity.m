@@ -43,9 +43,10 @@ nBlocks = ana.nBlocks;
 nBlocksOverall = nBlocks * length(ana.contrastRange);
 
 %==========================================================================
-%=================================response values, linked to left, up, down
-NOSEE = 1; 	YESSEE = 2; UNSURE = 4; BREAKFIX = -1;
-%saveMetaData();
+%===========================================================response values
+NOSEE = 1; 	YESSEE = 2; UNSURE = 4; BREAKINIT = -100; BREAKBLANK = -10; BREAKFIX = -1;
+UNDEFINED = 0;
+saveMetaData();
 
 %==========================================================================
 %======================================================stimulus objects
@@ -184,8 +185,8 @@ if ~isempty(cal) && isfield(cal,'attempt')
 end
 
 % ---- initial fixation values.
-eT.resetFixation();
 eT.updateFixationValues(ana.XFix,ana.YFix,ana.initTime,ana.fixTime,ana.radius,ana.strict);
+resetFixation(eT);
 
 %---------------------------Set up task variables----------------------
 
@@ -194,7 +195,7 @@ if ana.useStaircase == false
 	task.name = ana.nameExp;
 	task.nBlocks = nBlocks;
 	task.nVar(1).name = 'contrast';
-	task.nVar(1).stimulus = 2;
+	task.nVar(1).stimulus = 3;
 	task.nVar(1).values = ana.contrastRange;
 	randomiseStimuli(task);
 	initialiseTask(task);
@@ -251,8 +252,6 @@ try %our main experimental try catch loop
 	thisRun			= 0;
 	rewards			= 0;
 	breakLoop		= false;
-	fixated			= 'no';
-	response		= NaN;
 	responseRedo	= 0; %number of trials the subject was unsure and redid (left arrow)
 	startAlpha		= stimuli{4}.alphaOut;
 	startAlpha2		= stimuli{4}.alpha2Out;
@@ -260,6 +259,7 @@ try %our main experimental try catch loop
 	
 	%============================================================
 	while ~breakLoop && task.thisRun <= task.nRuns
+		thisRun = thisRun + 1;
 		%-----setup our values and print some info for the trial
 		startRecording(eT);
 		if ana.useStaircase 
@@ -283,15 +283,21 @@ try %our main experimental try catch loop
 		show(stimuli{4}); % fixation is visible
 		update(stimuli);
 		
-		eT.updateFixationValues(ana.XFix,ana.YFix,ana.initTime,ana.fixTime,ana.radius,ana.strict);
-		resetFixation(eT);response = NaN; fixated = '';
+		tStart = 0; tBlank = 0; tGrat = 0; tEnd = 0;
 		
-		fprintf('\n\n===>>>START %i: CONTRAST = %.2f TRANSITION TIME = %.2f\n',task.thisRun,contrastOut,transitionTime);
-		trackerMessage(eT,['TRIALID ' num2str(task.thisRun)]);
+		eT.fixInit.X = [];
+		eT.fixInit.Y = [];
+		eT.updateFixationValues(ana.XFix,ana.YFix,ana.initTime,ana.fixTime,ana.radius,ana.strict);
+		resetFixationHistory(eT);
+		
+		fprintf('\n\n===>>>START %i / %i: CONTRAST = %.2f TRANSITION TIME = %.2f\n',thisRun,task.thisRun,contrastOut,transitionTime);
+		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		
 		% ======================================================INITIATE TRIAL
-		vbl = flip(sM); tStart = vbl;
+		response = UNDEFINED; 
+		fixated = '';
 		tick = 1; 
+		vbl = flip(sM); tStart = vbl;
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			draw(stimuli);
 			if drawEye==1 
@@ -312,31 +318,21 @@ try %our main experimental try catch loop
 			tick = tick + 1;
 		end
 		if ~strcmpi(fixated,'fix')
-			if drawEye==2
-				drawGrid(s);
-				trackerDrawEyePosition(eT);
-				trackerDrawText(eT,'Break Initial Fixation...')
-				flip(s,[],[],2);
-			end
-			fprintf('===>>> BROKE INITIATE FIXATION Trial = %i\n', thisRun);
-			trackerMessage(eT,'TRIAL_RESULT -100');
-			trackerMessage(eT,'MSG:BreakInitialFix');
 			Screen('Flip',sM.win); %flip the buffer
-			response = BREAKFIX;
-			WaitSecs('YieldSecs',0.75);
-			continue
+			response = BREAKINIT;
 		else
 			trackerMessage(eT,'END_FIX',vbl)
 		end
+		fprintf('--->>> Time delta Init = %.3f\n',vbl - tStart);
 			
 		% ======================================================TASKTYPE>0 (Blank)
-		if taskType > 0
+		if taskType > 0 && response > -1
 			tick = 1;
 			triggerTarget = true;
 			triggerFixOFF = true;
 			show(stimuli{1});
 			tBlank = vbl + sM.screenVals.ifi; 
-			while vbl < (tBlank + transitionTime) && response ~= BREAKFIX
+			while vbl < (tBlank + transitionTime) && response ~= BREAKBLANK
 				
 				thisT = vbl - tBlank;
 				
@@ -345,6 +341,7 @@ try %our main experimental try catch loop
 					drawEyePosition(eT,true);
 				elseif drawEye==2 && mod(tick,refRate)==0
 					drawGrid(s);trackerDrawFixation(eT);trackerDrawEyePosition(eT);
+					trackerDrawText(eT,'Blank Period...');
 				end
 				finishDrawing(sM);
 				
@@ -365,7 +362,7 @@ try %our main experimental try catch loop
 				isfix = isFixated(eT);
 				if ~isfix
 					fixated = 'breakfix';
-					response = BREAKFIX;
+					response = BREAKBLANK;
 					statusMessage(eT,'Subject Broke Fixation!');
 					trackerMessage(eT,'MSG:BreakFix')
 					break;
@@ -375,11 +372,12 @@ try %our main experimental try catch loop
 				tick = tick + 1;
 			end
 		end
+		if tBlank > 0;fprintf('--->>> Time delta blank = %.3f\n',vbl - tBlank);end
 		
 		%====================================================TASKTYPE > 2 GRATING/BLANK
-		if taskType > 2 && strcmpi(fixated,'fix')
+		if taskType > 2 && response > -1
 			if taskType == 3
-				ana.gProbability = 1;
+				ana.gProbability = 100;
 			end
 			if rand <= (ana.gProbability/100)
 				showGrating = true;
@@ -393,20 +391,22 @@ try %our main experimental try catch loop
 				stimuli{4}.xPositionOut = ana.targetPosition;
 				stimuli{4}.alphaOut		= startAlpha;
 				stimuli{4}.alpha2Out	= startAlpha2;
+				eT.fixInit.X = ana.XFix;
+				eT.fixInit.Y = ana.YFix;
 				eT.updateFixationValues(ana.targetPosition,ana.YFix,ana.initTarget,ana.fixTarget,ana.radius,ana.strict);
-				resetFixation(eT,false); fixated = 'searching';
+				fixated = 'searching';
 				fixOFF = ana.fixOFF2;
 				triggerFixOFF = true;
+				update(stimuli);
 			else
 				fixOFF = ana.fixOFF;
 				eT.fixation.time = ana.keepBlank;
 				resetFixationTime(eT); fixated = 'fixing';
 			end
-			update(stimuli);
 			
 			tGrat = GetSecs;
 			fprintf('--->>> Time delta to switch = %.3f\n',tGrat - vbl);
-			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && response ~= BREAKFIX
+			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 				
 				if showGrating
 					thisT = vbl - tGrat;
@@ -415,7 +415,6 @@ try %our main experimental try catch loop
 				end
 				
 				draw(stimuli); %draw stimulus
-				drawText(sM,'STIM PERIOD!')
 				
 				if drawEye==1 
 					drawEyePosition(eT,true);
@@ -423,7 +422,7 @@ try %our main experimental try catch loop
 					drawGrid(s);
 					trackerDrawFixation(eT);
 					trackerDrawEyePosition(eT);
-					trackerDrawText(eT,'Stimulus Period!');
+					trackerDrawText(eT,'Target Period...');
 				end
 				
 				finishDrawing(sM);
@@ -442,32 +441,32 @@ try %our main experimental try catch loop
 					fixated=testSearchHoldFixation(eT,'fix','breakfix');
 				else
 					fixated = testHoldFixation(eT,'fix','breakfix');
-					if strcmpi(fixated,'breakfix')
-						response = BREAKFIX; break;
-					end
 				end
+		
 				doBreak = checkKeys();
 				if doBreak; break; end
 				
 				vbl = Screen('Flip',sM.win, vbl + screenVals.halfisi); %flip the buffer
 				if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
 				tick = tick + 1;
+				
+				if strcmpi(fixated,'fix')
+					response = YESSEE;
+				elseif strcmpi(fixated,'breakfix')
+					response = BREAKFIX;
+				end
 			end
 		end
 		tEnd = flip(sM);
+		if tGrat > 0;fprintf('--->>> Time delta grat = %.3f\n',tEnd - tGrat);end
 		
 		%====================================================== FINALISE TRIAL
-		ana.task(task.thisRun).tStart = tStart;
-		ana.task(task.thisRun).tEnd = tEnd;
-		ana.task(task.thisRun).tBlank = tBlank;
-		
-		if strcmpi(fixated,'fix')
+		if response > 0
 			sM.audio.beep(1000,0.1,0.1);
-			response = YESSEE;
-			ana.trial(task.thisRun).response = response;
 			rM.timedTTL();
+			ana.task(thisRun).response = response;
 			task.updateTask(response);
-			timeOut = 1;
+			timeOut = ana.IFI;
 			if drawEye==2 
 				drawGrid(s);
 				trackerDrawFixation(eT);
@@ -476,56 +475,83 @@ try %our main experimental try catch loop
 				trackerDrawText(eT,'Correct!!!...');
 				flip(s,[],[],2);
 			end
-		else
-			sM.audio.beep(100,0.5,0.75);
-			response = NOSEE;
-			ana.trial(task.thisRun).response = response;
-			timeOut = 2;
+		elseif response == 0 && taskType < 3
+			sM.audio.beep(1000,0.1,0.1);
+			rM.timedTTL();
+			ana.task(thisRun).response = response;
+			%task.updateTask(response);
+			timeOut = ana.IFI;
 			if drawEye==2 
 				drawGrid(s);
 				trackerDrawFixation(eT);
 				trackerDrawEyePositions(eT);
 				trackerDrawEyePosition(eT);
-				trackerDrawText(eT,'Incorrect!!!');
+				trackerDrawText(eT,'Correct blank!!!...');
+				flip(s,[],[],2);
+			end
+		else
+			sM.audio.beep(100,0.75,0.75);
+			ana.task(thisRun).response = response;
+			timeOut = ana.punishIFI;
+			if drawEye==2 
+				drawGrid(s);
+				trackerDrawFixation(eT);
+				trackerDrawEyePositions(eT);
+				trackerDrawEyePosition(eT);
+				if response == BREAKINIT
+					trackerDrawText(eT,'Break INIT!!!');
+					timeOut = 0.75;
+				elseif response == BREAKBLANK
+					trackerDrawText(eT,'Break BLANK!!!');
+				elseif response == BREAKFIX
+					trackerDrawText(eT,'Break TARGET!!!');
+				end
 				flip(s,[],[],2);
 			end
 		end
 		
+		ana.task(task.thisRun).tStart = tStart;
+		ana.task(task.thisRun).tBlank = tBlank;
+		ana.task(task.thisRun).tGrat = tGrat;
+		ana.task(task.thisRun).tEnd = tEnd;
+		
 		trackerMessage(eT,['TRIAL_RESULT ' num2str(response)]);
 		stopRecording(eT);
 		drawBackground(sM);
-		vbl = Screen('Flip',sM.win); %flip the buffer
+		vbl = flip(sM); %flip the buffer
 		t = vbl;
 		while vbl < t + timeOut
 			doBreak = checkKeys();
-			if doBreak || strcmpi(fixated,'breakfix'); break; end
+			if doBreak; break; end
 			vbl = flip(sM);
 		end
-	end %======================================END MAIN WHILE
+	end %=====================================================END MAIN WHILE
 	
-	%================================================Cleanup
+	%=========================================================CLEANUP
 	flip(sM);
 	Priority(0); ListenChar(0); ShowCursor;
 	reset(stimuli); %reset our stimuli
-	close(eT);
-	if isa(sM,'screenManager'); close(sM); end %close screen
-	if isa(s,'screenManager'); close(s); end
+	try if isa(sM,'screenManager'); close(sM); end; end %#ok<*TRYNC>
+	try if isa(s,'screenManager'); close(s); end; end
+	try if isa(eT,'tobiiManager'); close(eT); end; end
+	try if isa(rM,'arduinoManager'); close(rM); end; end
 	p=uigetdir(pwd,'Select Directory to Save Data, CANCEL to not save.');
 	if ischar(p)
 		cd(p);
 		response = task.response;
 		responseInfo = task.responseInfo;
-		assignin('base','ana',ana);
 		save([ana.nameExp '.mat'], 'ana', 'response', 'responseInfo', 'task','sM','stimuli', 'eT');
 		disp(['=====SAVE, saved current data to: ' pwd]);
 	else
 		eT.saveFile = ''; %blank save file so it doesn't save
 	end	
+	assignin('base','ana',ana);
 catch ME
 	getReport(ME)
-	if isa(sM,'screenManager'); close(sM); end %close screen
-	if isa(s,'screenManager'); close(s); end
-	if isa(eT,'tobiiManager'); close(eT); end
+	try if isa(sM,'screenManager'); close(sM); end; end %#ok<*TRYNC>
+	try if isa(s,'screenManager'); close(s); end; end
+	try if isa(eT,'tobiiManager'); close(eT); end; end
+	try if isa(rM,'arduinoManager'); close(rM); end; end
 	Priority(0); ListenChar(0); ShowCursor;
 	disp(['!!!!!!!!=====CRASH, save current data to: ' pwd]);
 	save([ana.nameExp 'CRASH.mat'], 'task', 'ana', 'sM', 'stimuli', 'eT', 'ME')
@@ -545,21 +571,23 @@ end
 					flip(sM);
 					fprintf('===>>> EXIT!\n');
 					fixated = 'breakfix';
+					response = BREAKINIT;
 					breakLoop = true;
 					doBreak = true;
 				case {'p'}
 					fprintf('===>>> PAUSED!\n');
 					Screen('DrawText', sM.win, '===>>> PAUSED, press key to resume!!!',10,10);
 					flip(sM);
-					WaitSecs('Yieldsecs',0.1);
 					KbWait(-1);
 					fixated = 'breakfix';
+					response = BREAKINIT;
 					doBreak = true;
 				case {'c'}
 					WaitSecs('YieldSecs',0.1);
 					fprintf('\n\n--->>> Entering calibration mode...\n');
 					trackerSetup(eT,eT.calibration);
 					fixated = 'breakfix';
+					response = BREAKINIT;
 					doBreak = true;
 			end
 		end
@@ -743,17 +771,15 @@ end
 	end
 
 	function saveMetaData()
+		ana.values.nBlocks = nBlocks;
 		ana.values.nBlocksOverall = nBlocksOverall;
-		ana.values.pedestalBlackLinear = pedestalBlackLinear;
-		ana.values.pedestalWhiteLinear = pedestalWhiteLinear;
-		ana.values.pedestalBlack = pedestalBlack;
-		ana.values.pedestalWhite = pedestalWhite;
 		ana.values.NOSEE = NOSEE;
 	    ana.values.YESSEE = YESSEE;
 		ana.values.UNSURE = UNSURE;
 		ana.values.BREAKFIX = BREAKFIX;
-		ana.values.XPos = XPos;
-		ana.values.yPos = YPos;
+		ana.values.UNDEFINED = UNDEFINED;
+		ana.values.BREAKINIT = BREAKINIT;
+		ana.values.BREAKBLANK = BREAKBLANK;
 	end
 
 
