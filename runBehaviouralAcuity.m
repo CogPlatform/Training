@@ -256,22 +256,23 @@ try %our main experimental try catch loop
 	responseRedo	= 0; %number of trials the subject was unsure and redid (left arrow)
 	startAlpha		= stimuli{4}.alphaOut;
 	startAlpha2		= stimuli{4}.alpha2Out;
-	fadeAmount		= 0.01;
+	fadeAmount		= ana.fadeAmount/100;
 	
 	%============================================================
 	while ~breakLoop && task.thisRun <= task.nRuns
 		%-----setup our values and print some info for the trial
-		response = NaN; fixated = '';
-		startRecording(eT); WaitSecs('YieldSecs',0.5);
+		startRecording(eT);
 		if ana.useStaircase 
 			contrastOut = staircase.xCurrent;
 		else
 			contrastOut = task.outValues{task.thisRun,1};
 		end
 		
-		transitionTime = randi([ana.minTime*1e3, ana.maxTime*1e3]) / 1e3;
+		transitionTime = randi([ana.switchTime(1)*1e3, ana.switchTime(2)*1e3]) / 1e3;
+		targetTime = randi([ana.targetON(1)*1e3, ana.targetON(2)*1e3]) / 1e3;
 		ana.task(task.thisRun).contrast = contrastOut;
 		ana.task(task.thisRun).transitionTime = transitionTime;
+		ana.task(task.thisRun).targetTime = targetTime;
 		
 		stimuli{2}.xPositionOut = ana.targetPosition;
 		stimuli{3}.contrastOut = contrastOut;
@@ -283,7 +284,7 @@ try %our main experimental try catch loop
 		update(stimuli);
 		
 		eT.updateFixationValues(ana.XFix,ana.YFix,ana.initTime,ana.fixTime,ana.radius,ana.strict);
-		resetFixation(eT);
+		resetFixation(eT);response = NaN; fixated = '';
 		
 		fprintf('\n\n===>>>START %i: CONTRAST = %.2f TRANSITION TIME = %.2f\n',task.thisRun,contrastOut,transitionTime);
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
@@ -338,6 +339,7 @@ try %our main experimental try catch loop
 			while vbl < (tBlank + transitionTime) && response ~= BREAKFIX
 				
 				thisT = vbl - tBlank;
+				
 				draw(stimuli); %draw stimulus
 				if drawEye==1 
 					drawEyePosition(eT,true);
@@ -346,9 +348,10 @@ try %our main experimental try catch loop
 				end
 				finishDrawing(sM);
 				
-				if triggerTarget && thisT > ana.targetON
+				if triggerTarget && thisT > targetTime
 					triggerTarget = false; show(stimuli{2}); 
 				end
+				
 				if taskType > 1 && triggerFixOFF && thisT > ana.fixOFF
 					if stimuli{4}.alphaOut >= fadeAmount;stimuli{4}.alphaOut = stimuli{4}.alphaOut - fadeAmount;end
 					if stimuli{4}.alpha2Out >= fadeAmount;stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - fadeAmount;end
@@ -363,7 +366,6 @@ try %our main experimental try catch loop
 				if ~isfix
 					fixated = 'breakfix';
 					response = BREAKFIX;
-					fprintf('BREAK in BLANK!\n');
 					statusMessage(eT,'Subject Broke Fixation!');
 					trackerMessage(eT,'MSG:BreakFix')
 					break;
@@ -374,22 +376,45 @@ try %our main experimental try catch loop
 			end
 		end
 		
-		%====================================================TASKTYPE > 2 GRATING
+		%====================================================TASKTYPE > 2 GRATING/BLANK
 		if taskType > 2 && strcmpi(fixated,'fix')
-			triggerFixOFF = true;
-			stimuli{1}.hide(); stimuli{3}.show();
-			stimuli{4}.xPositionOut = ana.targetPosition;
-			stimuli{4}.alphaOut		= startAlpha;
-			stimuli{4}.alpha2Out	= startAlpha2;
+			if taskType == 3
+				ana.gProbability = 1;
+			end
+			if rand <= (ana.gProbability/100)
+				showGrating = true;
+				fprintf('===>>> GRATING trial!\n');
+			else
+				showGrating = false;
+				fprintf('===>>> BLANK trial!\n');
+			end
+			if showGrating
+				stimuli{1}.hide(); stimuli{3}.show();
+				stimuli{4}.xPositionOut = ana.targetPosition;
+				stimuli{4}.alphaOut		= startAlpha;
+				stimuli{4}.alpha2Out	= startAlpha2;
+				eT.updateFixationValues(ana.targetPosition,ana.YFix,ana.initTarget,ana.fixTarget,ana.radius,ana.strict);
+				resetFixation(eT,false); fixated = '';
+				fixOFF = ana.fixOFF2;
+				triggerFixOFF = true;
+			else
+				fixOFF = ana.fixOFF;
+				resetFixationTime(eT);
+			end
 			update(stimuli);
-			eT.updateFixationValues(ana.targetPosition,ana.YFix,ana.initTarget,ana.fixTarget,ana.radius,ana.strict);
-			resetFixation(eT); fixated = '';
-			tGrat = vbl + sM.screenVals.ifi;
+			
+			tGrat = GetSecs;
+			fprintf('--->>> Time delta to switch = %.3f\n',tGrat - vbl);
 			while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix') && response ~= BREAKFIX
 				
-				thisT = vbl - tGrat;
+				if showGrating
+					thisT = vbl - tGrat;
+				else
+					thisT = vbl - tBlank;
+				end
 				
 				draw(stimuli); %draw stimulus
+				drawText(sM,'STIM PERIOD!')
 				
 				if drawEye==1 
 					drawEyePosition(eT,true);
@@ -397,11 +422,12 @@ try %our main experimental try catch loop
 					drawGrid(s);
 					trackerDrawFixation(eT);
 					trackerDrawEyePosition(eT);
+					trackerDrawText(eT,'Stimulus Period!');
 				end
 				
 				finishDrawing(sM);
 				
-				if triggerFixOFF && thisT > ana.fixOFF2
+				if triggerFixOFF && thisT > fixOFF
 					if stimuli{4}.alphaOut >= fadeAmount;stimuli{4}.alphaOut = stimuli{4}.alphaOut - fadeAmount;end
 					if stimuli{4}.alpha2Out >= fadeAmount;stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - fadeAmount;end
 					if stimuli{4}.alphaOut <= 0 && stimuli{4}.alpha2Out <= 0
@@ -411,15 +437,29 @@ try %our main experimental try catch loop
 				end
 				
 				getSample(eT);
-				fixated=testSearchHoldFixation(eT,'fix','breakfix');
+				if showGrating
+					fixated=testSearchHoldFixation(eT,'fix','breakfix');
+				else
+					fixated = testHoldFixation(eT,'fix','breakfix');
+					if strcmpi(fixated,'breakfix')
+						response = BREAKFIX;break;
+					end
+				end
 				doBreak = checkKeys();
-				if doBreak || strcmpi(fixated,'breakfix'); break; end
+				if doBreak; break; end
 				
 				vbl = Screen('Flip',sM.win, vbl + screenVals.halfisi); %flip the buffer
 				if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
 				tick = tick + 1;
 			end
 		end
+		tEnd = flip(sM);
+		
+		%====================================================== FINALISE TRIAL
+		ana.task(task.thisRun).tStart = tStart;
+		ana.task(task.thisRun).tEnd = tEnd;
+		ana.task(task.thisRun).tBlank = tBlank;
+		
 		if strcmpi(fixated,'fix')
 			sM.audio.beep(1000,0.1,0.1);
 			response = YESSEE;
@@ -450,8 +490,6 @@ try %our main experimental try catch loop
 			end
 		end
 		
-		tEnd = GetSecs;
-		resetFixation(eT); fixated = ''; response = NaN;
 		trackerMessage(eT,['TRIAL_RESULT ' num2str(response)]);
 		stopRecording(eT);
 		drawBackground(sM);
@@ -462,9 +500,9 @@ try %our main experimental try catch loop
 			if doBreak || strcmpi(fixated,'breakfix'); break; end
 			vbl = flip(sM);
 		end
-	end
+	end %======================================END MAIN WHILE
 	
-	%-----Cleanup
+	%================================================Cleanup
 	Screen('Flip',sM.win);
 	reset(stimuli); %reset our stimulus ready for use again
 	Priority(0); ListenChar(0); ShowCursor;
