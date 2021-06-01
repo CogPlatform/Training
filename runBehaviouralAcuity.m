@@ -287,7 +287,7 @@ try %our main experimental try catch loop
 		resetFixation(eT);response = NaN; fixated = '';
 		
 		fprintf('\n\n===>>>START %i: CONTRAST = %.2f TRANSITION TIME = %.2f\n',task.thisRun,contrastOut,transitionTime);
-		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
+		trackerMessage(eT,['TRIALID ' num2str(task.thisRun)]);
 		
 		% ======================================================INITIATE TRIAL
 		vbl = flip(sM); tStart = vbl;
@@ -394,12 +394,13 @@ try %our main experimental try catch loop
 				stimuli{4}.alphaOut		= startAlpha;
 				stimuli{4}.alpha2Out	= startAlpha2;
 				eT.updateFixationValues(ana.targetPosition,ana.YFix,ana.initTarget,ana.fixTarget,ana.radius,ana.strict);
-				resetFixation(eT,false); fixated = '';
+				resetFixation(eT,false); fixated = 'searching';
 				fixOFF = ana.fixOFF2;
 				triggerFixOFF = true;
 			else
 				fixOFF = ana.fixOFF;
-				resetFixationTime(eT);
+				eT.fixation.time = ana.keepBlank;
+				resetFixationTime(eT); fixated = 'fixing';
 			end
 			update(stimuli);
 			
@@ -442,7 +443,7 @@ try %our main experimental try catch loop
 				else
 					fixated = testHoldFixation(eT,'fix','breakfix');
 					if strcmpi(fixated,'breakfix')
-						response = BREAKFIX;break;
+						response = BREAKFIX; break;
 					end
 				end
 				doBreak = checkKeys();
@@ -503,17 +504,18 @@ try %our main experimental try catch loop
 	end %======================================END MAIN WHILE
 	
 	%================================================Cleanup
-	Screen('Flip',sM.win);
-	reset(stimuli); %reset our stimulus ready for use again
+	flip(sM);
 	Priority(0); ListenChar(0); ShowCursor;
+	reset(stimuli); %reset our stimuli
 	close(eT);
-	close(sM); %close screen
+	if isa(sM,'screenManager'); close(sM); end %close screen
 	if isa(s,'screenManager'); close(s); end
 	p=uigetdir(pwd,'Select Directory to Save Data, CANCEL to not save.');
 	if ischar(p)
 		cd(p);
 		response = task.response;
 		responseInfo = task.responseInfo;
+		assignin('base','ana',ana);
 		save([ana.nameExp '.mat'], 'ana', 'response', 'responseInfo', 'task','sM','stimuli', 'eT');
 		disp(['=====SAVE, saved current data to: ' pwd]);
 	else
@@ -521,7 +523,9 @@ try %our main experimental try catch loop
 	end	
 catch ME
 	getReport(ME)
-	close(sM); %close screen
+	if isa(sM,'screenManager'); close(sM); end %close screen
+	if isa(s,'screenManager'); close(s); end
+	if isa(eT,'tobiiManager'); close(eT); end
 	Priority(0); ListenChar(0); ShowCursor;
 	disp(['!!!!!!!!=====CRASH, save current data to: ' pwd]);
 	save([ana.nameExp 'CRASH.mat'], 'task', 'ana', 'sM', 'stimuli', 'eT', 'ME')
