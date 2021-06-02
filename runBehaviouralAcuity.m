@@ -256,6 +256,7 @@ try %our main experimental try catch loop
 	startAlpha		= stimuli{4}.alphaOut;
 	startAlpha2		= stimuli{4}.alpha2Out;
 	fadeAmount		= ana.fadeAmount/100;
+	fadeFinal		= ana.fadeFinal/100;
 	
 	%============================================================
 	while ~breakLoop && task.thisRun <= task.nRuns
@@ -352,8 +353,8 @@ try %our main experimental try catch loop
 				if taskType > 1 && triggerFixOFF && thisT > ana.fixOFF
 					if stimuli{4}.alphaOut >= fadeAmount;stimuli{4}.alphaOut = stimuli{4}.alphaOut - fadeAmount;end
 					if stimuli{4}.alpha2Out >= fadeAmount;stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - fadeAmount;end
-					if stimuli{4}.alphaOut <= 0 && stimuli{4}.alpha2Out <= 0
-						stimuli{4}.alphaOut = 0; stimuli{4}.alpha2Out = 0;
+					if stimuli{4}.alphaOut <= fadeFinal && stimuli{4}.alpha2Out <= fadeFinal
+						stimuli{4}.alphaOut = fadeFinal; stimuli{4}.alpha2Out = fadeFinal;
 						triggerFixOFF = false;
 					end
 				end
@@ -430,8 +431,8 @@ try %our main experimental try catch loop
 				if triggerFixOFF && thisT > fixOFF
 					if stimuli{4}.alphaOut >= fadeAmount;stimuli{4}.alphaOut = stimuli{4}.alphaOut - fadeAmount;end
 					if stimuli{4}.alpha2Out >= fadeAmount;stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - fadeAmount;end
-					if stimuli{4}.alphaOut <= 0 && stimuli{4}.alpha2Out <= 0
-						stimuli{4}.alphaOut = 0; stimuli{4}.alpha2Out = 0;
+					if stimuli{4}.alphaOut <= fadeFinal && stimuli{4}.alpha2Out <= fadeFinal
+						stimuli{4}.alphaOut = fadeFinal; stimuli{4}.alpha2Out = fadeFinal;
 						triggerFixOFF = false;
 					end
 				end
