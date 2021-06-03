@@ -277,10 +277,8 @@ try %our main experimental try catch loop
 		ana.task(thisRun).probability = rand;
 		if ana.task(thisRun).probability <= (ana.gProbability/100)
 			showGrating = true;
-			if taskType > 2; fprintf('===>>> GRATING trial!\n'); end
 		else
 			showGrating = false;
-			if taskType > 2; fprintf('===>>> BLANK trial!\n'); end
 		end
 		
 		ana.task(thisRun).showGrating = showGrating;
@@ -308,7 +306,8 @@ try %our main experimental try catch loop
 		fprintf('\n\n===>>>START %i / %i: CONTRAST = %.2f TRANSITION TIME = %.2f TARGET ON = %.2f\n',...
 			thisRun,task.thisRun,contrastOut,transitionTime,targetTime);
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
-		
+		if taskType > 2 && showGrating; fprintf('===>>> GRATING trial!\n'); end
+		if taskType > 2 && ~showGrating; fprintf('===>>> BLANK trial!\n'); end
 		% ======================================================INITIATE TRIAL
 		response = UNDEFINED; 
 		fixated = '';
