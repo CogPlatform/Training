@@ -267,12 +267,11 @@ try %our main experimental try catch loop
 	bT.correct		= 0;
 	bT.value		= 0;
 	bT.run(1)		= 0;
-	h = figure('Position',[900 0 500 500]);
-	axx = axes(h);
-	plot(axx,0,0); drawnow;
+	h = figure('Position',[1200 0 600 500]);
+	axx = axes(h); drawnow;
 	
 	%============================================================
-	while ~breakLoop && task.totalRuns <= task.nRuns
+	while ~breakLoop && ~task.taskFinished
 		thisRun = thisRun + 1;
 		%-----setup our values and print some info for the trial
 		if thisRun > 1; startRecording(eT); end
@@ -417,16 +416,23 @@ try %our main experimental try catch loop
 		%====================================================TASKTYPE > 2 GRATING/BLANK
 		if taskType > 2 && response > -1
 			if showGrating
-				stimuli{1}.hide(); stimuli{3}.show(); stimuli{4}.show();
+				stimuli{1}.hide(); stimuli{3}.show()
 				stimuli{4}.xPositionOut = ana.targetPosition;
-				stimuli{4}.alphaOut		= startAlpha;
-				stimuli{4}.alpha2Out	= startAlpha2;
 				eT.fixInit.X = ana.XFix;
 				eT.fixInit.Y = ana.YFix;
 				eT.updateFixationValues(ana.targetPosition,ana.YFix,ana.initTarget,ana.fixTarget,ana.radius,ana.strict);
 				fixated = 'searching';
 				fixOFF = ana.fixOFF2;
-				triggerFixOFF = true;
+				if fixOFF <= 0 %user put 0, means don't show fixation cross over target
+					stimuli{4}.alphaOut = 0;
+					stimuli{4}.alpha2Out = 0;
+					stimuli{4}.hide();
+					triggerFixOFF = false;
+				else
+					stimuli{4}.alphaOut = startAlpha;
+					stimuli{4}.alpha2Out = startAlpha2;
+					triggerFixOFF = true;
+				end
 				update(stimuli);
 			else
 				fixOFF = ana.fixOFF;
@@ -494,19 +500,19 @@ try %our main experimental try catch loop
 			end
 		end
 		tEnd = flip(sM);
-		if tGrat > 0;fprintf('--->>> Time delta grat = %.3f\n',tEnd - tGrat);end
+		if tGrat > 0;fprintf('--->>> Time delta grating = %.3f\n',tEnd - tGrat);end
 		ana.task(thisRun).tStart = tStart;
 		ana.task(thisRun).tBlank = tBlank;
 		ana.task(thisRun).tGrat = tGrat;
 		ana.task(thisRun).tEnd = tEnd;
+		ana.task(thisRun).xAll = eT.xAll;
+		ana.task(thisRun).yAll = eT.yAll;
 		
 		%====================================================== FINALISE TRIAL
 		if response > 0
 			rM.timedTTL();
 			sM.audio.beep(1000,0.1,0.1);
-			ana.task(thisRun).response = response; 
-			%ana.task(thisRun).taskTotal = task.thisTotal;
-			task.updateTask(response);
+			ana.task(thisRun).response = response;
 			timeOut = ana.IFI;
 			if drawEye==2
 				drawGrid(s);
@@ -514,12 +520,13 @@ try %our main experimental try catch loop
 				trackerDrawEyePositions(eT);
 				trackerDrawEyePosition(eT);
 				if response == YESTARGET
+					task.updateTask(response);
 					gT.correct = gT.correct + 1;
-					gT.value = gT.correct / gT.total;
+					gT.value = (gT.correct / gT.total) * 100;
 					trackerDrawText(eT,sprintf('Correct TARGET: %.2f !!!...',gT.value));
 				else
 					bT.correct = bT.correct + 1;
-					bT.value = bT.correct / bT.total;
+					bT.value = (bT.correct / bT.total) * 100;
 					trackerDrawText(eT,sprintf('Correct BLANK: %.2f !!!...',bT.value));
 				end
 				flip(s,[],[],2);
@@ -531,7 +538,7 @@ try %our main experimental try catch loop
 			%task.updateTask(response);
 			timeOut = ana.IFI;
 			bT.correct = bT.correct + 1;
-			bT.value = bT.correct / bT.total;
+			bT.value = (bT.correct / bT.total) * 100;
 			if drawEye==2 
 				drawGrid(s);
 				trackerDrawFixation(eT);
@@ -544,8 +551,8 @@ try %our main experimental try catch loop
 			sM.audio.beep(100,0.75,0.75);
 			ana.task(thisRun).response = response;
 			timeOut = ana.punishIFI;
-			gT.value = gT.correct / gT.total;
-			bT.value = bT.correct / bT.total;
+			gT.value = (gT.correct / gT.total) * 100;
+			bT.value = (bT.correct / bT.total) * 100;
 			if drawEye==2 
 				drawGrid(s);
 				trackerDrawFixation(eT);
@@ -563,22 +570,32 @@ try %our main experimental try catch loop
 			end
 		end
 		
-		hold(axx, 'on');
-		if gT.total > 2
+		cla(axx);
+		if gT.total > 0
 			gT.run(gT.total) = gT.value; 
 			try plot(axx, 1:length(gT.run), gT.run); end
 		end
-		if bT.total > 2
+		if bT.total > 0
+			hold(axx, 'on');
 			bT.run(bT.total) = bT.value; 
 			try plot(axx, 1:length(bT.run), bT.run); end
 		end
 		hold(axx,'off');
 		box(axx, 'on'); grid(axx, 'on');
 		xlabel(axx,'Runs');
-		ylabel(axx,'Percent Correct %');
-		legend(axx,{'Grating','Blank'}); drawnow
+		ylim(axx,[-1 101]);
+		ylabel(axx,'Correct %');
+		if gT.total > 0 && bT.total > 0
+			legend(axx,{'Grating','Blank'}); drawnow
+		elseif gT.total > 0 && bT.total == 0
+			legend(axx,{'Grating'}); drawnow
+		elseif gT.total == 0 && bT.total > 0
+			legend(axx,{'Blank'}); drawnow
+		end
 		
 		trackerMessage(eT,['TRIAL_RESULT ' num2str(response)]);
+		fprintf('--->>> RESPONSE: %i | Grating Correct: %.2f | Blank Correct: %.2f | TOTAL: %i\n',...
+			response, gT.value, bT.value, thisRun);
 		stopRecording(eT);
 		drawBackground(sM);
 		vbl = flip(sM); %flip the buffer
@@ -598,12 +615,47 @@ try %our main experimental try catch loop
 	try if isa(s,'screenManager'); close(s); end; end
 	try if isa(eT,'tobiiManager'); close(eT); end; end
 	try if isa(rM,'arduinoManager'); close(rM); end; end
-	p=uigetdir(pwd,'Select Directory to Save Data, CANCEL to not save.');
+	
+	f = figure('Position',[10 10 800 800]);
+	t = tiledlayout(f,3,2,'TileSpacing','tight');
+	xAll1 = []; xAll2 = []; xAll3 = []; xAll4 = []; xAll5 = [];
+	yAll1 = []; yAll2 = []; yAll3 = []; yAll4 = []; yAll5 = [];
+	for i = 1:length(ana.task)
+		if ana.task(i).response == BREAKINIT
+			xAll1 = [xAll1 ana.task(i).xAll];
+			yAll1 = [yAll1 ana.task(i).yAll];
+		elseif ana.task(i).response == BREAKBLANK
+			xAll2 = [xAll2 ana.task(i).xAll];
+			yAll2 = [yAll2 ana.task(i).yAll];
+		elseif ana.task(i).response == BREAKFIX
+			xAll3 = [xAll3 ana.task(i).xAll];
+			yAll3 = [yAll3 ana.task(i).yAll];
+		elseif ana.task(i).response == YESBLANK
+			xAll4 = [xAll4 ana.task(i).xAll];
+			yAll4 = [yAll4 ana.task(i).yAll];
+		elseif ana.task(i).response == YESTARGET
+			xAll5 = [xAll5 ana.task(i).xAll];
+			yAll5 = [yAll5 ana.task(i).yAll];
+		end
+	end
+	tit = {'BREAKINIT','BREAKBLANK','BREAKFIX','YESBLANK','YESTARGET'};
+	title(t,'Eye Positions');
+	for i = 1:5
+		nexttile(t,i)
+		plot(eval(['xAll' num2str(i)]),eval(['yAll' num2str(i)]),'ro');
+		xlabel('X Eye Position');
+		ylabel('Y Eye Position');
+		title(tit{i});
+		xlim([-20 20]); ylim([-20 20]); axis square; grid on; grid minor;
+	end
+	ana.gT = gT;
+	ana.bT = bT;
+	ana.response = task.response;
+	ana.responseInfo = task.responseInfo;
+	p=uigetdir(pwd,'Select Directory to Save Data, CANCEL to NOT SAVE.');
 	if ischar(p)
 		cd(p);
-		response = task.response;
-		responseInfo = task.responseInfo;
-		save([ana.nameExp '.mat'], 'ana', 'response', 'responseInfo', 'task','sM','stimuli', 'eT');
+		save([ana.nameExp '.mat'], 'ana', 'task','sM','stimuli', 'eT');
 		disp(['=====SAVE, saved current data to: ' pwd]);
 	else
 		eT.saveFile = ''; %blank save file so it doesn't save
