@@ -151,12 +151,12 @@ if length(Screen('Screens')) > 1 && sM.screen - 1 >= 0 && ana.useTracker% ---- s
 	s.backgroundColour	= sM.backgroundColour;
 	s.distance			= sM.distance;
 	[w,h]				= Screen('WindowSize',s.screen);
-	s.windowed			= [0 0 round(w/1.5) round(h/1.5)];
+	s.windowed			= [0 0 round(w/(100/ana.operatorPercent)) round(h/(100/ana.operatorPercent))];
+	s.pixelsPerCm		= ana.operatorPPC;
 	s.bitDepth			= '';
 	s.blend				= sM.blend;
 	s.bitDepth			= '8bit';
 	s.blend				= true;
-	s.pixelsPerCm		= 30;
 end
 if exist('s','var')
 	initialise(eT,sM,s);
@@ -202,6 +202,7 @@ if ana.useStaircase == false
 else
 	task.thisRun = 0;
 	stopRule = 40;
+	task.nRuns = stopRule;
 	usePriors = ana.usePriors;
 	grain = 100;
 	setupStairCase();
@@ -259,10 +260,10 @@ try %our main experimental try catch loop
 	fadeFinal		= ana.fadeFinal/100;
 	
 	%============================================================
-	while ~breakLoop && task.thisRun <= task.nRuns
+	while ~breakLoop && task.totalRuns <= task.nRuns
 		thisRun = thisRun + 1;
 		%-----setup our values and print some info for the trial
-		startRecording(eT);
+		if thisRun > 1; startRecording(eT); end
 		if ana.useStaircase 
 			contrastOut = staircase.xCurrent;
 		else
@@ -281,8 +282,9 @@ try %our main experimental try catch loop
 			showGrating = false;
 		end
 		
+		ana.task(thisRun).thisRun = thisRun;
 		ana.task(thisRun).showGrating = showGrating;
-		ana.task(thisRun).taskRun = task.thisRun;
+		ana.task(thisRun).runs = [task.totalRuns, task.thisBlock, task.thisRun];
 		ana.task(thisRun).contrast = contrastOut;
 		ana.task(thisRun).transitionTime = transitionTime;
 		ana.task(thisRun).targetTime = targetTime;
@@ -304,7 +306,7 @@ try %our main experimental try catch loop
 		resetFixationHistory(eT);
 		
 		fprintf('\n\n===>>>START %i / %i: CONTRAST = %.2f TRANSITION TIME = %.2f TARGET ON = %.2f\n',...
-			thisRun,task.thisRun,contrastOut,transitionTime,targetTime);
+			thisRun,task.totalRuns,contrastOut,transitionTime,targetTime);
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		if taskType > 2 && showGrating; fprintf('===>>> GRATING trial!\n'); end
 		if taskType > 2 && ~showGrating; fprintf('===>>> BLANK trial!\n'); end
@@ -481,17 +483,22 @@ try %our main experimental try catch loop
 		
 		%====================================================== FINALISE TRIAL
 		if response > 0
-			sM.audio.beep(1000,0.1,0.1);
 			rM.timedTTL();
-			ana.task(thisRun).response = response;
+			sM.audio.beep(1000,0.1,0.1);
+			ana.task(thisRun).response = response; 
+			%ana.task(thisRun).taskTotal = task.thisTotal;
 			task.updateTask(response);
 			timeOut = ana.IFI;
-			if drawEye==2 
+			if drawEye==2
 				drawGrid(s);
 				trackerDrawFixation(eT);
 				trackerDrawEyePositions(eT);
 				trackerDrawEyePosition(eT);
-				trackerDrawText(eT,'Correct!!!...');
+				if showGrating
+					trackerDrawText(eT,'Correct TARGET!!!...');
+				else
+					trackerDrawText(eT,'Correct BLANK!!!...');
+				end
 				flip(s,[],[],2);
 			end
 		elseif response == 0 && taskType < 3
