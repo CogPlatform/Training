@@ -44,7 +44,7 @@ nBlocksOverall = nBlocks * length(ana.contrastRange);
 
 %==========================================================================
 %===========================================================response values
-NOSEE = 1; 	YESSEE = 2; UNSURE = 4; BREAKINIT = -100; BREAKBLANK = -10; BREAKFIX = -1;
+YESBLANK = 1; 	YESTARGET = 2; UNSURE = 4; BREAKINIT = -100; BREAKBLANK = -10; BREAKFIX = -1;
 UNDEFINED = 0;
 saveMetaData();
 
@@ -257,7 +257,19 @@ try %our main experimental try catch loop
 	startAlpha		= stimuli{4}.alphaOut;
 	startAlpha2		= stimuli{4}.alpha2Out;
 	fadeAmount		= ana.fadeAmount/100;
+	fadeAmountTarget= ana.fadeAmountTarget/100;
 	fadeFinal		= ana.fadeFinal/100;
+	gT.total		= 0;
+	gT.correct		= 0;
+	gT.value		= 0;
+	gT.run(1)		= 0;
+	bT.total		= 0;
+	bT.correct		= 0;
+	bT.value		= 0;
+	bT.run(1)		= 0;
+	h = figure('Position',[900 0 500 500]);
+	axx = axes(h);
+	plot(axx,0,0); drawnow;
 	
 	%============================================================
 	while ~breakLoop && task.totalRuns <= task.nRuns
@@ -346,6 +358,11 @@ try %our main experimental try catch loop
 			
 		% ======================================================TASKTYPE>0 (Blank)
 		if taskType > 0 && response > -1
+			if showGrating
+				gT.total = gT.total + 1;
+			else
+				bT.total = bT.total + 1;
+			end
 			tick = 1;
 			triggerTarget = true;
 			triggerFixOFF = true;
@@ -441,9 +458,9 @@ try %our main experimental try catch loop
 				finishDrawing(sM);
 				
 				if triggerFixOFF && thisT > fixOFF
-					stimuli{4}.alphaOut = stimuli{4}.alphaOut - fadeAmount;
-					stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - fadeAmount;
-					if stimuli{4}.alphaOut <= fadeFinal+fadeAmount 
+					stimuli{4}.alphaOut = stimuli{4}.alphaOut - fadeAmountTarget;
+					stimuli{4}.alpha2Out = stimuli{4}.alpha2Out - fadeAmountTarget;
+					if stimuli{4}.alphaOut <= fadeFinal+fadeAmountTarget 
 						if fadeFinal <= 0
 							hide(stimuli{4});
 						end
@@ -464,8 +481,10 @@ try %our main experimental try catch loop
 				else
 					fixated = testHoldFixation(eT,'fix','breakfix');
 				end				
-				if strcmpi(fixated,'fix')
-					response = YESSEE;
+				if strcmpi(fixated,'fix') && showGrating
+					response = YESTARGET;
+				elseif strcmpi(fixated,'fix') && ~showGrating
+					response = YESBLANK;
 				elseif strcmpi(fixated,'breakfix')
 					response = BREAKFIX;
 				elseif strcmpi(fixated,'EXCLUDED!')
@@ -494,10 +513,14 @@ try %our main experimental try catch loop
 				trackerDrawFixation(eT);
 				trackerDrawEyePositions(eT);
 				trackerDrawEyePosition(eT);
-				if showGrating
-					trackerDrawText(eT,'Correct TARGET!!!...');
+				if response == YESTARGET
+					gT.correct = gT.correct + 1;
+					gT.value = gT.correct / gT.total;
+					trackerDrawText(eT,sprintf('Correct TARGET: %.2f !!!...',gT.value));
 				else
-					trackerDrawText(eT,'Correct BLANK!!!...');
+					bT.correct = bT.correct + 1;
+					bT.value = bT.correct / bT.total;
+					trackerDrawText(eT,sprintf('Correct BLANK: %.2f !!!...',bT.value));
 				end
 				flip(s,[],[],2);
 			end
@@ -507,6 +530,8 @@ try %our main experimental try catch loop
 			ana.task(thisRun).response = response;
 			%task.updateTask(response);
 			timeOut = ana.IFI;
+			bT.correct = bT.correct + 1;
+			bT.value = bT.correct / bT.total;
 			if drawEye==2 
 				drawGrid(s);
 				trackerDrawFixation(eT);
@@ -519,6 +544,8 @@ try %our main experimental try catch loop
 			sM.audio.beep(100,0.75,0.75);
 			ana.task(thisRun).response = response;
 			timeOut = ana.punishIFI;
+			gT.value = gT.correct / gT.total;
+			bT.value = bT.correct / bT.total;
 			if drawEye==2 
 				drawGrid(s);
 				trackerDrawFixation(eT);
@@ -535,6 +562,21 @@ try %our main experimental try catch loop
 				flip(s,[],[],2);
 			end
 		end
+		
+		hold(axx, 'on');
+		if gT.total > 2
+			gT.run(gT.total) = gT.value; 
+			try plot(axx, 1:length(gT.run), gT.run); end
+		end
+		if bT.total > 2
+			bT.run(bT.total) = bT.value; 
+			try plot(axx, 1:length(bT.run), bT.run); end
+		end
+		hold(axx,'off');
+		box(axx, 'on'); grid(axx, 'on');
+		xlabel(axx,'Runs');
+		ylabel(axx,'Percent Correct %');
+		legend(axx,{'Grating','Blank'}); drawnow
 		
 		trackerMessage(eT,['TRIAL_RESULT ' num2str(response)]);
 		stopRecording(eT);
@@ -617,7 +659,7 @@ end
 	function updateResponse()
 		tEnd = GetSecs;
 		ListenChar(0);
-		if response == NOSEE || response == YESSEE  %subject responded
+		if response == YESBLANK || response == YESTARGET  %subject responded
 			responseInfo.response = response;
 			responseInfo.N = task.thisRun;
 			responseInfo.times = [tFix tStim tPedestal tMask tMaskOff tEnd];
@@ -630,14 +672,14 @@ end
 			updateTask(task,response,tEnd,responseInfo)
 			if ana.useStaircase == true
 				if colourOut == 0
-					if response == NOSEE 
+					if response == YESBLANK 
 						yesnoresponse = 0;
 					else
 						yesnoresponse = 1;
 					end
 					staircaseB = PAL_AMPM_updatePM(staircaseB, yesnoresponse);
 				elseif colourOut == 1
-					if response == NOSEE 
+					if response == YESBLANK 
 						yesnoresponse = 0;
 					else
 						yesnoresponse = 1;
@@ -682,8 +724,8 @@ end
 		idxW = [info.contrastOut] == 1;
 		idxB = [info.contrastOut] == 0;
 		
-		idxNO = task.response == NOSEE;
-		idxYESSEE = task.response == YESSEE;
+		idxNO = task.response == YESBLANK;
+		idxYESSEE = task.response == YESTARGET;
 
 		cla(ana.plotAxis1); line(ana.plotAxis1,[0 max(x)+1],[0.5 0.5],'LineStyle','--','LineWidth',2); hold(ana.plotAxis1,'on')
 		plot(ana.plotAxis1,x(idxNO & idxB), ped(idxNO & idxB),'ro','MarkerFaceColor','r','MarkerSize',8);
@@ -794,8 +836,8 @@ end
 	function saveMetaData()
 		ana.values.nBlocks = nBlocks;
 		ana.values.nBlocksOverall = nBlocksOverall;
-		ana.values.NOSEE = NOSEE;
-	    ana.values.YESSEE = YESSEE;
+		ana.values.NOSEE = YESBLANK;
+	    ana.values.YESSEE = YESTARGET;
 		ana.values.UNSURE = UNSURE;
 		ana.values.BREAKFIX = BREAKFIX;
 		ana.values.UNDEFINED = UNDEFINED;
