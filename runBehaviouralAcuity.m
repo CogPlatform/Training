@@ -45,7 +45,7 @@ nBlocksOverall = nBlocks * length(ana.contrastRange);
 %==========================================================================
 %===========================================================response values
 YESBLANK = 1; 	YESTARGET = 2; UNSURE = 4; BREAKINIT = -100; BREAKBLANK = -10; BREAKFIX = -1;
-UNDEFINED = 0;
+BREAKFIXEXCL = -5; UNDEFINED = 0;
 saveMetaData();
 
 %==========================================================================
@@ -313,6 +313,8 @@ try %our main experimental try catch loop
 		
 		eT.fixInit.X = [];
 		eT.fixInit.Y = [];
+		eT.fixInit.time = 0.1;
+		eT.fixInit.radius = ana.radius+2;
 		eT.updateFixationValues(ana.XFix,ana.YFix,ana.initTime,ana.fixTime,ana.radius,ana.strict);
 		resetFixationHistory(eT);
 		
@@ -420,7 +422,8 @@ try %our main experimental try catch loop
 				stimuli{4}.xPositionOut = ana.targetPosition;
 				eT.fixInit.X = ana.XFix;
 				eT.fixInit.Y = ana.YFix;
-				eT.updateFixationValues(ana.targetPosition,ana.YFix,ana.initTarget,ana.fixTarget,ana.radius,ana.strict);
+				eT.updateFixationValues(ana.targetPosition,ana.YFix,ana.initTarget,...
+					ana.fixTarget,ana.radius+1,ana.strict);
 				fixated = 'searching';
 				fixOFF = ana.fixOFF2;
 				if fixOFF <= 0 %user put 0, means don't show fixation cross over target
@@ -436,6 +439,7 @@ try %our main experimental try catch loop
 				update(stimuli);
 			else
 				fixOFF = ana.fixOFF;
+				eT.fixation.radius = ana.radius+2;
 				eT.fixation.time = ana.keepBlank;
 				resetFixationTime(eT); fixated = 'fixing';
 			end
@@ -494,8 +498,8 @@ try %our main experimental try catch loop
 				elseif strcmpi(fixated,'breakfix')
 					response = BREAKFIX;
 				elseif strcmpi(fixated,'EXCLUDED!')
-					response = BREAKFIX;
-					fprintf('--->>> Fix INIT Exclusion triggered!\n');
+					response = BREAKFIXEXCL;
+					fprintf('---!!! Fix INIT Exclusion triggered!\n');
 				end
 			end
 		end
@@ -548,7 +552,7 @@ try %our main experimental try catch loop
 				flip(s,[],[],2);
 			end
 		else
-			sM.audio.beep(100,0.75,0.75);
+			if response ~= BREAKINIT;sM.audio.beep(100,0.75,0.75);end
 			ana.task(thisRun).response = response;
 			timeOut = ana.punishIFI;
 			gT.value = (gT.correct / gT.total) * 100;
@@ -565,6 +569,8 @@ try %our main experimental try catch loop
 					trackerDrawText(eT,'Break in BLANK!!!');
 				elseif response == BREAKFIX
 					trackerDrawText(eT,'Break in TARGET!!!');
+				elseif response == BREAKFIXEXCL
+					trackerDrawText(eT,'Break in TARGET EXCLUSION!!!');
 				end
 				flip(s,[],[],2);
 			end
@@ -616,7 +622,7 @@ try %our main experimental try catch loop
 	try if isa(eT,'tobiiManager'); close(eT); end; end
 	try if isa(rM,'arduinoManager'); close(rM); end; end
 	
-	f = figure('Position',[10 10 800 800]);
+	f = figure('Position',[10 10 500 800]);
 	t = tiledlayout(f,3,2,'TileSpacing','tight');
 	xAll1 = []; xAll2 = []; xAll3 = []; xAll4 = []; xAll5 = [];
 	yAll1 = []; yAll2 = []; yAll3 = []; yAll4 = []; yAll5 = [];
@@ -627,7 +633,7 @@ try %our main experimental try catch loop
 		elseif ana.task(i).response == BREAKBLANK
 			xAll2 = [xAll2 ana.task(i).xAll];
 			yAll2 = [yAll2 ana.task(i).yAll];
-		elseif ana.task(i).response == BREAKFIX
+		elseif any(ana.task(i).response == [BREAKFIX BREAKFIXEXCL])
 			xAll3 = [xAll3 ana.task(i).xAll];
 			yAll3 = [yAll3 ana.task(i).yAll];
 		elseif ana.task(i).response == YESBLANK
@@ -787,7 +793,7 @@ end
 
 		
 		if length(task.response) > 4
-			try %#ok<TRYNC>
+			try
 				idx = idxNO & idxB;
 				blackPedestal = ped(idx);
 				[bAvg, bErr] = stderr(blackPedestal);
@@ -892,9 +898,10 @@ end
 	    ana.values.YESSEE = YESTARGET;
 		ana.values.UNSURE = UNSURE;
 		ana.values.BREAKFIX = BREAKFIX;
-		ana.values.UNDEFINED = UNDEFINED;
+		ana.values.BREAKFIXEXCL = BREAKFIXEXCL;
 		ana.values.BREAKINIT = BREAKINIT;
 		ana.values.BREAKBLANK = BREAKBLANK;
+		ana.values.UNDEFINED = UNDEFINED;
 	end
 
 
