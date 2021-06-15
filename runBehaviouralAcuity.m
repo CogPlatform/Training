@@ -16,7 +16,6 @@ ana.date		= datestr(datetime);
 ana.version		= Screen('Version');
 ana.computer	= Screen('Computer');
 ana.gpu			= opengl('data');
-thisVerbose		= false;
 staircase = [];
 
 %===================experiment parameters===================
@@ -98,6 +97,7 @@ sM.windowed				= ana.windowed;
 sM.pixelsPerCm			= ana.pixelsPerCm;
 sM.distance				= ana.distance;
 sM.debug				= ana.debug;
+sM.verbose				= ana.debug;
 sM.blend				= true;
 sM.bitDepth				= 'FloatingPoint32Bit';
 if exist(ana.gammaTable, 'file')
@@ -126,6 +126,7 @@ sM.audio.setup();
 	
 %===========================tobii manager=====================
 eT						= tobiiManager();
+eT.verbose				= ana.debug;
 eT.name					= ana.nameExp;
 eT.model				= ana.tracker;
 eT.trackingMode			= ana.trackingMode;
@@ -147,7 +148,7 @@ if ~ana.useTracker || ana.isDummy
 end
 if length(Screen('Screens')) > 1 && sM.screen - 1 >= 0 && ana.useTracker% ---- second screen for calibration
 	s					= screenManager;
-	s.verbose			= thisVerbose;
+	s.verbose			= ana.debug;
 	s.screen			= sM.screen - 1;
 	s.backgroundColour	= sM.backgroundColour;
 	s.distance			= sM.distance;
@@ -193,20 +194,21 @@ resetFixation(eT);
 
 rng('shuffle'); % shuffle the random number generator
 if ana.useStaircase == false
-	task = stimulusSequence();
-	task.name = ana.nameExp;
-	task.nBlocks = nBlocks;
-	task.nVar(1).name = 'contrast';
-	task.nVar(1).stimulus = 3;
-	task.nVar(1).values = ana.contrastRange;
+	task					= stimulusSequence();
+	task.verbose			= ana.debug;
+	task.name				= ana.nameExp;
+	task.nBlocks			= nBlocks;
+	task.nVar(1).name		= 'contrast';
+	task.nVar(1).stimulus	= 3;
+	task.nVar(1).values		= ana.contrastRange;
 	randomiseStimuli(task);
 	initialiseTask(task);
 else
-	task.thisRun = 0;
-	stopRule = 40;
-	task.nRuns = stopRule;
-	usePriors = ana.usePriors;
-	grain = 100;
+	task.thisRun			= 0;
+	stopRule				= ana.stopRule;
+	task.nRuns				= stopRule;
+	usePriors				= ana.usePriors;
+	grain					= 100;
 	setupStairCase();
 end
 
@@ -262,13 +264,19 @@ try %our main experimental try catch loop
 	fadeAmountTarget= ana.fadeAmountTarget/100;
 	fadeFinal		= ana.fadeFinal/100;
 	gT.total		= 0;
+	gT.targetTotal	= 0;
 	gT.correct		= 0;
 	gT.value		= 0;
+	gT.valueTarget	= 0;
 	gT.run(1)		= 0;
+	gT.latest		= NaN;
 	bT.total		= 0;
+	bT.targetTotal	= 0;
 	bT.correct		= 0;
 	bT.value		= 0;
+	bT.valueTarget	= 0;
 	bT.run(1)		= 0;
+	bT.latest		= NaN;
 	h = figure('Position',[1200 0 600 500]);
 	axx = axes(h); drawnow;
 	
@@ -420,6 +428,7 @@ try %our main experimental try catch loop
 		%====================================================TASKTYPE > 2 GRATING/BLANK
 		if taskType > 2 && response > -1
 			if showGrating
+				gT.targetTotal = gT.targetTotal + 1;
 				stimuli{1}.hide(); stimuli{3}.show()
 				stimuli{4}.xPositionOut = ana.targetPosition;
 				eT.fixInit.X = ana.XFix;
@@ -440,6 +449,7 @@ try %our main experimental try catch loop
 				end
 				update(stimuli);
 			else
+				bT.targetTotal = bT.targetTotal + 1;
 				fixOFF = ana.fixOFF;
 				eT.fixation.radius = ana.radius+2;
 				eT.fixation.time = ana.keepBlank;
@@ -528,11 +538,9 @@ try %our main experimental try catch loop
 				if response == YESTARGET
 					task.updateTask(response);
 					gT.correct = gT.correct + 1;
-					gT.value = (gT.correct / gT.total) * 100;
 					trackerDrawText(eT,sprintf('Correct TARGET: %.2f !!!...',gT.value));
 				else
 					bT.correct = bT.correct + 1;
-					bT.value = (bT.correct / bT.total) * 100;
 					trackerDrawText(eT,sprintf('Correct BLANK: %.2f !!!...',bT.value));
 				end
 				flip(s,[],[],2);
@@ -544,7 +552,6 @@ try %our main experimental try catch loop
 			%task.updateTask(response);
 			timeOut = ana.IFI;
 			bT.correct = bT.correct + 1;
-			bT.value = (bT.correct / bT.total) * 100;
 			if drawEye==2 
 				drawGrid(s);
 				trackerDrawFixation(eT);
@@ -557,8 +564,6 @@ try %our main experimental try catch loop
 			if response ~= BREAKINIT;sM.audio.beep(100,0.75,0.75);end
 			ana.task(thisRun).response = response;
 			timeOut = ana.punishIFI;
-			gT.value = (gT.correct / gT.total) * 100;
-			bT.value = (bT.correct / bT.total) * 100;
 			if drawEye==2 
 				drawGrid(s);
 				trackerDrawFixation(eT);
@@ -578,28 +583,47 @@ try %our main experimental try catch loop
 			end
 		end
 		
+		gT.value = (gT.correct / gT.total) * 100;
+		gT.valueTarget = (gT.correct / gT.targetTotal) * 100;
+		bT.value = (bT.correct / bT.total) * 100;
+		bT.valueTarget = (bT.correct / bT.targetTotal) * 100;
 		cla(axx);
+		hold(axx,'on')
 		if gT.total > 0
 			gT.run(gT.total) = gT.value; 
-			try plot(axx, 1:length(gT.run), gT.run); end
+			try plot(axx, 1:length(gT.run), gT.run,'LineWidth',1); end
+			if gT.targetTotal > 0
+				gT.runTotal(gT.targetTotal) = gT.valueTarget; 
+				try plot(axx, 1:length(gT.runTotal), gT.runTotal,'k:o','LineWidth',1); end
+				if gT.targetTotal > 6
+					gT.latest = mean(gT.runTotal(end-6:end));
+				end
+			end
+
 		end
 		if bT.total > 0
-			hold(axx, 'on');
 			bT.run(bT.total) = bT.value; 
-			try plot(axx, 1:length(bT.run), bT.run); end
+			try plot(axx, 1:length(bT.run), bT.run,'LineWidth',1); end
+			if bT.targetTotal > 0
+				bT.runTotal(bT.targetTotal) = bT.valueTarget;
+				try plot(axx, 1:length(bT.runTotal), bT.runTotal,'r:*','LineWidth',1); end
+				if bT.targetTotal > 6
+					bT.latest = mean(bT.runTotal(end-6:end));
+				end
+			end
 		end
 		hold(axx,'off');
 		box(axx, 'on'); grid(axx, 'on');
 		xlabel(axx,'Runs');
-		ylim(axx,[-1 101]);
+		ylim(axx,[-5 105]);
 		ylabel(axx,'Correct %');
-		if gT.total > 0 && bT.total > 0
-			legend(axx,{'Grating','Blank'}); drawnow
-		elseif gT.total > 0 && bT.total == 0
-			legend(axx,{'Grating'}); drawnow
-		elseif gT.total == 0 && bT.total > 0
-			legend(axx,{'Blank'}); drawnow
-		end
+		title(sprintf('Latest G: %.2f | Latest B: %.2f',gT.latest,bT.latest));
+		list = {};
+		if gT.total > 0; list{end+1} = 'Grating'; end
+		if gT.targetTotal > 0; list{end+1} = 'Grating *'; end
+		if bT.total > 0; list{end+1} = 'Blank'; end
+		if bT.targetTotal > 0; list{end+1} = 'Blank *'; end
+		legend(axx,list,'Location','southwest'); drawnow
 		
 		trackerMessage(eT,['TRIAL_RESULT ' num2str(response)]);
 		fprintf('--->>> RESPONSE: %i | Grating Correct: %.2f | Blank Correct: %.2f | TOTAL: %i\n',...
