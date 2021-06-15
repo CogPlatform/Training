@@ -17,6 +17,7 @@ ana.version		= Screen('Version');
 ana.computer	= Screen('Computer');
 ana.gpu			= opengl('data');
 thisVerbose		= false;
+staircase = [];
 
 %===================experiment parameters===================
 ana.screenID	= max(Screen('Screens'));%-1;
@@ -190,6 +191,7 @@ resetFixation(eT);
 
 %---------------------------Set up task variables----------------------
 
+rng('shuffle'); % shuffle the random number generator
 if ana.useStaircase == false
 	task = stimulusSequence();
 	task.name = ana.nameExp;
@@ -287,7 +289,7 @@ try %our main experimental try catch loop
 			ana.gProbability = 100;
 		end
 		ana.task(thisRun).probability = rand;
-		if ana.task(thisRun).probability <= (ana.gProbability/100)
+		if ana.task(thisRun).probability <= (ana.gProbability/100) && taskType > 2
 			showGrating = true;
 		else
 			showGrating = false;
@@ -602,6 +604,8 @@ try %our main experimental try catch loop
 		trackerMessage(eT,['TRIAL_RESULT ' num2str(response)]);
 		fprintf('--->>> RESPONSE: %i | Grating Correct: %.2f | Blank Correct: %.2f | TOTAL: %i\n',...
 			response, gT.value, bT.value, thisRun);
+		fprintf('--->>> TRIALS: grating = %i (%.2f) blank = %i (%.2f)\n',...
+			gT.total, gT.total/(gT.total+bT.total), bT.total, bT.total/(gT.total+bT.total));
 		stopRecording(eT);
 		drawBackground(sM);
 		vbl = flip(sM); %flip the buffer
@@ -687,7 +691,7 @@ end
 		if keyIsDown == 1
 			rchar = KbName(keyCode);if iscell(rchar); rchar=rchar{1}; end
 			switch lower(rchar)
-				case {'q','0','escape'}
+				case {'q'}
 					Screen('DrawText', sM.win, '===>>> EXIT!!!',10,10);
 					flip(sM);
 					fprintf('===>>> EXIT!\n');
@@ -861,33 +865,22 @@ end
 	end
 
 	function setupStairCase()
-		priorAlphaB = linspace(min(pedestalBlack), max(pedestalBlack),grain);
-		priorAlphaW = linspace(min(pedestalWhite), max(pedestalWhite),grain);
-		priorBetaB = linspace(0, ana.betaMax, 40); %our slope
-		priorBetaW = linspace(0, ana.betaMax, 40); %our slope
+		priorAlpha = linspace(min(ana.contrastRange), max(ana.contrastRange),grain);
+		priorBeta = linspace(0, ana.betaMax, 40); %our slope
 		priorGammaRange = ana.gamma;  %fixed value (using vector here would make it a free parameter)
 		priorLambdaRange = ana.lambda; %ditto
 		
-		staircaseB = PAL_AMPM_setupPM('stimRange',pedestalBlack,'PF',ana.PF,...
-			'priorAlphaRange', priorAlphaB, 'priorBetaRange', priorBetaB,...
-			'priorGammaRange',priorGammaRange, 'priorLambdaRange',priorLambdaRange,...
-			'numTrials', stopRule,'marginalize',ana.marginalize);
-		
-		staircaseW = PAL_AMPM_setupPM('stimRange',pedestalWhite,'PF',ana.PF,...
-			'priorAlphaRange', priorAlphaW, 'priorBetaRange', priorBetaW,...
+		staircase = PAL_AMPM_setupPM('stimRange',ana.contrastRange,'PF',ana.PF,...
+			'priorAlphaRange', priorAlpha, 'priorBetaRange', priorBeta,...
 			'priorGammaRange',priorGammaRange, 'priorLambdaRange',priorLambdaRange,...
 			'numTrials', stopRule,'marginalize',ana.marginalize);
 		
 		if usePriors
-			priorB = PAL_pdfNormal(staircaseB.priorAlphas,ana.alphaPrior,ana.alphaSD).*PAL_pdfNormal(staircaseB.priorBetas,ana.betaPrior,ana.betaSD);
-			priorW = PAL_pdfNormal(staircaseW.priorAlphas,ana.alphaPrior,ana.alphaSD).*PAL_pdfNormal(staircaseW.priorBetas,ana.betaPrior,ana.betaSD);
+			prior = PAL_pdfNormal(staircase.priorAlphas,ana.alphaPrior,ana.alphaSD).*PAL_pdfNormal(staircase.priorBetas,ana.betaPrior,ana.betaSD);
 			figure;
-			subplot(1,2,1);imagesc(staircaseB.priorBetaRange,staircaseB.priorAlphaRange,priorB);axis square
+			imagesc(staircase.priorBetaRange,staircase.priorAlphaRange,prior);axis square
 			ylabel('Threshold');xlabel('Slope');title('Initial Bayesian Priors BLACK')
-			subplot(1,2,2);imagesc(staircaseW.priorBetaRange,staircaseW.priorAlphaRange,priorW); axis square
-			ylabel('Threshold');xlabel('Slope');title('Initial Bayesian Priors WHITE')
-			staircaseB = PAL_AMPM_setupPM(staircaseB,'prior',priorB);
-			staircaseW = PAL_AMPM_setupPM(staircaseW,'prior',priorW);
+			staircase = PAL_AMPM_setupPM(staircase,'prior',prior);
 		end
 	end
 
