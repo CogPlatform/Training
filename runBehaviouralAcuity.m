@@ -516,13 +516,14 @@ try %our main experimental try catch loop
 			end
 		end
 		tEnd = flip(sM);
-		if tGrat > 0;fprintf('--->>> Time delta grating = %.3f\n',tEnd - tGrat);end
 		ana.task(thisRun).tStart = tStart;
 		ana.task(thisRun).tBlank = tBlank;
 		ana.task(thisRun).tGrat = tGrat;
 		ana.task(thisRun).tEnd = tEnd;
+		ana.task(thisRun).RT   = (tEnd - tGrat) - ana.initTarget;
 		ana.task(thisRun).xAll = eT.xAll;
 		ana.task(thisRun).yAll = eT.yAll;
+		if tGrat > 0;fprintf('--->>> Time delta grating = %.3f RT %.3f\n',tEnd - tGrat, ana.task(thisRun).RT);end
 		
 		%====================================================== FINALISE TRIAL
 		if response > 0
