@@ -66,6 +66,7 @@ target.sigma = 5;
 grat = gratingStimulus();
 grat.mask = true;
 grat.useAlpha = true;
+grat.sf = ana.SF;
 grat.name = ['GRAT' ana.nameExp];
 grat.size = blank.size;
 grat.sigma = ana.sigma;
@@ -282,7 +283,7 @@ try %our main experimental try catch loop
 			task.totalRuns = ana.task(thisRun).runs;
 		else
 			contrastOut = task.outValues{task.thisRun,1};
-			ana.task(thisRun).var = task.outMap{task.thisRun,1};
+			ana.task(thisRun).var = task.outMap(task.thisRun,1);
 			ana.task(thisRun).runs = [task.totalRuns, task.thisBlock, task.thisRun];
 		end
 		
@@ -702,7 +703,13 @@ end
 				flip(s,[],[],2);
 			end
 		else
-			if response ~= BREAKINIT;sM.audio.beep(100,0.75,0.75);end
+			if ana.task(thisRun).contrast == 0
+				rM.timedTTL();
+				sM.audio.beep(1000,0.1,0.1);
+				fprintf('--->>> Reward given as contrast == 0, athlough this trial is incorrect\n');
+			elseif response ~= BREAKINIT
+				sM.audio.beep(100,0.75,0.75);
+			end
 			ana.task(thisRun).response = response;
 			timeOut = ana.punishIFI;
 			if (response == BREAKTARGET) 
