@@ -4,7 +4,8 @@ global rM
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager();
 end
-if ~rM.isOpen; open(rM); end %open our reward manager
+rM.openGUI = false;
+if ~rM.isOpen; open(rM); drawnow; end %open our reward manager
 
 
 %===============compatibility for windows===================
@@ -254,13 +255,12 @@ try %our main experimental try catch loop
 	Priority(MaxPriority(sM.win)); %bump our priority to maximum allowed
 	if ~ana.debug; ListenChar(-1); end
 	commandwindow;
-	startRecording(eT); WaitSecs('YieldSecs',0.5);
+	startRecording(eT); WaitSecs('YieldSecs',0.1); eT.verbose = false;
 	trackerMessage(eT,'!!! Starting Session...');
 	breakLoop		= false;
 	ana.task		= struct();
 	thisRun			= 0;
 	breakLoop		= false;
-	responseRedo	= 0; %number of trials the subject was unsure and redid (left arrow)
 	startAlpha		= stimuli{4}.alphaOut;
 	startAlpha2		= stimuli{4}.alpha2Out;
 	fadeAmount		= ana.fadeAmount/100;
@@ -336,7 +336,7 @@ try %our main experimental try catch loop
 		response			= UNDEFINED; 
 		fixated				= '';
 		tick				= 1; 
-		vbl					= flip(sM); tStart = vbl;
+		vbl					= flip(sM); tStart = vbl + sM.screenVals.ifi;
 		while ~strcmpi(fixated,'fix') && ~strcmpi(fixated,'breakfix')
 			draw(stimuli);
 			if drawEye == 1 
@@ -526,8 +526,8 @@ try %our main experimental try catch loop
 		ana.task(thisRun).RT		= ( tEnd - tGrat ) - ana.fixTarget;
 		ana.task(thisRun).xAll		= eT.xAll;
 		ana.task(thisRun).yAll		= eT.yAll;
-		if tGrat > 0; fprintf('--->>> Time delta grating/blank choice = %.3f RT %.3f\n', tEnd - tGrat, ana.task(thisRun).RT);end
-		fprintf('--->>> Time delta TOTAL = %.3f\n', tEnd - tStart);
+		if tGrat > 0; fprintf('--->>> Time delta grating/blank choice = %.3f RT %.3f | TOTAL = %.3f\n', ...
+				tEnd - tGrat, ana.task(thisRun).RT, tEnd - tStart);end
 		%====================================================== FINALISE TRIAL
 		timeOut						= 1;
 		updateResponse();
@@ -655,8 +655,9 @@ end
 				case {'p'}
 					fprintf('===>>> PAUSED!\n');
 					Screen('DrawText', sM.win, '===>>> PAUSED, press key to resume!!!',10,10);
-					flip(sM);
-					KbWait(-1);
+					flip(sM); 
+					WaitSecs('YieldSecs',0.15);
+					KbWait(-1);s
 					fixated		= 'breakfix';
 					response	= BREAKINIT;
 					doBreak		= true;
@@ -821,10 +822,15 @@ end
 		else
 			cla(ana.plotAxis2);
 			x = task.nVar(1).values;
-			y = gT.cCorrect / gT.cTotal;
-			plot(ana.plotAxis2, x,y)
-			xlabel('Contrast'); ylabel('% Correct');
-			
+			y = (gT.cCorrect ./ gT.cTotal) * 100;
+			y(isnan(y)) = 0;
+			hold(ana.plotAxis2, 'on');	
+			plot(ana.plotAxis2, x,y, 'k-o');
+			ylim(ana.plotAxis2, [-5 105]);
+			title(ana.plotAxis2, 'Contrast Responses')
+			xlabel(ana.plotAxis2, 'Contrast'); 
+			ylabel(ana.plotAxis2, '% Correct');
+			hold(ana.plotAxis2, 'off');	
 		end
 		drawnow;
 	end
