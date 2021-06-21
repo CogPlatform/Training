@@ -445,7 +445,7 @@ try %our main experimental try catch loop
 				bT.targetTotal			= bT.targetTotal + 1;
 				fixOFF					= ana.fixOFF;
 				eT.fixation.radius		= ana.radius+2;
-				eT.fixation.time		= ana.keepBlank - targetTime;
+				eT.fixation.time		= ana.keepBlank;
 				resetFixationTime(eT); fixated = 'fixing';
 			end
 			
@@ -519,10 +519,10 @@ try %our main experimental try catch loop
 		ana.task(thisRun).tBlank	= tBlank;
 		ana.task(thisRun).tGrat		= tGrat;
 		ana.task(thisRun).tEnd		= tEnd;
-		ana.task(thisRun).RT		= ( tEnd - tGrat ) - ana.initTarget;
+		ana.task(thisRun).RT		= ( tEnd - tGrat ) - ana.fixTarget;
 		ana.task(thisRun).xAll		= eT.xAll;
 		ana.task(thisRun).yAll		= eT.yAll;
-		if tGrat > 0; fprintf('--->>> Time delta grating = %.3f RT %.3f\n', tEnd - tGrat, ana.task(thisRun).RT);end
+		if tGrat > 0; fprintf('--->>> Time delta grating/blank choice = %.3f RT %.3f\n', tEnd - tGrat, ana.task(thisRun).RT);end
 		fprintf('--->>> Time delta TOTAL = %.3f\n', tEnd - tStart);
 		%====================================================== FINALISE TRIAL
 		timeOut						= 1;
