@@ -323,11 +323,15 @@ try %our main experimental try catch loop
 		eT.updateFixationValues( ana.XFix, ana.YFix, ana.initTime, ana.fixTime, ana.radius, ana.strict );
 		resetFixationHistory( eT );
 		
-		fprintf('\n\n===>>>START %i / %i: CONTRAST = %.2f TRANSITION TIME = %.2f TARGET ON = %.2f\n',...
-			thisRun, task.totalRuns, contrastOut, transitionTime, targetTime);
+		ti='';
+		if taskType > 2 && showGrating 
+			ti = [ti 'GRATING trial'];	
+		elseif taskType > 2 && ~showGrating
+			ti = [ti 'BLANK trial'];
+		end
+		fprintf('\n\n===>>> %s START %i / %i: CONTRAST = %.2f TRANSITION TIME = %.2f TARGET ON = %.2f\n',...
+			ti, thisRun, task.totalRuns, contrastOut, transitionTime, targetTime);
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
-		if taskType > 2 && showGrating; fprintf('===>>> GRATING trial!\n'); end
-		if taskType > 2 && ~showGrating; fprintf('===>>> BLANK trial!\n'); end
 		% ======================================================INITIATE TRIAL
 		response			= UNDEFINED; 
 		fixated				= '';
