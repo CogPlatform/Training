@@ -649,7 +649,7 @@ end
 					flip(sM);
 					fprintf('===>>> EXIT!\n');
 					fixated		= 'breakfix';
-					response	= BREAKINIT;
+					%response	= BREAKINIT;
 					breakLoop	= true;
 					doBreak		= true;
 				case {'p'}
@@ -657,16 +657,16 @@ end
 					Screen('DrawText', sM.win, '===>>> PAUSED, press key to resume!!!',10,10);
 					flip(sM); 
 					WaitSecs('YieldSecs',0.15);
-					KbWait(-1);s
+					KbWait(-1);
 					fixated		= 'breakfix';
-					response	= BREAKINIT;
+					%response	= BREAKINIT;
 					doBreak		= true;
 				case {'c'}
 					WaitSecs('YieldSecs',0.1);
 					fprintf('\n\n--->>> Entering calibration mode...\n');
 					trackerSetup(eT,eT.calibration);
 					fixated		= 'breakfix';
-					response	= BREAKINIT;
+					%response	= BREAKINIT;
 					doBreak		= true;
 			end
 		end
@@ -723,7 +723,6 @@ end
 			if ana.task(thisRun).contrast == 0 && response == BREAKTARGET
 				rM.timedTTL();
 				sM.audio.beep(1000,0.1,0.1);
-				task.updateTask(response,tEnd);
 				fprintf('--->>> Reward given as contrast == 0, although trial is incorrect!\n');
 			elseif response ~= BREAKINIT
 				sM.audio.beep(100,0.75,0.75);
@@ -734,7 +733,7 @@ end
 				if ana.useStaircase
 					staircase		= PAL_AMPM_updatePM(staircase, false);
 				else
-					task.resetRun();
+					task.updateTask(response,tEnd);
 				end
 			end
 			if drawEye==2 
