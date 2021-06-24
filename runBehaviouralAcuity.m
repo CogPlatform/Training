@@ -329,7 +329,7 @@ try %our main experimental try catch loop
 		elseif taskType > 2 && ~showGrating
 			ti = [ti 'BLANK trial'];
 		end
-		fprintf('\n\n===>>> %s START %i / %i: CONTRAST = %.2f TRANSITION TIME = %.2f TARGET ON = %.2f\n',...
+		fprintf('\n\n===>>> %s START %i / %i: CONTRAST = %.6f TRANSITION TIME = %.2f TARGET ON = %.2f\n',...
 			ti, thisRun, task.totalRuns, contrastOut, transitionTime, targetTime);
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		% ======================================================INITIATE TRIAL
