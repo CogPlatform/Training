@@ -101,7 +101,7 @@ sM.distance				= ana.distance;
 sM.debug				= ana.debug;
 sM.verbose				= ana.debug;
 sM.blend				= true;
-sM.bitDepth				= 'FloatingPoint32Bit';
+sM.bitDepth				= ana.bitDepth;
 if exist(ana.gammaTable, 'file')
 	load(ana.gammaTable);
 	if isa(c,'calibrateLuminance')
@@ -126,7 +126,7 @@ elseif IsWin
 end
 sM.audio.setup();
 	
-%==========================================================================
+%=============================================================
 %===========================tobii manager=====================
 eT						= tobiiManager();
 eT.verbose				= ana.debug;
