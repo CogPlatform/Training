@@ -145,6 +145,7 @@ eT.smoothing.nSamples	= ana.nSamples;
 eT.smoothing.method		= ana.smoothMethod;
 eT.smoothing.window		= ana.w;
 eT.smoothing.eyes		= ana.smoothEye;
+eT.spotSize				= ana.spotSize;
 if ~ana.isDummy; eT.verbose	= true; end
 if ~ana.useTracker || ana.isDummy
 	eT.isDummy			= true;
