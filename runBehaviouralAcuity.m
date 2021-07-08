@@ -169,7 +169,10 @@ else
 	initialise(eT,sM);
 end
 
+eT.settings.cal.fixBackSize = round(ana.spotSize * sM.ppd);
+eT.settings.cal.fixFrontSize = round(ana.spotLine * sM.ppd);
 eT.settings.cal.doRandomPointOrder  = false;
+
 ana.cal=[];
 if isempty(ana.calFile) || ~exist(ana.calFile,'file')
 	name = regexprep(ana.subject,' ','_');
