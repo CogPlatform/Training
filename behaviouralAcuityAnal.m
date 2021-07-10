@@ -9,24 +9,30 @@ parametric = NaN;
 %do we include the break exclude trials?
 useExclusion = false;
 
-%Here is our data
-%load('/home/cog5/MatlabFiles/SavedData/BAMOC_07run2_2021_7_6_13_31_15.mat')
-%load('/home/cog5/MatlabFiles/SavedData/BAMOC_17run5_2021_7_7_13_47_47.mat');
+% do we treat max contrast as only useful for lapse rate, 'nAPLE' (no) or
+% 'jAPLE' (yes)
+lapseFits = 'nAPLE';
 
+% ---- which psychometric function to use?
+PF = @PAL_Gumbel;
+
+% ---- load data
 file = uigetfile;
 if file == 0; return; end
 load(file);
+fprintf('\n\DATA: %s\n',file);
 
+% ---- extract values from data
 contrasts = task.nVar(1).values;
-
 trials = ana.task([ana.task.showGrating]==true);
 trialscorrect = trials([trials.response]==YESTARGET);
 trialswrong = trials([trials.response]==BREAKTARGET);
 trialswrongall = trials([trials.response]==BREAKTARGET | [trials.response]==BREAKEXCL);
 
-fprintf('\n\nData: %s\n',file)
-fprintf('Trial number: %i -- Correct: %i -- BREAK: %i -- BREAKALL: %i\n',...
-	length(trials),length(trialscorrect),length(trialswrong),length(trialswrongall));
+ti=sprintf('Trials: %i - Corr: %i - BREAK: %i - BREAKALL: %i - EXCL: %i',...
+	length(trials),length(trialscorrect),length(trialswrong),length(trialswrongall),...
+	useExclusion);
+disp(ti);
 
 if useExclusion
 	trialswrong = trialswrongall;
@@ -50,93 +56,100 @@ correct = contrastCorrect;
 
 % ================= Here are our model parameters =========================
 % ---- threshold
-search.alpha = linspace(min(contrasts),max(contrasts),100);
+search.alpha = logspace(min(contrasts), max(contrasts), 100);
+
 % ---- slope
-search.beta = logspace(0,1,100);
+search.beta = logspace(0, 2, 100);
+
 % ---- guess rate
 search.gamma = 0;
-%search.gamma = linspace(0,0.5,50);
-% ---- error bias
-%search.lambda = 0.02;
-search.lambda = linspace(0,0.2,50);
+%searchGrid.gamma = linspace(0,0.5,10);
+
+% ---- lapse bias
+%search.lambda = 0;
+search.lambda = linspace(0,0.2,10);
+
 % ---- which parameters to search
 freeParameters = [1 1 0 1];
-% ---- which psychometric function to use?
-PF = @PAL_Gumbel;
 
 % ============================ Here we run the model ======================
-[params,b,c] = PAL_PFML_Fit(contrasts,correct,total,search,freeParameters,PF);
+[params,b,c,d] = PAL_PFML_Fit(contrasts,correct,total,search,freeParameters,PF,...
+	'lapseLimits',[0 0.2],'guessLimits',[0 0.5],'lapseFits',lapseFits);
 
+if c ~= 1
+	warndlg('DID NOT CONVERGE!!!!!');
+end
 if params(2) == Inf
 	warning('Had to change the INF slope parameter!!')
 	params(2) = max(search.beta);
 end
-xrange = linspace(0, max(contrasts), 500);
+xrange = linspace(0, max(contrasts), 1000);
 fit = PF(params,xrange);
 
 % ========================= And plot our result ===========================
 fname = functions(PF);
 fname = fname.function;
-figure
-hold on;
+r = groot; ss = r.ScreenSize;
+f = figure('Position',[ss(3)/4+randi(50) ss(4)/2 ss(3)/2 ss(4)/2]);
+tiledlayout(f,'flow');
+nexttile; hold on
 plot(contrasts,(correct./total),'k.','Color',[0.3 0.3 0.3],'MarkerSize',30);
 plot(xrange,fit,'Color',[0.8 0.5 0],'LineWidth', 2);
-title([fname ' Fitted data values: ' num2str(params,'%.4f ')],'Interpreter','none');
-subtitle(file,'Interpreter','none');
-ylim([-0.05 1.05])
-xlabel('Contrast')
-ylabel('Probability Correct')
-grid on; grid minor; box on;
+title([fname ' PARAMS: ' num2str(params,'%.4f ') ' LL: ' num2str(b,'%.3f')],'Interpreter','none');
+subtitle([file ' ' ti],'Interpreter','none');
+xlim([-(max(contrasts)/100) max(contrasts)+(max(contrasts)/100)]);
+ylim([-0.05 1.05]);
+xlabel('Stimulus Contrast');
+ylabel('Proportion correct [0 - 1]');
+grid on; grid minor; box on; hold off
 drawnow;
-
 
 % =======================Get errors and goodness of fit? =================
 if islogical(parametric)
+	warning off
+	t = text(0.01, 0.1, 'Calculating GOF, please wait...','FontSize',16);drawnow
 	B=400;
 	if parametric == 1
-		[SD paramsSim LLSim converged] = PAL_PFML_BootstrapParametric(...
+		[SD, paramsSim, LLSim, converged] = PAL_PFML_BootstrapParametric(...
 			contrasts, total, params, freeParameters, B, PF, ...
 			'searchGrid', search);
 	else
-		[SD paramsSim LLSim converged] = PAL_PFML_BootstrapNonParametric(...
+		[SD, paramsSim, LLSim, converged] = PAL_PFML_BootstrapNonParametric(...
 			contrasts, correct, total, [], freeParameters, B, PF,...
 			'searchGrid',search);
 	end
 
-	disp('done:');
-	message = sprintf('Standard error of Threshold: %6.4f',SD(1));
-	disp(message);
-	message = sprintf('Standard error of Slope: %6.4f\r',SD(2));
-	disp(message);
+	message = sprintf('Threshold SE: %6.4f',SD(1));
+	message = [message sprintf(' | slope SE: %6.4f',SD(2))];
+	message = [message sprintf(' | lapse SE: %6.4f',SD(4))];
 	
 	%Number of simulations to perform to determine Goodness-of-Fit
-	B=1000;
-
+	B=500;
 	disp('Determining Goodness-of-fit.....');
 
-	[Dev pDev] = PAL_PFML_GoodnessOfFit(contrasts, correct, total, ...
+	[Dev, pDev] = PAL_PFML_GoodnessOfFit(contrasts, correct, total, ...
 		params, freeParameters, B, PF, 'searchGrid', search);
 
-	disp('done:');
-
 	%Put summary of results on screen
-	message = sprintf('Deviance: %6.4f',Dev);
-	disp(message);
-	message = sprintf('p-value: %6.4f',pDev);
-	disp(message);
-
+	message = [message sprintf(' | deviance: %6.4f',Dev)];
+	message = [message sprintf(' | p: %6.4f',pDev)];
+	
+	delete(t);
+	text(0.01, 0.1, message,'FontSize',14);
+	warning on
+	
 	%Create simple plot
-	ProportionCorrectObserved=correct./total; 
-	StimLevelsFineGrain=[min(contrasts):max(contrasts)./1000:max(contrasts)];
-	ProportionCorrectModel = PF(params,StimLevelsFineGrain);
-
-	figure('name','Maximum Likelihood Psychometric Function Fitting');
-	axes
-	hold on
-	plot(StimLevelsFineGrain,ProportionCorrectModel,'-','color',[0.8 0.5 0],'linewidth',2);
-	plot(StimLevels,ProportionCorrectObserved,'k.','markersize',30);
-	set(gca, 'Xtick',StimLevels);
-	axis([min(StimLevels) max(StimLevels) 0 1]);
-	xlabel('Contrast');
-	ylabel('Proportion correct [0 - 1]');
+% 	ProportionCorrectObserved = correct./total; 
+% 	StimLevelsFineGrain = linspace(min(contrasts), max(contrasts), 500);
+% 	ProportionCorrectModel = PF(params,StimLevelsFineGrain);
+% 	
+% 	nexttile;
+% 	hold on;
+% 	plot(StimLevelsFineGrain,ProportionCorrectModel,'-','color',[0.8 0.5 0],'linewidth',2);
+% 	plot(contrasts,ProportionCorrectObserved,'k.','markersize',30);
+% 	axis([min(StimLevels) max(StimLevels) -0.05 1.05]);
+% 	xlabel('Stimulus Contrast');
+% 	ylabel('Proportion correct [0 - 1]');
+% 	title(message)
+% 	grid on; grid minor; box on; hold off
 end
