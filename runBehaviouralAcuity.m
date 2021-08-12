@@ -103,14 +103,15 @@ sM.verbose				= ana.debug;
 sM.blend				= true;
 sM.bitDepth				= ana.bitDepth;
 if exist(ana.gammaTable, 'file')
+	clear c
 	load(ana.gammaTable);
-	if isa(c,'calibrateLuminance')
+	if exist('c','var') && isa(c,'calibrateLuminance') && ~isempty(c.finalCLUT) && ~isempty(c.gammaTable)
 		sM.gammaTable = c;
+	else
+		error('CALIBRATION FILE INVALID!!!!!!!!!!!');
 	end
 	clear c;
-	if ana.debug
-		sM.gammaTable.plot
-	end
+	sM.gammaTable.plot;
 end
 sM.backgroundColour		= ana.backgroundColor;
 screenVals				= sM.open; % OPEN THE SCREEN
@@ -189,7 +190,9 @@ if ~isempty(cal) && isfield(cal,'attempt')
 	cal.computer = ana.computer;
 	cal.date = ana.date;
 	assignin('base','cal',cal); %put our calibration ready to save manually
-	save(ana.calFile,'cal');
+	if ~exist(ana.calFile,'file')
+		save(ana.calFile,'cal');
+	end
 	ana.outcal = cal;
 end
 
@@ -315,7 +318,7 @@ try %our main experimental try catch loop
 		stimuli{4}.alpha2Out			= startAlpha2;
 		stimuli{4}.xPositionOut			= ana.XFix;
 		hide(stimuli);
-		show(stimuli{4}); % fixation is visible
+		show(stimuli{4}); % fixation is visi/home/cog5/MatlabFiles/Calibrations/AorusFI27-120Hzble
 		update(stimuli);
 		
 		tStart = 0; tBlank = 0; tGrat = 0; tEnd = 0;
@@ -680,8 +683,12 @@ end
 	function updateResponse()
 		%===========================================CORRECT BLANK/TARGET
 		if response > 0
-			rM.timedTTL();
-			sM.audio.beep(1000,0.1,0.1);
+			if ana.task(thisRun).contrast > 0
+				rM.timedTTL();
+				sM.audio.beep(1000,0.1,0.1);
+			elseif ana.task(thisRun).contrast == 0
+				sM.audio.beep(100,0.75,0.75);
+			end
 			ana.task(thisRun).response = response;
 			timeOut				= ana.IFI;
 			if response == YESTARGET
