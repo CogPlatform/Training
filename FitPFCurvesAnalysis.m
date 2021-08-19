@@ -54,8 +54,8 @@ trialscorrect = trials([trials.response]==YESTARGET);
 trialswrong = trials([trials.response]==BREAKTARGET);
 trialswrongall = trials([trials.response]==BREAKTARGET | [trials.response]==BREAKEXCL);
 
-txt = sprintf('Gamma: %.3f | Trial number: %i | Correct: %i | BREAK: %i | BREAKALL: %i', ...
-	gamma, length(trials),length(trialscorrect),length(trialswrong),length(trialswrongall));
+txt = sprintf('Trial number: %i | Correct: %i | BREAK: %i | BREAKALL: %i', ...
+	length(trials),length(trialscorrect),length(trialswrong),length(trialswrongall));
 disp(txt);
 uiin.results.Value = {txt};
 
@@ -75,19 +75,21 @@ for i = 1 : length(contrasts)
 end
 
 % force the first value to be 0 contrast
-%contrasts(contrasts==0) = 0;
+if uiin.logAxis
+	contrasts(contrasts==0) = 1e-3;
+end
 
 total = contrastTotal;
 correct = contrastCorrect;
 
 % ================= Here are our model parameters =========================
 % ---- threshold
-search.alpha = linspace(min(contrasts), max(contrasts), grain);
+search.alpha = linspace(contrasts(2), max(contrasts)/4, grain);
 % ---- slope
 if logSlope
-	search.beta = logspace(0, log10(30), grain);
+	search.beta = logspace(0, log10(300), grain);
 else
-	search.beta = linspace(0, 30, grain);
+	search.beta = linspace(0, 20, round(grain/2));
 end
 % ---- guess rate
 correct0 = contrastCorrect(1) ./ contrastTotal(1); %%contrast=0的正确率，算出来作为gamma值
@@ -108,18 +110,19 @@ else
 end
 minlambda=0;
 maxlambda=max(search.lambda);
-% ---- which parameters to search
+
 % ---- which psychometric function to use?
 % fitting method nAPLE treals each stim seperately, jAPLE assumes largest
 % stim defines lapse rate, i.e. contrast is clearly visible so lapse is
 % only explanation if larger than 0.
 lf = uiin.fitting;
-% fitting options
+
+% ---- fitting options
 options = PAL_minimize('options');  %decrease tolerance (i.e., increase
-options.TolX = 1e-09;              %precision). This is a good idea,
-options.TolFun = 1e-09;            %especially in high-dimension
-options.MaxIter = 10000;           %parameter space.
-options.MaxFunEvals = 10000;
+options.TolX = 1e-11;              %precision). This is a good idea,
+options.TolFun = 1e-11;            %especially in high-dimension
+options.MaxIter = 5000;           %parameter space.
+options.MaxFunEvals = 5000;
 options.Display = 'on';
 
 % ============================ Here we run the model ======================
@@ -141,12 +144,12 @@ if params(2) == Inf
 end
 xrange = linspace(0, max(contrasts), 500);
 fit = PF(params,xrange);
-uiin.results.Value = [uiin.results.Value; txt];
+uiin.results.Value = [uiin.results.Value; txt];drawnow
 % =======================Get errors and goodness of fit? =================
 if islogical(parametric)
 	commandwindow;
 	disp('Calculating standard errors and goodness of fit, please wait...')
-	B=250;
+	B=uiin.nBootstraps;
 	if parametric == true
 		[SD, paramsSim, LLSim, converged] = PAL_PFML_BootstrapParametric(...
 			contrasts, total, params, freeParameters, B, PF, ...
@@ -158,7 +161,7 @@ if islogical(parametric)
 	end
 	
 	%Number of simulations to perform to determine Goodness-of-Fit
-	B=250;
+	B=uiin.nBootstraps;
 	disp('Determining Goodness-of-fit.....');
 	[Dev, pDev] = PAL_PFML_GoodnessOfFit(contrasts, correct, total, ...
 		params, freeParameters, B, PF, 'searchGrid', search, 'lapseFit',lf);
@@ -179,6 +182,10 @@ axis(uiin.axis);
 plot(uiin.axis,contrasts,(correct./total),'k.','Color',[0.3 0.3 0.3],'MarkerSize',30);
 hold(uiin.axis,'on');
 plot(uiin.axis,xrange,fit,'Color',[0.8 0.5 0],'LineWidth', 2);
+if exist('SD','var') & ~isempty(SD)
+	plot(uiin.axis,params(1),0.6,'bo','MarkerFaceColor','b','MarkerSize',6);
+	line(uiin.axis,[params(1)-SD(1) params(1)+SD(1)], [0.6 0.6],'Color','b','LineWidth',1);
+end
 title(uiin.axis,txt);
 SF = ana.SF;
 txt = ['SF = ' num2str(SF) ', file = ' uiin.file];
@@ -194,3 +201,4 @@ uiin.axis.XMinorGrid='on';uiin.axis.YMinorGrid='on';
 box(uiin.axis,'on');
 drawnow;
 
+end
