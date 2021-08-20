@@ -85,23 +85,36 @@ correct = contrastCorrect;
 % ================= Here are our model parameters =========================
 % ---- threshold
 search.alpha = linspace(uiin.maxThreshold(1), uiin.maxThreshold(2), grain);
+freeParameters = 1 ;
 % ---- slope
 if logSlope
-	search.beta = logspace(log10(uiin.maxSlope(1)), log10(uiin.maxSlope(2)), round(grain/2));
+	if length(uiin.maxSlope) == 1
+		search.beta = uiin.maxSlope;
+		freeParameters = [freeParameters 0];
+	else
+		search.beta = logspace(log10(uiin.maxSlope(1)), log10(uiin.maxSlope(2)), grain);
+		freeParameters = [freeParameters 1];
+	end
 else
-	search.beta = linspace(uiin.maxSlope(1), uiin.maxSlope(2), round(grain/2));
+	if length(uiin.maxSlope) == 1
+		search.beta = uiin.maxSlope;
+		freeParameters = [freeParameters 0];
+	else
+		search.beta = linspace(uiin.maxSlope(1), uiin.maxSlope(2), grain);
+		freeParameters = [freeParameters 1];
+	end
 end
 % ---- guess rate
 correct0 = contrastCorrect(1) ./ contrastTotal(1); 
 if isnan(uiin.fixedGamma)
 	search.gamma = linspace(0,0.5,25);
-	freeParameters = [1 1 1];
+	freeParameters = [freeParameters 1];
 elseif isinf(uiin.fixedGamma) 
 	search.gamma = correct0;
-	freeParameters = [1 1 0];
+	freeParameters = [freeParameters 0];
 else
 	search.gamma = uiin.fixedGamma;
-	freeParameters = [1 1 0];
+	freeParameters = [freeParameters 0];
 end
 % ---- error bias
 if isnan(fixedLambda)
