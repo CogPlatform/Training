@@ -84,27 +84,33 @@ correct = contrastCorrect;
 
 % ================= Here are our model parameters =========================
 % ---- threshold
-search.alpha = linspace(contrasts(2), max(contrasts)/4, grain);
+search.alpha = linspace(uiin.maxThreshold(1), uiin.maxThreshold(2), grain);
 % ---- slope
 if logSlope
-	search.beta = logspace(0, log10(300), grain);
+	search.beta = logspace(log10(uiin.maxSlope(1)), log10(uiin.maxSlope(2)), round(grain/2));
 else
-	search.beta = linspace(0, 20, round(grain/2));
+	search.beta = linspace(uiin.maxSlope(1), uiin.maxSlope(2), round(grain/2));
 end
 % ---- guess rate
-correct0 = contrastCorrect(1) ./ contrastTotal(1); %%contrast=0的正确率，算出来作为gamma值
+correct0 = contrastCorrect(1) ./ contrastTotal(1); 
 if isnan(uiin.fixedGamma)
+	search.gamma = linspace(0,0.5,25);
+	freeParameters = [1 1 1];
+elseif isinf(uiin.fixedGamma) 
 	search.gamma = correct0;
 	freeParameters = [1 1 0];
 else
-	search.gamma = linspace(0,0.5,25);
-	freeParameters = [1 1 1];
+	search.gamma = uiin.fixedGamma;
+	freeParameters = [1 1 0];
 end
 % ---- error bias
 if isnan(fixedLambda)
 	search.lambda = linspace(0,0.2,25);
 	freeParameters = [freeParameters 1];
-else 
+elseif isinf(fixedLambda)
+	search.lambda = 0.02;
+	freeParameters = [freeParameters 0];
+else
 	search.lambda = fixedLambda;
 	freeParameters = [freeParameters 0];
 end
@@ -119,10 +125,10 @@ lf = uiin.fitting;
 
 % ---- fitting options
 options = PAL_minimize('options');  %decrease tolerance (i.e., increase
-options.TolX = 1e-11;              %precision). This is a good idea,
-options.TolFun = 1e-11;            %especially in high-dimension
-options.MaxIter = 5000;           %parameter space.
-options.MaxFunEvals = 5000;
+options.TolX = 1e-10;              %precision). This is a good idea,
+options.TolFun = 1e-10;            %especially in high-dimension
+options.MaxIter = 7000;           %parameter space.
+options.MaxFunEvals = 7000;
 options.Display = 'on';
 
 % ============================ Here we run the model ======================
@@ -133,18 +139,20 @@ options.Display = 'on';
 disp(d);
 if c < 0
 	warning('Fit did not converge on a global maximum!'); 
-	txt = ['WARNING: NO Convergence - ' txt];
+	txt = ['WARNING!!!: NO Convergence - LL:' num2str(b)];
 else
-	txt = d.message;
+	txt = ['LL:' num2str(b)];
 end
 if params(2) == Inf
 	warning('Had to change the INF slope parameter!!')
-	txt = ['WARNING: INF Slope - ' txt];
+	txt = [txt ' - WARNING: INF Slope'];
 	params(2) = max(search.beta);
 end
+uiin.results.Value = [uiin.results.Value; txt; d.message];drawnow
+
 xrange = linspace(0, max(contrasts), 500);
 fit = PF(params,xrange);
-uiin.results.Value = [uiin.results.Value; txt];drawnow
+
 % =======================Get errors and goodness of fit? =================
 if islogical(parametric)
 	commandwindow;
@@ -165,7 +173,7 @@ if islogical(parametric)
 	disp('Determining Goodness-of-fit.....');
 	[Dev, pDev] = PAL_PFML_GoodnessOfFit(contrasts, correct, total, ...
 		params, freeParameters, B, PF, 'searchGrid', search, 'lapseFit',lf);
-	txt = sprintf('%s Threshold: %.3f\\pm%.3f | Slope: %.3f\\pm%.3f | Guess: %.3f | Lapse: %.3f | Deviance: %.3f; p-value: %.3f',...
+	txt = sprintf('%s Threshold: %.3f±%.3f | Slope: %.3f±%.3f | Guess: %.3f | Lapse: %.3f | Deviance: %.3f; p-value: %.3f',...
 		pfname,params(1),SD(1),params(2),SD(2),params(3),params(4),Dev,pDev);
 	
 else
@@ -186,7 +194,7 @@ if exist('SD','var') & ~isempty(SD)
 	plot(uiin.axis,params(1),0.6,'bo','MarkerFaceColor','b','MarkerSize',6);
 	line(uiin.axis,[params(1)-SD(1) params(1)+SD(1)], [0.6 0.6],'Color','b','LineWidth',1);
 end
-title(uiin.axis,txt);
+title(uiin.axis,txt,'FontSize',10);
 SF = ana.SF;
 txt = ['SF = ' num2str(SF) ', file = ' uiin.file];
 subtitle(uiin.axis,txt,'Interpreter','none');
