@@ -104,6 +104,7 @@ else
 		freeParameters = [freeParameters 1];
 	end
 end
+
 % ---- guess rate
 correct0 = contrastCorrect(1) ./ contrastTotal(1); 
 if isnan(uiin.fixedGamma)
@@ -116,6 +117,8 @@ else
 	search.gamma = uiin.fixedGamma;
 	freeParameters = [freeParameters 0];
 end
+gL = [min(search.gamma) max(search.gamma)];
+
 % ---- error bias
 if isnan(fixedLambda)
 	search.lambda = linspace(0,0.2,25);
@@ -127,8 +130,7 @@ else
 	search.lambda = fixedLambda;
 	freeParameters = [freeParameters 0];
 end
-minlambda=0;
-maxlambda=max(search.lambda);
+lL = [0 max(search.lambda)];
 
 % ---- which psychometric function to use?
 % fitting method nAPLE treals each stim seperately, jAPLE assumes largest
@@ -145,16 +147,17 @@ options.MaxFunEvals = 7000;
 options.Display = 'on';
 
 % ============================ Here we run the model ======================
-[params,b,c,d] = PAL_PFML_Fit(contrasts,correct,total,search,freeParameters,PF,...
+[params,LL,c,d] = PAL_PFML_Fit(contrasts,correct,total,search,freeParameters,PF,...
 	'lapseFits',lf,...
-	'lapseLimits',[minlambda maxlambda],...
+	'guessLimits',gL,...
+	'lapseLimits',lL,...
 	'searchOptions',options);
 disp(d);
 if c < 0
 	warning('Fit did not converge on a global maximum!'); 
-	txt = ['WARNING!!!: NO Convergence - LL:' num2str(b)];
+	txt = ['WARNING!!!: NO Convergence - LL:' num2str(LL)];
 else
-	txt = ['LL:' num2str(b)];
+	txt = ['LL:' num2str(LL)];
 end
 if params(2) == Inf
 	warning('Had to change the INF slope parameter!!')
@@ -186,11 +189,12 @@ if islogical(parametric)
 	disp('Determining Goodness-of-fit.....');
 	[Dev, pDev] = PAL_PFML_GoodnessOfFit(contrasts, correct, total, ...
 		params, freeParameters, B, PF, 'searchGrid', search, 'lapseFit',lf);
-	txt = sprintf('%s Threshold: %.3f±%.3f | Slope: %.3f±%.3f | Guess: %.3f | Lapse: %.3f | Deviance: %.3f; p-value: %.3f',...
-		pfname,params(1),SD(1),params(2),SD(2),params(3),params(4),Dev,pDev);
+	txt = sprintf('%s LL:%.3f Thr: %.3f±%.3f | Slope: %.3f±%.3f | Guess: %.3f | Lapse: %.3f | Dev: %.3f; p-val: %.3f',...
+		pfname,LL,params(1),SD(1),params(2),SD(2),params(3),params(4),Dev,pDev);
 	
 else
-	txt = sprintf('%s Threshold: %.3f | Slope: %.3f | Guess: %.3f | Lapse: %.3f',pfname,params(1),params(2),params(3),params(4));
+	txt = sprintf('%s LL:%.3f Thr: %.3f | Slope: %.3f | Guess: %.3f | Lapse: %.3f',...
+		pfname,LL,params(1),params(2),params(3),params(4));
 end
 uiin.results.Value = [uiin.results.Value; txt];
 
