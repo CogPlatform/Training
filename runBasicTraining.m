@@ -124,7 +124,6 @@ try
 		s.distance			= sM.distance;
 		[w,h]				= Screen('WindowSize',s.screen);
 		s.windowed			= [0 0 round(w/2) round(h/2)];
-		s.bitDepth			= '';
 		s.blend				= sM.blend;
 		s.bitDepth			= '8bit';
 		s.blend				= true;
