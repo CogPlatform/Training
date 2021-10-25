@@ -2,7 +2,7 @@ function runEEGAnalysis(ana)
 ft_defaults;
 ana.table.Data			=[]; 
 ana.warning.Color		= [ 0.5 0.5 0.5 ];
-ana.codeVersion			= '1.09';
+ana.codeVersion			= '1.10';
 ana.versionLabel.Text	= [ana.versionLabel.UserData ' Code: V' ana.codeVersion];
 colours					= analysisCore.optimalColours(10);
 info					= load(ana.MATFile);
@@ -209,10 +209,13 @@ fprintf('===>>> Analysis took %.2f seconds\n', toc(ts));
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%GET VARS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function vars = getVariables()
-	if isprop(info.seq,'varLabels')
+	if isprop(info.seq,'varLabels') && ~isempty(info.seq.varLabels)
 		vars			= info.seq.varLabels;
 	else
 		vars			= cell(info.seq.minBlocks,1);
+		for i=1:length(vars)
+			vars{i} = num2str(i);
+		end
 	end
 end
 
