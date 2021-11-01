@@ -320,7 +320,7 @@ try
 		for i = 1:3;lM.strobeServer(255);WaitSecs(0.02); end
 		for i = 1:length(sd);lM.strobeServer(sd(i));WaitSecs(0.02);end
 	end
-	startRecording(eT); WaitSecs('YieldSecs',1);
+	startRecording(eT, true); WaitSecs('YieldSecs',1);
 	trackerMessage(eT,'!!! Starting Session...');
 	breakLoop		= false;
 	ana.trial		= struct();
