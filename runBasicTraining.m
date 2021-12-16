@@ -63,10 +63,10 @@ try
 		sM.disableSyncTests = true; 
 	end
 	if ana.debug
-		%sM.windowed			= [0 0 1400 1000]; 
+		if sM.screen == 0; sM.windowed	= [0 0 1000 900]; end
 		sM.visualDebug		= true;
 		sM.debug			= true;
-		sM.verbosityLevel	= 5;
+		sM.verbosityLevel	= 4;
 	else
 		sM.debug			= false;
 		sM.verbosityLevel	= 3;
@@ -113,6 +113,7 @@ try
 	eT.smoothing.window		= ana.w;
 	eT.smoothing.eyes		= ana.smoothEye;
 	if ~ana.isDummy; eT.verbose	= true; end
+	if ismac; eT = eyelinkManager; end
 	if ~ana.useTracker || ana.isDummy
 		eT.isDummy			= true;
 	end
@@ -135,24 +136,26 @@ try
 		initialise(eT,sM);
 	end
 	
-	eT.settings.cal.doRandomPointOrder  = false;
-	ana.cal=[];
-	if isempty(ana.calFile) || ~exist(ana.calFile,'file')
-		name = regexprep(ana.subject,' ','_');
-		ana.calFile = [eT.paths.savedData filesep 'TobiiCal-' name '.mat'];
-	end
-	if ana.reloadPreviousCal && exist(ana.calFile,'file')
-		load(ana.calFile);
-		if isfield(cal,'attempt') && ~isempty(cal.attempt); ana.cal = cal; end
-	end
-	cal = trackerSetup(eT, ana.cal); ShowCursor();
-	if ~isempty(cal) && isfield(cal,'attempt')
-		cal.comment=sprintf('Subject:%s | Comments: %s | tobii calibration',ana.subject,ana.comments);
-		cal.computer = ana.computer;
-		cal.date = ana.date;
-		assignin('base','cal',cal); %put our calibration ready to save manually
-		save(ana.calFile,'cal');
-		ana.outcal = cal;
+	if ~ismac
+		eT.settings.cal.doRandomPointOrder  = false;
+		ana.cal=[];
+		if isempty(ana.calFile) || ~exist(ana.calFile,'file')
+			name = regexprep(ana.subject,' ','_');
+			ana.calFile = [eT.paths.savedData filesep 'TobiiCal-' name '.mat'];
+		end
+		if ana.reloadPreviousCal && exist(ana.calFile,'file')
+			load(ana.calFile);
+			if isfield(cal,'attempt') && ~isempty(cal.attempt); ana.cal = cal; end
+		end
+		cal = trackerSetup(eT, ana.cal); ShowCursor();
+		if ~isempty(cal) && isfield(cal,'attempt')
+			cal.comment=sprintf('Subject:%s | Comments: %s | tobii calibration',ana.subject,ana.comments);
+			cal.computer = ana.computer;
+			cal.date = ana.date;
+			assignin('base','cal',cal); %put our calibration ready to save manually
+			save(ana.calFile,'cal');
+			ana.outcal = cal;
+		end
 	end
 	
 	% ---- initial fixation values.
