@@ -1,13 +1,26 @@
 function motiontest1()
 
-	screen = 1;
-	screenSize = [];
+	screen = max(Screen('Screens'));
+	screenSize = [0 0 800 800];
 	cycleTime = 1.5; % time for one sweep, determines max speed
 	bgColour = 0.55;
 	dotColour = [0 0 0]';
 	dotSize = 0.5;
 	nDots = 35;
 	backlight = false;
+
+	if isdeployed
+		disp('=== Running in deployed mode');
+		appRoot = ctfroot;
+		disp(['=== App root: ' appRoot]);
+		disp(['=== PTB Root: ' PsychtoolboxRoot]);
+	else
+		disp('=== Running under MATLAB')
+	end
+	if exist('ColorGratingShader.frag.txt','file')
+		fp = which('ColorGratingShader.frag.txt');
+		disp(['Shader found at:\n   ' fp])
+	end
 
 	ptb = mySetup(screen,bgColour,screenSize);
 
@@ -34,8 +47,8 @@ function motiontest1()
 	ListenChar(-1);
 	Priority(MaxPriority(ptb.win)); %bump our priority to maximum allowed
 	vbl(1) = Screen('Flip', ptb.win);
-	
-	fprintf('\n\nGet ready for motion');
+	x = 1;
+	disp('\nGet ready for motion...');
 	
 	
 	while ~CloseWin
@@ -49,12 +62,13 @@ function motiontest1()
 		vbl(end+1) = Screen('Flip', ptb.win, vbl(end) + ptb.ifi/2);
 
 		looper = looper + 1;
+		x = x + 1;
 		if looper >= length(xShift); looper = 1; end
 		xy(1,:) = repmat(xShift(looper),1,length(xPos));
-
+		if x > 1000; CloseWin = true; end
 		% ---- handle keyboard
-		[~,~,keyCode] = KbCheck(-1);
-		name = find(keyCode==1);
+		%[~,~,keyCode] = KbCheck(-1);
+		name = [];%find(keyCode==1);
 		if ~isempty(name)  
 			switch name
 				case incB
@@ -96,14 +110,17 @@ function ptb = mySetup(screen, bgColour, ws)
 	ptb.cleanup = onCleanup(@myCleanup);
 	PsychDefaultSetup(2);
 	KbName('UnifyKeyNames');
-	Screen('Preference', 'SkipSyncTests', 0);
-	Screen('Preference', 'Verbosity', 3);
-	Screen('Preference','SyncTestSettings', 0.0008);
+	Screen('Preference', 'SkipSyncTests', 2);
+	Screen('Preference', 'Verbosity', 4);
+	%Screen('Preference','SyncTestSettings', 0.0008);
 	if isempty(screen); screen = max(Screen('Screens')); end
 	ptb.ScreenID = screen;
 	PsychImaging('PrepareConfiguration');
-	PsychImaging('AddTask', 'General', 'FloatingPoint32BitIfPossible');
-	[ptb.win, ptb.winRect] = PsychImaging('OpenWindow', ptb.ScreenID, bgColour, ws, [], [], [], 1); 
+	PsychImaging('AddTask', 'General', '8bit');
+	% Screen('OpenWindow',windowPtrOrScreenNumber [,color] [,rect][,pixelSize]
+	% [,numberOfBuffers][,stereomode][,multisample][,imagingmode][,specialFlags]
+	% [,clientRect][,fbOverrideRect][,vrrParams=[]]);
+	[ptb.win, ptb.winRect] = PsychImaging('OpenWindow', ptb.ScreenID, bgColour, ws, [], [], []); 
 
 	[ptb.w, ptb.h] = RectSize(ptb.winRect);
 	screenWidth = 698; % mm

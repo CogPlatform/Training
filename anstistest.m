@@ -2,7 +2,19 @@ function anstistest()
 
 bgColour = [0.5 0.5 0.5];
 screen = max(Screen('Screens'));
-screenSize = [];
+screenSize = [0 0 900 800];
+
+if isdeployed
+	disp('=== Running in deployed mode');
+	disp(['=== App root: ' ctfroot]);
+	disp(['=== PTB Root: ' PsychtoolboxRoot]);
+else
+	disp('=== Running under MATLAB')
+end
+if exist('ColorGratingShader.frag.txt','file')
+	fp = which('ColorGratingShader.frag.txt');
+	disp(['Shader found at:\n   ' fp])
+end
 
 ptb = mySetup(screen,bgColour,screenSize);
 

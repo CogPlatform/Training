@@ -15,6 +15,7 @@ if ~lM.isOpen; open(lM); end %open our strobed word manager
 global rM
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager();
+	rM.openGUI = true;
 end
 if ~ana.useArduino
 	rM.silentMode = true; 
