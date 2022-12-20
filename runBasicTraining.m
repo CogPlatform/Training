@@ -88,13 +88,13 @@ try
 	fprintf('\n--->>> BasicTraining Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
 	PsychPortAudio('Close');
-	sM.audio = audioManager(); sM.audio.close();
+	aM = audioManager(); aM.close();
 	if IsLinux
-		sM.audio.device		= [];
+		aM.device		= [];
 	elseif IsWin
-		sM.audio.device		= [];
+		aM.device		= [];
 	end
-	sM.audio.setup();
+	aM.setup();
 	
 	%===========================tobii manager=====================
 	eT						= tobiiManager();
@@ -438,7 +438,7 @@ try
 		if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 		if ana.isGaze; eT.fixation.X = 0; eT.fixation.Y = 0; eT.fixation.Xradius = picSize.X/2;eT.fixation.Yradius=picSize.Y/2; end 
 		if ana.rewardStart; rM.timedTTL(2,rewardtime); rewards=rewards+1; end
-% 		if ~ana.isVEP; play(sM.audio); end
+% 		if ~ana.isVEP; play(aM); end
 		tStart = flip(sM); vbl = tStart;
 		while vbl < tStart + ana.playTimes
 			if ana.fixOnly
@@ -506,7 +506,7 @@ try
 			trackerMessage(eT,'TRIAL_RESULT 1');
 			if ~doBreak; correct(); end
 		elseif ~doBreak
-			if ana.rewardEnd; rM.timedTTL(2,rewardtime); rewards=rewards+1;beep(sM.audio,'high'); end
+			if ana.rewardEnd; rM.timedTTL(2,rewardtime); rewards=rewards+1;beep(aM,'high'); end
 			if ana.isVEP
 				updateTask(seq,true,tEnd-tStart); %updates our current run number
 				if seq.taskFinished;breakLoop = true;end
@@ -520,7 +520,7 @@ try
 			flip(sM);
 		end
 		
-		sM.audio.loadSamples();
+		aM.loadSamples();
 		updatePlots();
 		
 		%========================================================SAVE THIS RUN INFO
@@ -646,7 +646,7 @@ end
 
 	function correct()
 		if ana.rewardEnd; rM.timedTTL(2,rewardtime); rewards=rewards+1; end
-		beep(sM.audio,'high'); 
+		beep(aM,'high'); 
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
 		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
 		if ana.visualFeedback;drawGreenSpot(sM,80);end
@@ -672,7 +672,7 @@ end
 	end
 
 	function incorrect()
-		beep(sM.audio,'low');
+		beep(aM,'low');
 		fprintf('===>>> Incorrect given, timeout=%.2f!\n',ana.timeOut);
 		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(251); end
 		if ana.visualFeedback;drawRedSpot(sM,80);end
