@@ -5,6 +5,9 @@ s.blend = true;
 s.disableSyncTests = true;
 s.distance = 57.3;
 s.pixelsPerCm = 32;
+s.backgroundColour = [0 0 0];
+s.screenXOffset = -5;
+s.screenYOffset = 5;
 
 RestrictKeysForKbCheck([27 48:57]);
 
@@ -22,7 +25,9 @@ try
 	
 	open(dt);
 	
-	pos = [-15 -15; -15 0; -15 15; 0 -15; 0 0; 0 15; 15 -15; 15 0; 15 15];
+	pos = [-15 0; 0 -15; 0 0; 0 15; 15 0];
+	nPositions = size(pos,1);
+	
 	f.xPositionOut = pos(1,1);
 	f.yPositionOut = pos(1,2);
 	update(f);
@@ -39,7 +44,7 @@ try
 			k = str2double(k);
 			if k == 0
 				hide(f);
-			elseif k > 0 && k < 10
+			elseif k > 0 && k <= nPositions
 				show(f);
 				f.xPositionOut = pos(k,1);
 				f.yPositionOut = pos(k,2);
@@ -53,7 +58,7 @@ try
 	
 	end
 	
-	ri = randi([1 9]);
+	ri = randi([1 nPositions]);
 	f.xPositionOut = pos(ri,1);
 	f.yPositionOut = pos(ri,2);
 	show(f);
@@ -71,7 +76,7 @@ try
 		tNow = GetSecs;
 	
 		if tNow > tStart + 2
-			ri = randi([1 9]);
+			ri = randi([1 nPositions]);
 			f.xPositionOut = pos(ri,1);
 			f.yPositionOut = pos(ri,2);
 			update(f);
