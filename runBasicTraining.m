@@ -15,7 +15,7 @@ if ~lM.isOpen; open(lM); end %open our strobed word manager
 global rM
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager();
-	rM.openGUI = true;
+% 	rM.openGUI = true;
 end
 if ~ana.useArduino
 	rM.silentMode = true; 
@@ -23,6 +23,8 @@ if ~ana.useArduino
 	ana.rewardEnd=false;
 	ana.rewardStart=false;
 end
+rM.rewardPin = 2;
+rM.rewardTime = 300;
 if ~rM.isOpen; open(rM); end %open our reward manager
 
 fprintf('\n--->>> runBasicTraining Started: ana UUID = %s!\n',ana.uuid);
@@ -50,7 +52,7 @@ end
 
 cla(ana.plotAxis1);
 cla(ana.plotAxis2);
-rewardtime = 250; % in ms, pump normally needs a minimum of 250ms to trigger
+rewardtime = 300; % in ms, pump normally needs a minimum of 250ms to trigger
 
 %==========================TRY==========================
 try
