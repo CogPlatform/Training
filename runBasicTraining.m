@@ -101,16 +101,16 @@ try
 	%===========================tobii manager=====================
 	eT						= tobiiManager();
 	eT.name					= ana.nameExp;
-	eT.model				= ana.tracker;
-	eT.trackingMode			= ana.trackingMode;
-	eT.eyeUsed				= ana.eyeUsed;
+	eT.calibration.model	= ana.tracker;
+	eT.calibration.mode		= ana.trackingMode;
+	eT.calibration.eyeUsed	= ana.eyeUsed;
 	eT.sampleRate			= ana.sampleRate;
-	eT.calibrationStimulus	= ana.calStim;
-	eT.manualCalibration	= ana.calManual;
-	eT.calPositions			= ana.calPos;
-	eT.valPositions			= ana.valPos;
-	eT.autoPace				= ana.autoPace;
-	eT.paceDuration			= ana.paceDuration;
+	eT.calibration.stimulus	= ana.calStim;
+	eT.calibration.manual	= ana.calManual;
+	eT.calibration.calPositions	= ana.calPos;
+	eT.calibration.valPositions	= ana.valPos;
+	eT.calibration.autoPace	= ana.autoPace;
+	eT.calibration.paceDuration	= ana.paceDuration;
 	eT.smoothing.nSamples	= ana.nSamples;
 	eT.smoothing.method		= ana.smoothMethod;
 	eT.smoothing.window		= ana.w;
@@ -127,11 +127,12 @@ try
 		s.backgroundColour	= sM.backgroundColour;
 		s.distance			= sM.distance;
 		[w,h]				= Screen('WindowSize',s.screen);
-		s.windowed			= [0 0 round(w/2) round(h/2)];
+		s.windowed			= [0 0 round(w/1.3) round(h/1.5)];
 		s.blend				= sM.blend;
 		s.bitDepth			= '8bit';
 		s.blend				= true;
-		s.pixelsPerCm		= 30;
+		s.pixelsPerCm		= 20;
+		s.specialFlags		= kPsychGUIWindow;
 	end
 	if exist('s','var')
 		initialise(eT,sM,s);
