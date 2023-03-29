@@ -15,7 +15,6 @@ if ~lM.isOpen; open(lM); end %open our strobed word manager
 global rM
 if ~exist('rM','var') || isempty(rM)
 	rM = arduinoManager();
-% 	rM.openGUI = true;
 end
 if ~ana.useArduino
 	rM.silentMode = true; 
@@ -90,19 +89,20 @@ try
 	fprintf('\n--->>> BasicTraining Opened Screen %i : %s\n', sM.win, sM.fullName);
 	
 	PsychPortAudio('Close');
-	aM = audioManager(); aM.close();
-	if IsLinux
-		aM.device		= [];
-	elseif IsWin
-		aM.device		= [];
-	end
-	aM.setup();
+	aM = audioManager();
+	%if IsLinux
+	%	aM.device		= [];
+	%elseif IsWin
+	%	aM.device		= [];
+	%end
+	%aM.setup();
+	%sM.close;sM.open;
 	
 	%===========================tobii manager=====================
 	eT						= tobiiManager();
 	eT.name					= ana.nameExp;
 	eT.calibration.model	= ana.tracker;
-	eT.calibration.mode		= ana.trackingMode;
+	eT.calibration.mode	= ana.trackingMode;
 	eT.calibration.eyeUsed	= ana.eyeUsed;
 	eT.sampleRate			= ana.sampleRate;
 	eT.calibration.stimulus	= ana.calStim;
@@ -120,28 +120,15 @@ try
 	if ~ana.useTracker || ana.isDummy
 		eT.isDummy			= true;
 	end
-	if length(Screen('Screens')) > 1 && sM.screen - 1 >= 0 && ana.useTracker% ---- second screen for calibration
-		s					= screenManager;
-		s.verbose			= thisVerbose;
-		s.screen			= sM.screen - 1;
-		s.backgroundColour	= sM.backgroundColour;
-		s.distance			= sM.distance;
-		[w,h]				= Screen('WindowSize',s.screen);
-		s.windowed			= [0 0 round(w/1.3) round(h/1.5)];
-		s.blend				= sM.blend;
-		s.bitDepth			= '8bit';
-		s.blend				= true;
-		s.pixelsPerCm		= 20;
-		s.specialFlags		= kPsychGUIWindow;
-	end
-	if exist('s','var')
-		initialise(eT,sM,s);
-	else
-		initialise(eT,sM);
-	end
+
+	if strcmpi(ana.drawEye,'Operator screen'); eT.useOperatorScreen = true; drawEye=2; end
+	
+	initialise(eT, sM);
+	
+	if eT.useOperatorScreen; s = eT.operatorScreen; end
 	
 	if ~ismac
-		eT.settings.cal.doRandomPointOrder  = false;
+		%eT.settings.cal.doRandomPointOrder  = false;
 		ana.cal=[];
 		if isempty(ana.calFile) || ~exist(ana.calFile,'file')
 			name = regexprep(ana.subject,' ','_');
@@ -151,7 +138,10 @@ try
 			load(ana.calFile);
 			if isfield(cal,'attempt') && ~isempty(cal.attempt); ana.cal = cal; end
 		end
-		cal = trackerSetup(eT, ana.cal); ShowCursor();
+
+		cal = trackerSetup(eT, ana.cal); 
+		ShowCursor();
+
 		if ~isempty(cal) && isfield(cal,'attempt')
 			cal.comment=sprintf('Subject:%s | Comments: %s | tobii calibration',ana.subject,ana.comments);
 			cal.computer = ana.computer;
@@ -160,6 +150,16 @@ try
 			save(ana.calFile,'cal');
 			ana.outcal = cal;
 		end
+	end
+
+	%=================set up eye position drawing================
+	switch ana.drawEye
+		case 'Same screen'
+			drawEye = 1;
+		case 'Operator screen'
+			drawEye = 2;
+		otherwise
+			drawEye = 0;
 	end
 	
 	% ---- initial fixation values.
@@ -301,23 +301,6 @@ try
 	pos = ana.positions;
 	posLoop = 1;
 	
-	%=================set up eye position drawing================
-	switch lower(ana.drawEye)
-		case 'same screen'
-			drawEye = 1;
-		case 'new screen'
-			if exist('s','var') && isa(s,'screenManager')
-				if isempty(eT.operatorScreen); eT.operatorScreen = s; eT.secondScreen=true; end
-				if ~s.isOpen; s.open; end
-				drawEye = 2;
-				refRate = 3; %refresh window every N frames
-			else
-				drawEye = 1;
-			end
-		otherwise
-			drawEye = 0;
-	end
-	
 	
 	%===========================prepare===========================
 	Priority(MaxPriority(sM.win)); %bump our priority to maximum allowed
@@ -382,13 +365,13 @@ try
 		end
 		
 		fprintf('%s\n',tit);
-		
+		trackerFlip(eT,0,true);
 		trackerMessage(eT,['TRIALID ' num2str(thisRun)]);
 		trackerMessage(eT,['MSG:Position=' num2str(thisPos)]);
 		
 		%========================================================INITIATE FIXATION
 		tick = 0;
-		eT.resetFixation();
+		eT.resetAll();
 		fixated = ''; doBreak = false;
 		if ana.initFix
 			if ana.useTracker
@@ -398,8 +381,11 @@ try
 					if ana.photoDiode; drawPhotoDiodeSquare(sM,[0 0 0]); end
 					if drawEye==1 
 						drawEyePosition(eT,true);
-					elseif drawEye==2 && mod(tick,refRate)==0
-						drawText(s,tit);drawGrid(s);trackerDrawFixation(eT);
+					elseif drawEye==2
+						drawText(s,tit);
+						drawGrid(s);
+						trackerDrawFixation(eT);
+						trackerDrawEyePosition(eT);
 					end
 					finishDrawing(sM);
 					if tick == 1; trackerMessage(eT,'INITIATE_FIX',vbl); end
@@ -407,8 +393,9 @@ try
 					fixated=testSearchHoldFixation(eT,'fix','breakfix');
 					doBreak = checkKeys();
 					if doBreak; break; end
-					vbl = flip(sM); tick = tick + 1;
-					if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
+					vbl = flip(sM);
+					if drawEye==2; trackerFlip(eT); end
+					tick = tick + 1;
 				end
 				ListenChar(0);
 				trackerMessage(eT,'END_FIX',vbl)
@@ -442,6 +429,7 @@ try
 		if ana.isGaze; eT.fixation.X = 0; eT.fixation.Y = 0; eT.fixation.Xradius = picSize.X/2;eT.fixation.Yradius=picSize.Y/2; end 
 		if ana.rewardStart; rM.timedTTL(2,rewardtime); rewards=rewards+1; end
 % 		if ~ana.isVEP; play(aM); end
+		trackerFlip(eT,0,true);
 		tStart = flip(sM); vbl = tStart;
 		while vbl < tStart + ana.playTimes
 			if ana.fixOnly
@@ -465,8 +453,10 @@ try
 			if ana.photoDiode; drawPhotoDiodeSquare(sM,[1 1 1]); end
 			if drawEye==1 
 				drawEyePosition(eT,true);
-			elseif drawEye==2 && mod(tick,refRate)==0
-				drawGrid(s);trackerDrawFixation(eT);
+			elseif drawEye==2
+				drawGrid(s);
+				trackerDrawFixation(eT);
+				trackerDrawEyePosition(eT);
 			end
 			if sM.visualDebug; sM.drawGrid(); end
 			finishDrawing(sM);
@@ -480,13 +470,13 @@ try
 			end
 			doBreak = checkKeys(); if doBreak; break; end
 			
-			vbl = flip(sM,vbl); tick = tick + 1;
+			vbl = flip(sM,vbl); 
 			if tick==1 
 				if ana.sendTrigger; lM.strobeServer(thisRun); end
 				trackerMessage(eT,'SHOW_STIMULUS',vbl);
 			end
-			if drawEye==2 && mod(tick,refRate)==0; flip(s,[],[],2);end
-
+			if drawEye==2; trackerFlip(eT);end
+			tick = tick + 1;
 			if ana.rewardDuring && tick == 60;rM.timedTTL(2,rewardtime);rewards=rewards+1;end
 		end
 		
@@ -509,7 +499,7 @@ try
 			trackerMessage(eT,'TRIAL_RESULT 1');
 			if ~doBreak; correct(); end
 		elseif ~doBreak
-			if ana.rewardEnd; rM.timedTTL(2,rewardtime); rewards=rewards+1;beep(aM,'high'); end
+			if ana.rewardEnd; rM.timedTTL(2,rewardtime); rewards=rewards+1; end
 			if ana.isVEP
 				updateTask(seq,true,tEnd-tStart); %updates our current run number
 				if seq.taskFinished;breakLoop = true;end
@@ -523,9 +513,9 @@ try
 			flip(sM);
 		end
 		
-		aM.loadSamples();
+		%aM.loadSamples();
 		updatePlots();
-		
+		resetAll(eT);
 		%========================================================SAVE THIS RUN INFO
 		if ana.isVEP
 			ana.trial(seq.totalRuns).n = seq.totalRuns;
@@ -560,8 +550,8 @@ try
 		for i = 1:length(sd);lM.strobeServer(sd(i));WaitSecs(0.02);end
 	end
 	WaitSecs('YieldSecs', 0.25);
-	stopRecording(eT);
-	saveData(eT,false);
+	stopRecording(eT, true);
+	saveData(eT, false);
 	if exist('s','var') && isa(s,'screenManager'); s.close; end
 	close(sM);
 	if drawEye==2;close(s);end
@@ -649,7 +639,7 @@ end
 
 	function correct()
 		if ana.rewardEnd; rM.timedTTL(2,rewardtime); rewards=rewards+1; end
-		beep(aM,'high'); 
+		%beep(aM,'high'); 
 		fprintf('===>>> Correct given, ITI=%.2f!\n',ana.ITI);
 		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(250); end
 		if ana.visualFeedback;drawGreenSpot(sM,80);end
@@ -675,7 +665,7 @@ end
 	end
 
 	function incorrect()
-		beep(aM,'low');
+		%beep(aM,'low');
 		fprintf('===>>> Incorrect given, timeout=%.2f!\n',ana.timeOut);
 		if ana.sendTrigger;WaitSecs(0.02);lM.strobeServer(251); end
 		if ana.visualFeedback;drawRedSpot(sM,80);end
@@ -697,14 +687,12 @@ end
 	end
 
 	function drawEyePositions(intext)
-		if ~isempty(eT.xAll) && ~isempty(eT.yAll) && (length(eT.xAll)==length(eT.yAll))
-			xy = [eT.xAll;eT.yAll];
-			drawDots(s,xy,8,[0.25 1 0 0.2]);
-			drawGrid(s);
-			if exist('intext','var') && ~isempty(intext); drawText(s,intext); end
-			drawScreenCenter(s);
-			flip(s,[],[],2);
-		end
+		trackerDrawFixation(eT);
+		trackerDrawEyePositions(eT);
+		drawGrid(s);
+		if exist('intext','var') && ~isempty(intext); drawText(s,intext); end
+		drawScreenCenter(s);
+		trackerFlip(eT,1,true);
 	end
 
 end
