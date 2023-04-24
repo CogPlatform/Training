@@ -1,27 +1,14 @@
 function motiontest1()
 
 	screen = max(Screen('Screens'));
-	screenSize = [0 0 800 800];
+	screenSize = [];
 	cycleTime = 1.5; % time for one sweep, determines max speed
 	bgColour = 0.55;
 	dotColour = [0 0 0]';
 	dotSize = 0.5;
 	nDots = 35;
 	backlight = false;
-
-	if isdeployed
-		disp('=== Running in deployed mode');
-		appRoot = ctfroot;
-		disp(['=== App root: ' appRoot]);
-		disp(['=== PTB Root: ' PsychtoolboxRoot]);
-	else
-		disp('=== Running under MATLAB')
-	end
-	if exist('ColorGratingShader.frag.txt','file')
-		fp = which('ColorGratingShader.frag.txt');
-		disp(['Shader found at:\n   ' fp])
-	end
-
+	
 	ptb = mySetup(screen,bgColour,screenSize);
 
 	% ---- setup dot motion path
@@ -48,7 +35,7 @@ function motiontest1()
 	Priority(MaxPriority(ptb.win)); %bump our priority to maximum allowed
 	vbl(1) = Screen('Flip', ptb.win);
 	x = 1;
-	disp('\nGet ready for motion...');
+	disp('\nGet ready for motion, [esc] quits...');
 	
 	
 	while ~CloseWin
@@ -65,10 +52,9 @@ function motiontest1()
 		x = x + 1;
 		if looper >= length(xShift); looper = 1; end
 		xy(1,:) = repmat(xShift(looper),1,length(xPos));
-		if x > 1000; CloseWin = true; end
 		% ---- handle keyboard
-		%[~,~,keyCode] = KbCheck(-1);
-		name = [];%find(keyCode==1);
+		[~,~,keyCode] = KbCheck();
+		name = find(keyCode==1);
 		if ~isempty(name)  
 			switch name
 				case incB
@@ -110,7 +96,7 @@ function ptb = mySetup(screen, bgColour, ws)
 	ptb.cleanup = onCleanup(@myCleanup);
 	PsychDefaultSetup(2);
 	KbName('UnifyKeyNames');
-	Screen('Preference', 'SkipSyncTests', 2);
+	Screen('Preference', 'SkipSyncTests', 1);
 	Screen('Preference', 'Verbosity', 4);
 	%Screen('Preference','SyncTestSettings', 0.0008);
 	if isempty(screen); screen = max(Screen('Screens')); end
