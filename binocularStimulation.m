@@ -1,7 +1,7 @@
 function binocularStimulation(in)
-% Version 1.0.0
+% Version 1.0.2
 
-debug = false;
+debug = in.debug;
 
 if ~exist('in','var')
 	in.stereoMode = 8;
@@ -17,20 +17,8 @@ if ~exist('in','var')
 	in.times = [14 14];
 end
 
-sf = in.sf;
-tf = 0;
-size = 50;
-mask = false;
-
-%============================keys
-KbName('UnifyKeyNames')
-stopKey				= KbName('q');
-triggerKey			= KbName('s');
-upKey				= KbName('uparrow');
-downKey				= KbName('downarrow');
-leftKey				= KbName('leftarrow');
-rightKey			= KbName('rightarrow');
-oldr=RestrictKeysForKbCheck([stopKey triggerKey upKey downKey leftKey rightKey]);
+mridata.in = in;
+mridata.date = datetime;
 
 %===========================task
 t = taskSequence;
@@ -42,41 +30,66 @@ t.isTime = in.times(2);
 t.ibTime = t.isTime;
 t.randomiseTask;
 
+fname = t.initialiseSaveFile;
+fname = ['BinocularMRI-' in.name '-' fname '.mat'];
+cd(t.paths.savedData);
+
+fprintf('BINOCULAR MRI: Data: %s\n',[pwd filesep fname]);
+
 %===========================setup
 s = screenManager('backgroundColour', in.bg);
 s.stereoMode = in.stereoMode;
 s.anaglyphLeft = in.left;
 s.anaglyphRight = in.right;
-%s.disableSyncTests = true;
+if IsOSX || IsWin
+	s.disableSyncTests = true;
+end
+if debug
+	s.windowed = [0 0 1200 800];
+	s.specialFlags = kPsychGUIWindow;
+end
 
 switch lower(in.type)
 	case 'checkerboard'
 		stim = checkerboardStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
+		stim.tf = in.tf;
 		stim.mask = false;
+		stim.size = 50;
 	case 'spiral'
 		stim = polarGratingStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
+		stim.tf = in.tf;
 		stim.type = 'spiral';
 		stim.centerMask = 0.5;
 		stim.sf = stim.sf * 1;
 		stim.spiralFactor = 3;
 		stim.sigma = 0.1;
+		stim.mask = true;
+		stim.size = 50;
 	case 'radial'
 		stim = polarGratingStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
+		stim.tf = in.tf;
 		stim.type = 'polar';
 		stim.centerMask = 1;
 		stim.sf = stim.sf * 1;
 		stim.spiralFactor = 3;
 		stim.sigma = 0.1;
+		stim.mask = true;
+		stim.size = 50;
 	case 'circular'
 		stim = polarGratingStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
+		stim.tf = in.tf;
 		stim.type = 'circular';
 		stim.centerMask = 0;
 		stim.sf = stim.sf * 2;
 		stim.spiralFactor = 3;
 		stim.sigma = 0.1;
+		stim.mask = true;
+		stim.size = 50;
 end
 
-stim.size = 80;
+mridata.t = t;
+mridata.stim = stim;
+mridata.eye = t.outValues;
 
 if in.flash > 0
 	stim.phaseReverseTime = in.flash;
@@ -89,19 +102,27 @@ setup(stim, s);
 sfinc = 0.02;
 
 sfs = [];
-if in.sfmod > 0 && strcmp(in.type,'checkerboard')
+if in.sfmod > 0 && strcmpi(in.type,'checkerboard')
 	sfs = ( (cos(pi:sfinc:10*pi) + 1 ) / 2 ) * in.sfmod + in.sf;
 end
 
+%============================keys
+KbName('UnifyKeyNames')
+stopKey				= KbName('q');
+triggerKey			= KbName('s');
+upKey				= KbName('uparrow');
+downKey				= KbName('downarrow');
+leftKey				= KbName('leftarrow');
+rightKey			= KbName('rightarrow');
+oldr=RestrictKeysForKbCheck([stopKey triggerKey upKey downKey leftKey rightKey]);
+
+
 Priority(MaxPriority(s.win));
 
-if ~debug
-	ListenChar(-1); HideCursor;
-end
+if ~debug; ListenChar(-1); HideCursor; end
 
 WaitSecs(1);
 
-ts = Screen('TextSize', s.win);
 endExperiment = false;
 noStart = true;
 
@@ -123,7 +144,11 @@ if endExperiment
 	return; 
 end
 
-vbl = flip(s); startT = vbl; nextT = startT;
+endExperiment = false;
+
+times.next = [];
+
+vbl = flip(s); startT = vbl; nextT = startT; times.next = [times.next nextT-startT];
 
 for i = 1:t.nRuns
 
@@ -133,13 +158,19 @@ for i = 1:t.nRuns
 	stim.sfOut = in.sf;
 
 	nextT = nextT + in.times(2);
-	
+	times.next = [times.next nextT-startT];
 	while vbl <= nextT
 		vbl = flip(s, vbl+sv.halfisi);
+		[keyDown, ~, keyCode] = optickaCore.getKeys();
+		if keyDown
+			if keyCode(stopKey); endExperiment = true; break; end
+		end
 	end
 
-	nextT = nextT + in.times(1);
+	if endExperiment; break; end
 
+	nextT = nextT + in.times(1);
+	times.next = [times.next nextT-startT];
 	a = 1;
 	
 	while vbl <= nextT
@@ -167,6 +198,14 @@ for i = 1:t.nRuns
 	end
 
 end
+
+times.next = [times.next vbl - startT];
+disp('Times of Transitions:')
+disp(times.next)
+
+mridata.times = times;
+
+save(fname,'mridata');
 
 RestrictKeysForKbCheck(oldr);ListenChar(0);Priority(0);ShowCursor;
 reset(stim);
