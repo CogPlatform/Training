@@ -32,6 +32,7 @@ t.randomiseTask;
 
 fname = t.initialiseSaveFile;
 fname = ['BinocularMRI-' in.name '-' fname '.mat'];
+mridata.name = fname;
 cd(t.paths.savedData);
 
 fprintf('BINOCULAR MRI: Data: %s\n',[pwd filesep fname]);
@@ -41,12 +42,16 @@ s = screenManager('backgroundColour', in.bg);
 s.stereoMode = in.stereoMode;
 s.anaglyphLeft = in.left;
 s.anaglyphRight = in.right;
+
 if IsOSX || IsWin
 	s.disableSyncTests = true;
 end
+
 if debug
+	s.screen = 0;
 	s.windowed = [0 0 1200 800];
 	s.specialFlags = kPsychGUIWindow;
+	s.disableSyncTests = true;
 end
 
 switch lower(in.type)
@@ -54,7 +59,7 @@ switch lower(in.type)
 		stim = checkerboardStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
 		stim.tf = in.tf;
 		stim.mask = false;
-		stim.size = 50;
+		stim.size = 80;
 	case 'spiral'
 		stim = polarGratingStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
 		stim.tf = in.tf;
@@ -64,17 +69,19 @@ switch lower(in.type)
 		stim.spiralFactor = 3;
 		stim.sigma = 0.1;
 		stim.mask = true;
-		stim.size = 50;
+		stim.size = 70;
+		in.anglemod = 0;
 	case 'radial'
 		stim = polarGratingStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
 		stim.tf = in.tf;
-		stim.type = 'polar';
+		stim.type = 'radial';
 		stim.centerMask = 1;
 		stim.sf = stim.sf * 1;
 		stim.spiralFactor = 3;
 		stim.sigma = 0.1;
 		stim.mask = true;
-		stim.size = 50;
+		stim.size = 70;
+		in.anglemod = 0;
 	case 'circular'
 		stim = polarGratingStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
 		stim.tf = in.tf;
@@ -84,10 +91,12 @@ switch lower(in.type)
 		stim.spiralFactor = 3;
 		stim.sigma = 0.1;
 		stim.mask = true;
-		stim.size = 50;
+		stim.size = 70;
+		in.anglemod = 0;
 end
 
 mridata.t = t;
+mridata.s = s;
 mridata.stim = stim;
 mridata.eye = t.outValues;
 
@@ -96,6 +105,7 @@ if in.flash > 0
 end
 
 sv = open(s);
+mridata.sv = sv;
 halfisi = sv.halfisi;
 setup(stim, s);
 
@@ -103,7 +113,7 @@ sfinc = 0.02;
 
 sfs = [];
 if in.sfmod > 0 && strcmpi(in.type,'checkerboard')
-	sfs = ( (cos(pi:sfinc:10*pi) + 1 ) / 2 ) * in.sfmod + in.sf;
+	sfs = ( (cos(pi:sfinc:15*pi) + 1 ) / 2 ) * in.sfmod + in.sf;
 end
 
 %============================keys
@@ -116,6 +126,28 @@ leftKey				= KbName('leftarrow');
 rightKey			= KbName('rightarrow');
 oldr=RestrictKeysForKbCheck([stopKey triggerKey upKey downKey leftKey rightKey]);
 
+if in.test
+	vbl = flip(s); startT = vbl;
+	a = 1;
+	while vbl <= startT + in.times(1)
+		switchChannel(s,0);
+		draw(stim);
+		switchChannel(s,1);
+		draw(stim);
+		animate(stim);
+		vbl = flip(s);
+		if ~isempty(sfs)
+			stim.sfOut = sfs(a); a = a + 1;
+		end
+		if in.anglemod
+			stim.angleOut = stim.angleOut + in.anglemod;
+		end
+	end
+	RestrictKeysForKbCheck(oldr);ListenChar(0);Priority(0);ShowCursor;
+	try close(s); end
+	try reset(stim); end
+	return; 
+end
 
 Priority(MaxPriority(s.win));
 
@@ -148,11 +180,13 @@ endExperiment = false;
 
 times.next = [];
 
-vbl = flip(s); startT = vbl; nextT = startT; times.next = [times.next nextT-startT];
+vbl = flip(s); startT = vbl; nextT = startT; 
+times.start = startT;
+times.next = [times.next nextT-startT];
 
 for i = 1:t.nRuns
 
-	fprintf('\n===>>> Time: %.2f -- RUN: %i -- EYE: %i\n', vbl - startT, i, t.outValues{i});
+	fprintf('\n===>>> Time: %.2f -- RUN: %i -- EYE: %i -- BLANK ON\n', vbl - startT, i, t.outValues{i});
 	
 	stim.angleOut = 0;
 	stim.sfOut = in.sf;
@@ -169,6 +203,8 @@ for i = 1:t.nRuns
 
 	if endExperiment; break; end
 
+	fprintf('   >>> Time: %.2f -- RUN: %i -- EYE: %i -- STIM ON\n', vbl - startT, i, t.outValues{i});
+	
 	nextT = nextT + in.times(1);
 	times.next = [times.next nextT-startT];
 	a = 1;
@@ -199,12 +235,13 @@ for i = 1:t.nRuns
 
 end
 
-times.next = [times.next vbl - startT];
-disp('Times of Transitions:')
-disp(times.next)
+times.end = vbl;
+disp('Recorded Times of Transitions:');
+disp(times.next);
 
 mridata.times = times;
 
+fprintf('\n===>>> SAVE DATA: %s\n',fname);
 save(fname,'mridata');
 
 RestrictKeysForKbCheck(oldr);ListenChar(0);Priority(0);ShowCursor;
