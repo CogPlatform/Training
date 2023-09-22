@@ -5,11 +5,14 @@ debug = in.debug;
 
 if ~exist('in','var')
 	in.stereoMode = 8;
+	in.distance = 57.3;
+	in.ppcm = 36;
 	in.bg = [0 0 0];
 	in.left = [0.8 0 0];
 	in.right = [0 0.3 1];
 	in.type = 'checkerboard';
 	in.sf = 0.1;
+	in.tf = 0;
 	in.flash = 0;
 	in.anglemod = 0.2;
 	in.sfmod = 0;
@@ -38,12 +41,13 @@ cd(t.paths.savedData);
 fprintf('BINOCULAR MRI: Data: %s\n',[pwd filesep fname]);
 
 %===========================setup
-s = screenManager('backgroundColour', in.bg);
+s = screenManager('backgroundColour', in.bg, ...
+	'distance', in.distance, 'pixelsPerCm', in.ppcm);
 s.stereoMode = in.stereoMode;
 s.anaglyphLeft = in.left;
 s.anaglyphRight = in.right;
 
-if IsOSX || IsWin
+if IsOSX || IsWin || debug
 	s.disableSyncTests = true;
 end
 
@@ -51,7 +55,6 @@ if debug
 	s.screen = 0;
 	s.windowed = [0 0 1200 800];
 	s.specialFlags = kPsychGUIWindow;
-	s.disableSyncTests = true;
 end
 
 switch lower(in.type)
@@ -109,7 +112,7 @@ mridata.sv = sv;
 halfisi = sv.halfisi;
 setup(stim, s);
 
-sfinc = 0.02;
+sfinc = in.sfmodtime;
 
 sfs = [];
 if in.sfmod > 0 && strcmpi(in.type,'checkerboard')
