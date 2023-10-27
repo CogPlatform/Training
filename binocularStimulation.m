@@ -98,6 +98,15 @@ switch lower(in.type)
 		in.anglemod = 0;
 end
 
+dis1 = imageStimulus('size', 2, 'colour', [1 0.5 0],...
+	'fileName',[s.paths.root '/stimuli/star.png']);
+dis2 = imageStimulus('size', 2, 'colour', [0 1 0],...
+	'fileName',[s.paths.root '/stimuli/triangle.png']);
+dis = metaStimulus;
+dis{1} = dis1;
+dis{2} = dis2;
+
+
 mridata.t = t;
 mridata.s = s;
 mridata.stim = stim;
@@ -111,6 +120,7 @@ sv = open(s);
 mridata.sv = sv;
 halfisi = sv.halfisi;
 setup(stim, s);
+setup(dis, s);
 
 sfinc = in.sfmodtime;
 
@@ -132,6 +142,7 @@ oldr=RestrictKeysForKbCheck([stopKey triggerKey upKey downKey leftKey rightKey])
 if in.test
 	vbl = flip(s); startT = vbl;
 	a = 1;
+	tick = 1;
 	while vbl <= startT + in.times(1)
 		switchChannel(s,0);
 		draw(stim);
@@ -145,6 +156,8 @@ if in.test
 		if in.anglemod
 			stim.angleOut = stim.angleOut + in.anglemod;
 		end
+
+		tick = tick + 1;
 	end
 	RestrictKeysForKbCheck(oldr);ListenChar(0);Priority(0);ShowCursor;
 	try close(s); end
