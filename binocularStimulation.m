@@ -1,7 +1,5 @@
 function binocularStimulation(in)
-% Version 1.0.7
-
-debug = in.debug;
+% Version 1.0.8
 
 if ~exist('in','var')
 	in.stereoMode = 8;
@@ -18,6 +16,8 @@ if ~exist('in','var')
 	in.sfmod = 0;
 	in.repeats =  10;
 	in.times = [14 14];
+	in.focusSize = 0.4;
+	in.debug = true;
 end
 
 mridata.in = in;
@@ -47,11 +47,11 @@ s.stereoMode = in.stereoMode;
 s.anaglyphLeft = in.left;
 s.anaglyphRight = in.right;
 
-if IsOSX || IsWin || debug
+if IsOSX || IsWin || in.debug
 	s.disableSyncTests = true;
 end
 
-if debug
+if in.debug
 	s.screen = 0;
 	s.windowed = [0 0 1200 800];
 	s.specialFlags = kPsychGUIWindow;
@@ -98,14 +98,15 @@ switch lower(in.type)
 		in.anglemod = 0;
 end
 
-dis1 = imageStimulus('size', 2, 'colour', [1 0.5 0],...
+dis0 = discStimulus('colour', [0 0 0], 'size', in.focusSize+0.2,'sigma',27);
+dis1 = imageStimulus('size', in.focusSize, 'colour', [1 1 1],...
 	'fileName',[s.paths.root '/stimuli/star.png']);
-dis2 = imageStimulus('size', 2, 'colour', [0 1 0],...
+dis2 = imageStimulus('size', in.focusSize, 'colour', [1 1 1],...
 	'fileName',[s.paths.root '/stimuli/triangle.png']);
 dis = metaStimulus;
-dis{1} = dis1;
-dis{2} = dis2;
-
+dis{1} = dis0;
+dis{2} = dis1;
+dis{3} = dis2;
 
 mridata.t = t;
 mridata.s = s;
@@ -167,7 +168,7 @@ end
 
 Priority(MaxPriority(s.win));
 
-if ~debug; ListenChar(-1); HideCursor; end
+if ~in.debug; ListenChar(-1); HideCursor; end
 
 WaitSecs(1);
 
@@ -221,10 +222,15 @@ for i = 1:t.nRuns
 
 	fprintf('   >>> Time: %.2f -- RUN: %i -- EYE: %i -- STIM ON\n', vbl - startT, i, t.outValues{i});
 	
+	a = 1;
+	disTime = 0;
+	sw = 1;
+	hide(dis,3);
+	show(dis,[1 2]);
 	nextT = nextT + in.times(1);
 	times.next = [times.next nextT-startT];
-	a = 1;
-	
+	focusT = vbl;
+
 	while vbl <= nextT
 		if ~isempty(sfs)
 			stim.sfOut = sfs(a); a = a + 1;
@@ -236,17 +242,28 @@ for i = 1:t.nRuns
 			case 1
 				switchChannel(s,0);
 				draw(stim);
+				draw(dis);
 			case 2
 				switchChannel(s,1);
 				draw(stim);
+				draw(dis);
 			case 3
 				switchChannel(s,0);
-				draw(stim);
+				draw(stim); 
+				draw(dis);
 				switchChannel(s,1);
 				draw(stim);
+				draw(dis);
 		end
 		animate(stim);
 		vbl = flip(s, vbl+sv.halfisi);
+		disTime = vbl - focusT;
+		if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
+			sw = sw + 1; 
+			focusT = vbl; 
+			if sw > 2; sw = 1; end
+			if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
+		end
 	end
 
 end
