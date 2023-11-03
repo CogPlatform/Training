@@ -1,5 +1,5 @@
 function binocularStimulation(in)
-% Version 1.0.8
+% Version 1.0.9
 
 if ~exist('in','var')
 	in.stereoMode = 8;
@@ -25,8 +25,9 @@ mridata.date = datetime;
 
 %===========================task
 t = taskSequence;
+t.randomise = false;
 t.nVar.name = 'eye';
-t.nVar.values = [1 2 3];
+t.nVar.values = [1 2 3 4];
 t.nBlocks = in.repeats;
 t.trialTime = in.times(1);
 t.isTime = in.times(2);
@@ -60,6 +61,7 @@ end
 switch lower(in.type)
 	case 'checkerboard'
 		stim = checkerboardStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
+		stim.contrast = 1;
 		stim.tf = in.tf;
 		stim.mask = false;
 		stim.size = 80;
@@ -254,6 +256,21 @@ for i = 1:t.nRuns
 				switchChannel(s,1);
 				draw(stim);
 				draw(dis);
+			case 4
+				switchChannel(s,0);
+				if matches(in.fellowEye,'Left')
+					stim.contrastOut = in.fellowContrast;
+				end
+				draw(stim); 
+				draw(dis);
+				stim.contrastOut = 1.0;
+				switchChannel(s,1);
+				if matches(in.fellowEye,'Right')
+					stim.contrastOut = in.fellowContrast;
+				end
+				draw(stim);
+				draw(dis);
+				stim.contrastOut = 1.0;
 		end
 		animate(stim);
 		vbl = flip(s, vbl+sv.halfisi);
