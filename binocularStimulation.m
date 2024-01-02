@@ -20,6 +20,12 @@ if ~exist('in','var')
 	in.debug = true;
 end
 
+if matches(in.type,'Mapping')
+	mapping = true;
+else
+	mapping = false;
+end
+
 mridata.in = in;
 mridata.date = datetime;
 
@@ -35,7 +41,12 @@ t.ibTime = t.isTime;
 t.randomiseTask;
 
 fname = t.initialiseSaveFile;
-fname = ['BinocularMRI-' in.name '-' fname '.mat'];
+if mapping
+	fname = ['BinocularMRIMap-' in.name '-' fname '.mat'];
+else
+	fname = ['BinocularMRI-' in.name '-' fname '.mat'];
+end
+
 mridata.name = fname;
 cd(t.paths.savedData);
 
@@ -44,9 +55,11 @@ fprintf('BINOCULAR MRI: Data: %s\n',[pwd filesep fname]);
 %===========================setup
 s = screenManager('backgroundColour', in.bg, ...
 	'distance', in.distance, 'pixelsPerCm', in.ppcm);
-s.stereoMode = in.stereoMode;
-s.anaglyphLeft = in.left;
-s.anaglyphRight = in.right;
+if ~mapping
+	s.stereoMode = in.stereoMode;
+	s.anaglyphLeft = in.left;
+	s.anaglyphRight = in.right;
+end
 
 if IsOSX || IsWin || in.debug
 	s.disableSyncTests = true;
@@ -59,6 +72,14 @@ if in.debug
 end
 
 switch lower(in.type)
+	case 'mapping'
+		stim = polarBoardStimulus;
+		stim.contrast = in.mapcontrast;
+		stim.phaseReverseTime = 1 / in.maptf;
+		stim.arcValue = [in.mapwedge in.mapwedge];
+		stim.size = in.mapsize;
+		stim.arcSymmetry = true;
+		s.backgroundColour = [0.5 0.5 0.5];
 	case 'checkerboard'
 		stim = checkerboardStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
 		stim.contrast = 1;
@@ -102,9 +123,9 @@ end
 
 dis0 = discStimulus('colour', [0 0 0], 'size', in.focusSize+0.2,'sigma',27);
 dis1 = imageStimulus('size', in.focusSize, 'colour', [1 1 1],...
-	'fileName',[s.paths.root '/stimuli/star.png']);
+	'filePath',[s.paths.root '/stimuli/star.png']);
 dis2 = imageStimulus('size', in.focusSize, 'colour', [1 1 1],...
-	'fileName',[s.paths.root '/stimuli/triangle.png']);
+	'filePath',[s.paths.root '/stimuli/triangle.png']);
 dis = metaStimulus;
 dis{1} = dis0;
 dis{2} = dis1;
@@ -124,6 +145,11 @@ mridata.sv = sv;
 halfisi = sv.halfisi;
 setup(stim, s);
 setup(dis, s);
+
+td = sv.topInDegrees;
+ld = sv.leftInDegrees;
+rd = sv.rightInDegrees;
+bd = sv.bottomInDegrees;
 
 sfinc = in.sfmodtime;
 
@@ -188,92 +214,75 @@ while noStart || ~endExperiment
 	end
 end
 
-if endExperiment
-	RestrictKeysForKbCheck(oldr);ListenChar(0);Priority(0);ShowCursor;
-	try close(s); end
-	try reset(stim); end
-	return; 
-end
-
-endExperiment = false;
-
-times.next = [];
-
-vbl = flip(s); startT = vbl; nextT = startT; 
-times.start = startT;
-times.next = [times.next nextT-startT];
-
-for i = 1:t.nRuns
-
-	fprintf('\n===>>> Time: %.2f -- RUN: %i -- EYE: %i -- BLANK ON\n', vbl - startT, i, t.outValues{i});
+if mapping
 	
-	stim.angleOut = 0;
-	stim.sfOut = in.sf;
-
-	nextT = nextT + in.times(2);
-	times.next = [times.next nextT-startT];
-	while vbl <= nextT
-		vbl = flip(s, vbl+sv.halfisi);
-		[keyDown, ~, keyCode] = optickaCore.getKeys();
-		if keyDown
-			if keyCode(stopKey); endExperiment = true; break; end
-		end
-	end
-
-	if endExperiment; break; end
-
-	fprintf('   >>> Time: %.2f -- RUN: %i -- EYE: %i -- STIM ON\n', vbl - startT, i, t.outValues{i});
+	times.next = [];
 	
-	a = 1;
-	disTime = 0;
-	sw = 1;
-	hide(dis,3);
-	show(dis,[1 2]);
-	nextT = nextT + in.times(1);
-	times.next = [times.next nextT-startT];
-	focusT = vbl;
+	vbl = flip(s); startT = vbl; nextT = startT; 
+	times.start = startT;
+	times.next = vbl-startT;
+	awidth = stim.arcValueOut(2);
+	inc = (180 + awidth) / ( in.maptime * sv.fps );
 
-	while vbl <= nextT
-		if ~isempty(sfs)
-			stim.sfOut = sfs(a); a = a + 1;
+	for i = 1:in.maprepeats
+
+		if endExperiment
+			RestrictKeysForKbCheck(oldr);ListenChar(0);Priority(0);ShowCursor;
+			try close(s); end
+			try reset(stim); end
+			return; 
 		end
-		if in.anglemod
-			stim.angleOut = stim.angleOut + in.anglemod;
-		end
-		switch t.outValues{i}
-			case 1
-				switchChannel(s,0);
-				draw(stim);
-				draw(dis);
-			case 2
-				switchChannel(s,1);
-				draw(stim);
-				draw(dis);
-			case 3
-				switchChannel(s,0);
-				draw(stim); 
-				draw(dis);
-				switchChannel(s,1);
-				draw(stim);
-				draw(dis);
-			case 4
-				switchChannel(s,0);
-				if matches(in.fellowEye,'Left')
-					stim.contrastOut = in.fellowContrast;
+	
+		fprintf('\n===>>> Time: %.2f -- RUN: %i\n', vbl - startT, i);
+		
+		endExperiment = false;
+		a = 1;
+		disTime = 0;
+		sw = 1;
+		hide(dis,3);
+		show(dis,[1 2]);
+
+		stim.arcValueOut(1) = awidth/2;
+		rho = stim.arcValueOut(1);
+
+		focusT = vbl;
+	
+		while abs(rho) < 180+(awidth/2) && ~endExperiment
+			draw(stim);
+			%[left, top, right, bottom]
+			if abs(rho) <= (awidth/2)
+				s.drawRect([0 td 10 0],s.backgroundColour);
+				s.drawRect([-10 0 0 bd],s.backgroundColour);
+			elseif abs(rho) >= (180 - (awidth/2))
+				s.drawRect([-10 td 0 0],s.backgroundColour);
+				s.drawRect([0 0 10 bd],s.backgroundColour);
+			end
+			draw(dis);
+			drawText(s,num2str(vbl-startT));
+			vbl = flip(s, vbl+sv.halfisi);
+			animate(stim);
+			rho = rho - inc;
+			stim.arcValueOut(1) = rho;
+			disTime = vbl - focusT;
+			if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
+				sw = sw + 1; 
+				focusT = vbl; 
+				if sw > 2; sw = 1; end
+				if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
+			end
+			[keyDown, ~, keyCode] = optickaCore.getKeys();
+			if keyDown
+				if keyCode(stopKey); endExperiment = true; break;
+				elseif keyCode(triggerKey); noStart = false; break;
 				end
-				draw(stim); 
-				draw(dis);
-				stim.contrastOut = 1.0;
-				switchChannel(s,1);
-				if matches(in.fellowEye,'Right')
-					stim.contrastOut = in.fellowContrast;
-				end
-				draw(stim);
-				draw(dis);
-				stim.contrastOut = 1.0;
+			end
 		end
-		animate(stim);
-		vbl = flip(s, vbl+sv.halfisi);
+		times.next = [times.next vbl-startT];
+	end % end for
+	st = vbl;
+	while vbl - st < 15
+		draw(dis);
+		vbl = flip(s);
 		disTime = vbl - focusT;
 		if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
 			sw = sw + 1; 
@@ -282,7 +291,105 @@ for i = 1:t.nRuns
 			if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
 		end
 	end
-
+	times.next = [times.next GetSecs - times.start];
+else
+	
+	if endExperiment
+		RestrictKeysForKbCheck(oldr);ListenChar(0);Priority(0);ShowCursor;
+		try close(s); end
+		try reset(stim); end
+		return; 
+	end
+	
+	endExperiment = false;
+	
+	times.next = [];
+	
+	vbl = flip(s); startT = vbl; nextT = startT; 
+	times.start = startT;
+	times.next = [times.next nextT-startT];
+	
+	for i = 1:t.nRuns
+	
+		fprintf('\n===>>> Time: %.2f -- RUN: %i -- EYE: %i -- BLANK ON\n', vbl - startT, i, t.outValues{i});
+		
+		stim.angleOut = 0;
+		stim.sfOut = in.sf;
+	
+		nextT = nextT + in.times(2);
+		times.next = [times.next nextT-startT];
+		while vbl <= nextT
+			vbl = flip(s, vbl+sv.halfisi);
+			[keyDown, ~, keyCode] = optickaCore.getKeys();
+			if keyDown
+				if keyCode(stopKey); endExperiment = true; break; end
+			end
+		end
+	
+		if endExperiment; break; end
+	
+		fprintf('   >>> Time: %.2f -- RUN: %i -- EYE: %i -- STIM ON\n', vbl - startT, i, t.outValues{i});
+		
+		a = 1;
+		disTime = 0;
+		sw = 1;
+		hide(dis,3);
+		show(dis,[1 2]);
+		nextT = nextT + in.times(1);
+		times.next = [times.next nextT-startT];
+		focusT = vbl;
+	
+		while vbl <= nextT
+			if ~isempty(sfs)
+				stim.sfOut = sfs(a); a = a + 1;
+			end
+			if in.anglemod
+				stim.angleOut = stim.angleOut + in.anglemod;
+			end
+			switch t.outValues{i}
+				case 1
+					switchChannel(s,0);
+					draw(stim);
+					draw(dis);
+				case 2
+					switchChannel(s,1);
+					draw(stim);
+					draw(dis);
+				case 3
+					switchChannel(s,0);
+					draw(stim); 
+					draw(dis);
+					switchChannel(s,1);
+					draw(stim);
+					draw(dis);
+				case 4
+					switchChannel(s,0);
+					if matches(in.fellowEye,'Left')
+						stim.contrastOut = in.fellowContrast;
+					end
+					draw(stim); 
+					draw(dis);
+					stim.contrastOut = 1.0;
+					switchChannel(s,1);
+					if matches(in.fellowEye,'Right')
+						stim.contrastOut = in.fellowContrast;
+					end
+					draw(stim);
+					draw(dis);
+					stim.contrastOut = 1.0;
+			end
+			animate(stim);
+			vbl = flip(s, vbl+sv.halfisi);
+			disTime = vbl - focusT;
+			if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
+				sw = sw + 1; 
+				focusT = vbl; 
+				if sw > 2; sw = 1; end
+				if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
+			end
+		end
+	
+	end
 end
 
 times.end = vbl;
