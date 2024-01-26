@@ -1,5 +1,7 @@
 function binocularStimulation(in)
-% Version 1.0.9
+% Version 1.13
+
+movieRecord = false;
 
 if ~exist('in','var')
 	in.stereoMode = 8;
@@ -59,6 +61,13 @@ if ~mapping
 	s.stereoMode = in.stereoMode;
 	s.anaglyphLeft = in.left;
 	s.anaglyphRight = in.right;
+end
+
+if movieRecord % prepare to record the images to a file
+	s.movieSettings.record = true;
+	s.movieSettings.type = 2;
+	s.movieSettings.channels = 1;
+	s.movieSettings.size = [];
 end
 
 if IsOSX || IsWin || in.debug
@@ -154,6 +163,8 @@ halfisi = sv.halfisi;
 setup(stim, s);
 setup(dis, s);
 
+s.movieSettings.record = false;
+
 td = sv.topInDegrees;
 ld = sv.leftInDegrees;
 rd = sv.rightInDegrees;
@@ -237,71 +248,107 @@ if mapping
 
 	if in.mapmeridians
 
-		vbl = flip(s); 
-		startT = vbl; focusT = vbl;
-		times.start = startT;
-		times.next = vbl - startT;
-		fprintf('\n===>>> Time: %.2f -- First blank\n', times.next(end));
-		while vbl - startT < 18-sv.ifi
-			draw(dis);
+		if movieRecord
+			times.start = GetSecs;
+			times.next = times.start + 18;
+			focusT = times.start;
+			s.movieSettings.record = true;
+			stim.arcValueOut(1) = 0;
+			for i = 1:60*1
+				draw(stim);
+				draw(dis);
+				vbl = flip(s, vbl+sv.halfisi);
+				animate(stim);
+				disTime = vbl - focusT;
+				if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
+					sw = sw + 1; 
+					focusT = vbl; 
+					if sw > 2; sw = 1; end
+					if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
+				end
+			end
+			stim.arcValueOut(1) = 90;
+			for i = 1:60*1
+				draw(stim);
+				draw(dis);
+				vbl = flip(s, vbl+sv.halfisi);
+				animate(stim);
+				disTime = vbl - focusT;
+				if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
+					sw = sw + 1; 
+					focusT = vbl; 
+					if sw > 2; sw = 1; end
+					if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
+				end
+			end
+			s.movieSettings.record;
+		else
+			vbl = flip(s); 
+			startT = vbl; focusT = vbl;
+			times.start = startT;
+			times.next = vbl - startT;
+			fprintf('\n===>>> Time: %.2f -- First blank\n', times.next(end));
+			while vbl - startT < 18-sv.ifi
+				draw(dis);
+				vbl = flip(s);
+				disTime = vbl - focusT;
+				if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
+					sw = sw + 1; 
+					focusT = vbl; 
+					if sw > 2; sw = 1; end
+					if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
+				end
+			end
+			
+			stim.arcValue(1) = rho;	
+			startStim = vbl + sv.ifi;
+			times.next = [ times.next startStim-startT ];
+			times.stim = [times.stim rho];
+			switchStim = startStim;
+			switches = 1;
+			fprintf('\n===>>> Time: %.2f -- Start stim angle: %i\n', times.next(end), rho);
+			while vbl - startT < 306-sv.ifi
+				if vbl - switchStim > 18
+					times.next = [times.next (vbl+sv.ifi)-startT];
+					if rho == 0; rho = 90; else; rho = 0; end
+					times.stim = [times.stim rho];
+					switchStim = vbl+sv.ifi;
+					stim.arcValueOut(1) = rho;
+					switches = switches + 1;
+					fprintf('\n===>>> Time: %.2f -- Angle update: %i\n', times.next(end), rho);
+				end
+				draw(stim);
+				draw(dis);
+				%drawText(s,num2str(vbl-startT));
+				vbl = flip(s, vbl+sv.halfisi);
+				animate(stim);
+				disTime = vbl - focusT;
+				if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
+					sw = sw + 1; 
+					focusT = vbl; 
+					if sw > 2; sw = 1; end
+					if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
+				end
+			end
+	
+			startBlank = vbl + sv.ifi;
+			times.next = [ times.next startBlank-startT ];
+			fprintf('\n===>>> Time: %.2f -- Start blank\n', times.next(end));
+			while vbl - startT < 324 - sv.ifi
+				draw(dis);
+				vbl = flip(s);
+				disTime = vbl - focusT;
+				if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
+					sw = sw + 1; 
+					focusT = vbl; 
+					if sw > 2; sw = 1; end
+					if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
+				end
+			end
 			vbl = flip(s);
-			disTime = vbl - focusT;
-			if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
-				sw = sw + 1; 
-				focusT = vbl; 
-				if sw > 2; sw = 1; end
-				if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
-			end
+			times.next = [ times.next vbl-startT ];
+			fprintf('\n===>>> Time: %.2f -- END run\n', times.next(end));
 		end
-		
-		stim.arcValue(1) = rho;	
-		startStim = vbl + sv.ifi;
-		times.next = [ times.next startStim-startT ];
-		times.stim = [times.stim rho];
-		switchStim = startStim;
-		switches = 1;
-		fprintf('\n===>>> Time: %.2f -- Start stim angle: %i\n', times.next(end), rho);
-		while vbl - startT < 306-sv.ifi
-			if vbl - switchStim > 18
-				times.next = [times.next (vbl+sv.ifi)-startT];
-				if rho == 0; rho = 90; else; rho = 0; end
-				times.stim = [times.stim rho];
-				switchStim = vbl+sv.ifi;
-				stim.arcValueOut(1) = rho;
-				switches = switches + 1;
-				fprintf('\n===>>> Time: %.2f -- Angle update: %i\n', times.next(end), rho);
-			end
-			draw(stim);
-			draw(dis);
-			drawText(s,num2str(vbl-startT));
-			vbl = flip(s, vbl+sv.halfisi);
-			animate(stim);
-			disTime = vbl - focusT;
-			if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
-				sw = sw + 1; 
-				focusT = vbl; 
-				if sw > 2; sw = 1; end
-				if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
-			end
-		end
-
-		startBlank = vbl + sv.ifi;
-		times.next = [ times.next startBlank-startT ];
-		fprintf('\n===>>> Time: %.2f -- Start blank\n', times.next(end));
-		while vbl - startT < 324 - sv.ifi
-			draw(dis);
-			vbl = flip(s);
-			disTime = vbl - focusT;
-			if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
-				sw = sw + 1; 
-				focusT = vbl; 
-				if sw > 2; sw = 1; end
-				if sw == 1; hide(dis,3); show(dis,2);else;hide(dis,2); show(dis,3);end
-			end
-		end
-		vbl = flip(s);
-		times.next = [ times.next vbl-startT ];
-		fprintf('\n===>>> Time: %.2f -- END run\n', times.next(end));
 	else
 	
 		vbl = flip(s); startT = vbl; nextT = startT; 
