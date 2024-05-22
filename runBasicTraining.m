@@ -22,8 +22,8 @@ if ~ana.useArduino
 	ana.rewardEnd=false;
 	ana.rewardStart=false;
 end
-rM.rewardPin = 2;
-rM.rewardTime = 300;
+rM.reward.pin = 2;
+rM.reward.time = 300;
 if ~rM.isOpen; open(rM); end %open our reward manager
 
 fprintf('\n--->>> runBasicTraining Started: ana UUID = %s!\n',ana.uuid);
@@ -55,7 +55,7 @@ rewardtime = 300; % in ms, pump normally needs a minimum of 250ms to trigger
 
 %==========================TRY==========================
 try
-	PsychDefaultSetup(2);Screen('Preference', 'SkipSyncTests', 0)
+	PsychDefaultSetup(2);Screen('Preference', 'SkipSyncTests', 0);
 	%===================open our screen====================
 	sM						= screenManager();
 	sM.screen				= ana.screenID;
