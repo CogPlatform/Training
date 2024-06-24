@@ -145,6 +145,7 @@ RestrictKeysForKbCheck([KbName('LeftArrow') KbName('RightArrow') KbName('UpArrow
 
 Priority(1);
 commandwindow
+
 %% update world
 while true
 	world.step(1);
