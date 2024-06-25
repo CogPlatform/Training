@@ -120,30 +120,31 @@ world.addBody(wall4);
 
 % guide
 bx = javaObject('org.dyn4j.dynamics.Body');
-bxRect = javaObject('org.dyn4j.geometry.Rectangle', 4, 12);
+bxRect = javaObject('org.dyn4j.geometry.Rectangle', 3.5, 8);
 fx = bx.addFixture(bxRect);
 fx.setSensor(true);
 fx.setRestitution(0); % set coefficient of restitution
 fx.setFriction(100);
 bx.setMass(MassType.INFINITE);
-bx.translate(boxx,boxy-8);
+bx.translate(boxx,boxy-6);
 world.addBody(bx);
 
 % dampner
 dx = javaObject('org.dyn4j.dynamics.Body');
-bxRect = javaObject('org.dyn4j.geometry.Rectangle', 4, 1);
+bxRect = javaObject('org.dyn4j.geometry.Rectangle', 3.5, 1);
 fx = dx.addFixture(bxRect);
 fx.setSensor(true);
 fx.setRestitution(0); % set coefficient of restitution
 fx.setFriction(100);
 dx.setMass(MassType.INFINITE);
-dx.translate(boxx,boxy-12);
+dx.translate(boxx,boxy-13);
 world.addBody(dx);
 
 RestrictKeysForKbCheck([KbName('LeftArrow') KbName('RightArrow') KbName('UpArrow') KbName('DownArrow') ...
 	KbName('1!') KbName('2@') KbName('3#') KbName('space') KbName('ESCAPE')]);
 
 Priority(1);
+fx = body.getFixture(0);
 commandwindow
 
 %% update world
@@ -161,18 +162,19 @@ while true
 
 	if inBox
 		if v.x < 0
-			vx = v.x + 0.05;
+			vx = v.x + 0.001;
 		elseif v.x > 0
-			vx = v.x - 0.05;
+			vx = v.x - 0.001;
 		end
-		if vx < -0.001 || vx > 0.001; vx = 0; end
+		%if vx < -0.001 || vx > 0.001; vx = 0; end
 		body.setLinearVelocity(vx, v.y);
 		if a < 0
-			na = a + 0.01;
+			na = a + 0.001;
 		else
-			na = a - 0.01;
+			na = a - 0.001;
 		end
 		body.setAngularVelocity(na);
+		fx.setRestitution(0.1);
 	end
 
 	ms.draw;
@@ -182,7 +184,7 @@ while true
 	s.drawRect([wall2pos-(wallwidth/2) -20 wall2pos+(wallwidth/2) 20],[0.6 0.3 0.6]);
 	s.drawRect([boxx-3.1 boxy-1.5 boxx-2.9 boxy+1.5],[1 1 0 0.2]);
 	s.drawRect([boxx+3.4 boxy-1.5 boxx+3.6 boxy+1.5],[1 0 1 0.2]);
-	rect = CenterRectOnPointd([0 0 4 12],boxx,boxy-8);
+	rect = CenterRectOnPointd([0 0 3.5 8],boxx,boxy-6);
 	s.drawRect(rect,[0.5 1 1 0.1]);
 
 	s.drawGrid;
