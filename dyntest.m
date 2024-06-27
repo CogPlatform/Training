@@ -67,7 +67,7 @@ body = javaObject('org.dyn4j.dynamics.Body');
 circleShape = javaObject('org.dyn4j.geometry.Circle', radius);
 fx = body.addFixture(circleShape); %https://www.javadoc.io/doc/org.dyn4j/dyn4j/latest/org.dyn4j/org/dyn4j/dynamics/BodyFixture.html
 fx.setDensity(1);
-fx.setRestitution(0.8); % set coefficient of restitution
+fx.setRestitution(0.7); % set coefficient of restitution
 fx.setFriction(100);
 body.translate(b.xPosition, -b.yPosition);
 body.setMass(MassType.Normal);
@@ -85,7 +85,7 @@ fx = floor.addFixture(floorRect);
 fx.setRestitution(0.7); % set coefficient of restitution
 fx.setFriction(100);
 floor.setMass(MassType.INFINITE);
-floor.translate(0.0, -floorpos-wallwidth);
+floor.translate(0.0, -(floorpos-wallwidth));
 world.addBody(floor);
 
 %% wall1
@@ -95,7 +95,7 @@ fx = wall1.addFixture(wall1Rect);
 fx.setRestitution(0.7); % set coefficient of restitution
 fx.setFriction(100);
 wall1.setMass(MassType.INFINITE);
-wall1.translate(wall1pos-wallwidth, 0);
+wall1.translate(wall1pos-wallwidth, 0.0);
 world.addBody(wall1);
 
 %% wall2
@@ -126,20 +126,20 @@ world.addBody(wall4);
 
 % guide
 bx = javaObject('org.dyn4j.dynamics.Body');
-bxRect = javaObject('org.dyn4j.geometry.Rectangle', 3.5, 8);
+bxRect = javaObject('org.dyn4j.geometry.Rectangle', 5, 5);
 fx = bx.addFixture(bxRect);
 fx.setSensor(true);
-fx.setRestitution(0); % set coefficient of restitution
-fx.setFriction(100);
+fx.setRestitution(1); % set coefficient of restitution
+fx.setFriction(0);
 bx.setMass(MassType.INFINITE);
-bx.translate(boxx, -(boxy));
+bx.translate(0.0, -12.0);
 world.addBody(bx);
 
 % dampner
 dx = javaObject('org.dyn4j.dynamics.Body');
 bxRect = javaObject('org.dyn4j.geometry.Rectangle', 3.5, 0.3);
 fx = dx.addFixture(bxRect);
-fx.setRestitution(0.2); % set coefficient of restitution
+fx.setRestitution(0.05); % set coefficient of restitution
 fx.setFriction(1000);
 dx.setMass(MassType.INFINITE);
 dx.translate(boxx, -(floorpos-0.2));
@@ -149,7 +149,8 @@ RestrictKeysForKbCheck([KbName('LeftArrow') KbName('RightArrow') KbName('UpArrow
 	KbName('1!') KbName('2@') KbName('3#') KbName('space') KbName('ESCAPE')]);
 
 Priority(1);
-fx = body.getFixture(0);
+fxb = body.getFixture(0);
+fxf = floor.getFixture(0);
 commandwindow
 
 %% update world
@@ -179,8 +180,9 @@ while true
 			na = a - 0.005;
 		end
 		body.setAngularVelocity(na);
-		fx.setRestitution(0.1);
-		body.updateMass();
+		fxb.setRestitution(0.3);
+		fxf.setRestitution(0.3);
+		%body.updateMass();
 	end
 
 	ms.draw;
@@ -190,12 +192,12 @@ while true
 	s.drawRect([wall2pos-(wallwidth/2) -20 wall2pos+(wallwidth/2) 20],[0.6 0.3 0.6]);
 	s.drawRect([boxx-3.1 boxy-1.5 boxx-2.9 boxy+1.5],[1 1 0 0.2]);
 	s.drawRect([boxx+3.4 boxy-1.5 boxx+3.6 boxy+1.5],[1 0 1 0.2]);
-	rect = CenterRectOnPointd([0 0 3.5 8],boxx,boxy-6);
-	%s.drawRect(rect,[0.5 1 1 0.1]);
+	rect = CenterRectOnPointd([0 0 3.5 8],boxx,boxy-4);
+	s.drawRect(rect,[0.5 1 1 0.1]);
 
 	s.drawGrid;
 	s.drawScreenCenter;
-	s.drawText(sprintf('FULL PHYSICS ENGINE SUPPORT:\nX: %.3f  Y: %.3f VX: %.3f VY: %.3f A: %.3f INBOX: %i R: %.2f',pos.x,pos.y,v.x,v.y, a, inBox,fx.getRestitution))
+	s.drawText(sprintf('FULL PHYSICS ENGINE SUPPORT:\n X: %.3f  Y: %.3f VX: %.3f VY: %.3f A: %.3f INBOX: %i R: %.2f',pos.x,pos.y,v.x,v.y, a, inBox,fxb.getRestitution))
 	s.flip;
 
 	[isKey,~,keyCode] = KbCheck(-1);
@@ -204,19 +206,21 @@ while true
 			break;
 		elseif strcmpi(KbName(keyCode),'LeftArrow')
 			body.setAtRest(false);
-			body.setLinearVelocity(v.x - 0.5, v.y);
+			body.setLinearVelocity(v.x - 0.2, 0);
 		elseif strcmpi(KbName(keyCode),'RightArrow')
 			body.setAtRest(false);
-			body.setLinearVelocity(v.x + 0.5, v.y);
+			body.setLinearVelocity(v.x + 0.2, 0);
 		elseif strcmpi(KbName(keyCode),'UpArrow')
 			body.setAtRest(false);
-			body.setLinearVelocity(v.x,v.y + 0.5);
+			body.setLinearVelocity(v.x,v.y + 0.2);
 		elseif strcmpi(KbName(keyCode),'DownArrow')
 			body.setAtRest(false);
-			body.setLinearVelocity(v.x, v.y - 0.5);
+			body.setLinearVelocity(v.x, v.y - 0.2);
 		elseif strcmpi(KbName(keyCode),'1!')
 			body.setAtRest(false);
 			body.translateToOrigin();
+			fxb.setRestitution(0.7);
+			fxf.setRestitution(0.7);
 		elseif strcmpi(KbName(keyCode),'2@')
 			body.setAtRest(false);
 			if a > 0
@@ -226,7 +230,7 @@ while true
 			end
 		else
 			body.setAtRest(false);
-			f = javaObject('org.dyn4j.geometry.Vector2', 15, 0);
+			f = javaObject('org.dyn4j.geometry.Vector2', 0, 10);
 			body.applyImpulse(f);
 		end
 	end
