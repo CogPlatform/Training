@@ -21,6 +21,8 @@ wallwidth = 0.1;
 boxx = 11.5;
 boxy = floorpos-2.4;
 radius = 2;
+gw = 3.5;
+gh = 8;
 v = [8 9];
 gravity = [0 -9.6];
 
@@ -125,15 +127,15 @@ wall4.setMass(MassType.INFINITE);
 world.addBody(wall4);
 
 % guide
-bx = javaObject('org.dyn4j.dynamics.Body');
-bxRect = javaObject('org.dyn4j.geometry.Rectangle', 5, 5);
-fx = bx.addFixture(bxRect);
+guide = javaObject('org.dyn4j.dynamics.Body');
+bxRect = javaObject('org.dyn4j.geometry.Rectangle', gw, gh);
+fx = guide.addFixture(bxRect);
 fx.setSensor(true);
 fx.setRestitution(1); % set coefficient of restitution
 fx.setFriction(0);
-bx.setMass(MassType.INFINITE);
-bx.translate(0.0, -12.0);
-world.addBody(bx);
+guide.setMass(MassType.INFINITE);
+guide.translate(boxx, -(boxy-5));
+world.addBody(guide);
 
 % dampner
 dx = javaObject('org.dyn4j.dynamics.Body');
@@ -142,7 +144,7 @@ fx = dx.addFixture(bxRect);
 fx.setRestitution(0.05); % set coefficient of restitution
 fx.setFriction(1000);
 dx.setMass(MassType.INFINITE);
-dx.translate(boxx, -(floorpos-0.2));
+dx.translate(boxx, -(floorpos-1));
 world.addBody(dx);
 
 RestrictKeysForKbCheck([KbName('LeftArrow') KbName('RightArrow') KbName('UpArrow') KbName('DownArrow') ...
@@ -150,7 +152,7 @@ RestrictKeysForKbCheck([KbName('LeftArrow') KbName('RightArrow') KbName('UpArrow
 
 Priority(1);
 fxb = body.getFixture(0);
-fxf = floor.getFixture(0);
+fxf = dx.getFixture(0);
 commandwindow
 
 %% update world
@@ -159,12 +161,11 @@ while true
 	pos = body.getWorldCenter();
 	v = body.getLinearVelocity();
 	a = body.getAngularVelocity();
-	pos.y = -pos.y;
-	b.updateXY(pos.x,pos.y,true);
+	b.updateXY(pos.x,-pos.y,true);
 	if v.x > 0; a = abs(a); else; a = -abs(a); end
 	b.angleOut = b.angleOut + rad2deg(a)*ifi;
 
-	inBox = bx.contains(pos);
+	inBox = guide.contains(pos);
 
 	if inBox
 		if v.x < 0
@@ -180,8 +181,7 @@ while true
 			na = a - 0.005;
 		end
 		body.setAngularVelocity(na);
-		fxb.setRestitution(0.3);
-		fxf.setRestitution(0.3);
+		fxb.setRestitution(0.1);
 		%body.updateMass();
 	end
 
@@ -192,7 +192,7 @@ while true
 	s.drawRect([wall2pos-(wallwidth/2) -20 wall2pos+(wallwidth/2) 20],[0.6 0.3 0.6]);
 	s.drawRect([boxx-3.1 boxy-1.5 boxx-2.9 boxy+1.5],[1 1 0 0.2]);
 	s.drawRect([boxx+3.4 boxy-1.5 boxx+3.6 boxy+1.5],[1 0 1 0.2]);
-	rect = CenterRectOnPointd([0 0 3.5 8],boxx,boxy-4);
+	rect = CenterRectOnPointd([0 0 gw gh],boxx,boxy-5);
 	s.drawRect(rect,[0.5 1 1 0.1]);
 
 	s.drawGrid;
@@ -206,16 +206,20 @@ while true
 			break;
 		elseif strcmpi(KbName(keyCode),'LeftArrow')
 			body.setAtRest(false);
-			body.setLinearVelocity(v.x - 0.2, 0);
+			f = javaObject('org.dyn4j.geometry.Vector2', -10, 0);
+			body.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'RightArrow')
 			body.setAtRest(false);
-			body.setLinearVelocity(v.x + 0.2, 0);
+			f = javaObject('org.dyn4j.geometry.Vector2', 10, 0);
+			body.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'UpArrow')
 			body.setAtRest(false);
-			body.setLinearVelocity(v.x,v.y + 0.2);
+			f = javaObject('org.dyn4j.geometry.Vector2', 0, 10);
+			body.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'DownArrow')
 			body.setAtRest(false);
-			body.setLinearVelocity(v.x, v.y - 0.2);
+			f = javaObject('org.dyn4j.geometry.Vector2', 0, -10);
+			body.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'1!')
 			body.setAtRest(false);
 			body.translateToOrigin();
@@ -223,15 +227,12 @@ while true
 			fxf.setRestitution(0.7);
 		elseif strcmpi(KbName(keyCode),'2@')
 			body.setAtRest(false);
-			if a > 0
-				body.setAngularVelocity(a+1);
-			else
-				body.setAngularVelocity(a-1);
-			end
+			if a > 0; a = -a; end
+			body.setAngularVelocity(a-1);
 		else
 			body.setAtRest(false);
-			f = javaObject('org.dyn4j.geometry.Vector2', 0, 10);
-			body.applyImpulse(f);
+			if a < 0; a = -a; end
+			body.setAngularVelocity(a+1);
 		end
 	end
 end
