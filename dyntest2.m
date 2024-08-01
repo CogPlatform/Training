@@ -8,9 +8,9 @@ s.movieSettings.type = 1;
 s.movieSettings.size = [];
 s.movieSettings.codec = [];
 sv = open(s);
-ifi = sv.ifi;
+ifi = sv.ifi*1.3;
 
-%% DEF
+%% DEFAULTS
 floorpos = sv.bottomInDegrees-2;
 wall1pos = sv.leftInDegrees+1;
 wall2pos = sv.rightInDegrees-1;
@@ -23,11 +23,17 @@ gh = 8;
 v = [8 9];
 gravity = [0 -9.6];
 
+% STIMULI
 moon=imageStimulus('name','moon','filePath','moon.png','size',radius*2);
 moon.xPosition = -10;
 moon.yPosition = -10;
-moon.angle = 85;
-moon.speed = 20;
+moon.angle = 45;
+moon.speed = 30;
+
+moon2 = moon.clone;
+moon2.name = 'moon2';
+moon2.xPosition = -14;
+moon2.speed = 15;
 
 boxt = imageStimulus('filePath','boxbottom.png','size',10);
 boxt.alpha = 1;
@@ -52,17 +58,17 @@ wall1 = barStimulus('name','wall1','alpha',0.2,'barWidth',wallwidth,'barHeight',
 wall2 = barStimulus('name','wall2','alpha',0.2,'barWidth',wallwidth,'barHeight',...
 	sv.heightInDegrees,'xPosition',wall2pos);
 
-sensor = barStimulus('name','sensor','alpha',0.2,'barWidth',3,...
-	'barHeight',8,'xPosition',boxx,'yPosition',boxy-5);
-edge1 = barStimulus('name','bxleft','alpha',0.2,'barWidth',0.1,...
-	'barHeight',4,'xPosition',boxx-3,'yPosition',boxy);
-edge2 = barStimulus('name','bxright','alpha',0.2,'barWidth',0.1,...
-	'barHeight',4,'xPosition',boxx+3,'yPosition',boxy);
+sensor = barStimulus('name','sensor','alpha',0.05,'barWidth',4,...
+	'barHeight',12,'xPosition',boxx,'yPosition',boxy-5);
+edge1 = barStimulus('name','bxleft','alpha',0.05,'barWidth',0.1,...
+	'barHeight',4,'xPosition',boxx-3.2,'yPosition',floorpos-2.1);
+edge2 = barStimulus('name','bxright','alpha',0.05,'barWidth',0.1,...
+	'barHeight',4,'xPosition',boxx+3.7,'yPosition',floorpos-2.1);
 
-all = metaStimulus('stimuli',{floor,ceiling,wall1,wall2,boxb,moon,boxt,sensor,edge1,edge2});
+all = metaStimulus('stimuli',{floor,ceiling,wall1,wall2,boxb,moon,moon2,boxt,sensor,edge1,edge2});
 all.setup(s);
 
-% setup animationManager
+% SETUP animationManager
 anmtr = animationManager('timeDelta', sv.ifi, 'verbose', true);
 anmtr.rigidParams.gravity = gravity;
 anmtr.addBody(floor,'Rectangle','infinite');
@@ -72,49 +78,53 @@ anmtr.addBody(wall2,'Rectangle','infinite');
 anmtr.addBody(sensor,'Rectangle','sensor');
 anmtr.addBody(edge1,'Segment','infinite');
 anmtr.addBody(edge2,'Segment','infinite');
-anmtr.addBody(moon, 'Circle', 'normal', 10, 0.2, 0.8, moon.speed);
-
+anmtr.addBody(moon, 'Circle', 'normal', 10, 0.8, 0.8, moon.speed/2);
+anmtr.addBody(moon2, 'Circle', 'normal', 10, 0.8, 0.8, moon2.speed/2);
 setup(anmtr);
 
+% PREPARE FOR DRAWING LOOP
 RestrictKeysForKbCheck([KbName('LeftArrow') KbName('RightArrow') KbName('UpArrow') KbName('DownArrow') ...
 	KbName('1!') KbName('2@') KbName('3#') KbName('space') KbName('ESCAPE')]);
 
 Priority(1); commandwindow;
-moonb = getBody(anmtr,'moon');
+[moonb, moonidx] = getBody(anmtr,'moon');
+moonfx = getFixture(anmtr, 'moon');
+floorfx = getFixture(anmtr, 'floor');
 sensorb = getBody(anmtr,'sensor');
 
 while true
-	step(anmtr);
+	step(anmtr,1,true);
 	pos = moonb.getWorldCenter();
-	v = moonb.getLinearVelocity();
-	av = moonb.getAngularVelocity();
-	moon.updateXY(pos.x,-pos.y,true);
-	if v.x > 0; av = abs(av); else; av = -abs(av); end
-	moon.angleOut = moon.angleOut + rad2deg(av)*ifi;
-
+	lv = anmtr.linearVelocity(moonidx,:);
+	av = anmtr.angularVelocity(moonidx);
 	inBox = sensorb.contains(pos);
 
 	if inBox
-		if v.x < 0
-			vx = v.x + 0.015;
-		elseif v.x > 0
-			vx = v.x - 0.015;
+		if lv(1) < 0
+			lv(1) = lv(1) + 0.015;
+		elseif lv(1) > 0
+			lv(1) = lv(1) - 0.015;
 		end
 		%if vx < -0.001 || vx > 0.001; vx = 0; end
-		body.setLinearVelocity(vx, v.y);
+		moonb.setLinearVelocity(lv(1), lv(2));
 		if av < 0
-			av = av + 0.005;
+			av = av + 0.01;
 		else
-			av = av - 0.005;
+			av = av - 0.01;
 		end
 		moonb.setAngularVelocity(av);
-		moonb.setRestitution(0.1);
+		moonfx.setRestitution(0.1);
+		floorfx.setRestitution(0.1);
+	else
+		moonfx.setRestitution(0.7);
+		floorfx.setRestitution(0.7);
 	end
 
 	draw(all);
 	drawGrid(s);
 	drawScreenCenter(s);
-	drawText(s,sprintf('FULL PHYSICS ENGINE SUPPORT:\n X: %.3f  Y: %.3f VX: %.3f VY: %.3f A: %.3f INBOX: %i R: %.2f',pos.x,pos.y,v.x,v.y, av, inBox,moonb.getRestitution))
+	drawText(s,sprintf('RIGIDBODY PHYSICS ENGINE:\n X: %+0.2f  Y: %+0.2f VX: %+0.2f VY: %+0.2f A: %+0.2f INBOX: %i R: %-.2f',...
+		pos.x, pos.y, lv(1), lv(2), av, inBox, moonfx.getRestitution))
 	flip(s);
 	
 	[isKey,~,keyCode] = KbCheck(-1);
@@ -122,32 +132,32 @@ while true
 		if strcmpi(KbName(keyCode),'escape')
 			break;
 		elseif strcmpi(KbName(keyCode),'LeftArrow')
-			body.setAtRest(false);
-			f = javaObject('org.dyn4j.geometry.Vector2', -20, 0);
-			body.applyImpulse(f);
+			moonb.setAtRest(false);
+			f = javaObject('org.dyn4j.geometry.Vector2', -40, 0);
+			moonb.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'RightArrow')
-			body.setAtRest(false);
-			f = javaObject('org.dyn4j.geometry.Vector2', 20, 0);
-			body.applyImpulse(f);
+			moonb.setAtRest(false);
+			f = javaObject('org.dyn4j.geometry.Vector2', 40, 0);
+			moonb.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'UpArrow')
-			body.setAtRest(false);
-			f = javaObject('org.dyn4j.geometry.Vector2', 0, 20);
-			body.applyImpulse(f);
+			moonb.setAtRest(false);
+			f = javaObject('org.dyn4j.geometry.Vector2', 0, 30);
+			moonb.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'DownArrow')
-			body.setAtRest(false);
-			f = javaObject('org.dyn4j.geometry.Vector2', 0, -20);
-			body.applyImpulse(f);
+			moonb.setAtRest(false);
+			f = javaObject('org.dyn4j.geometry.Vector2', 0, -30);
+			moonb.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'1!')
-			body.setAtRest(false);
-			body.translateToOrigin();
+			moonb.setAtRest(false);
+			moonb.translateToOrigin();
 		elseif strcmpi(KbName(keyCode),'2@')
-			body.setAtRest(false);
+			moonb.setAtRest(false);
 			if av > 0; av = -av; end
-			body.setAngularVelocity(av-1);
+			moonb.setAngularVelocity(av-1);
 		else
-			body.setAtRest(false);
+			moonb.setAtRest(false);
 			if av < 0; av = -av; end
-			body.setAngularVelocity(av+1);
+			moonb.setAngularVelocity(av+1);
 		end
 	end
 end
