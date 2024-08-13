@@ -8,7 +8,7 @@ s.movieSettings.type = 1;
 s.movieSettings.size = [];
 s.movieSettings.codec = [];
 sv = open(s);
-ifi = sv.ifi*1.3;
+ifi = sv.ifi*1.5;
 
 %% DEFAULTS
 floorpos = sv.bottomInDegrees-2;
@@ -17,6 +17,7 @@ wall2pos = sv.rightInDegrees-1;
 wallwidth = 0.25;
 boxx = 11.5;
 boxy = floorpos-2.4;
+box2offset = 9;
 radius = 2;
 gw = 3.5;
 gh = 8;
@@ -24,7 +25,7 @@ v = [8 9];
 gravity = [0 -9.6];
 
 % STIMULI
-moon=imageStimulus('name','moon','filePath','moon.png','size',radius*2);
+moon=imageStimulus('name','moon','filePath','ball1.png','size',radius*2);
 moon.xPosition = -10;
 moon.yPosition = -10;
 moon.angle = 45;
@@ -33,7 +34,7 @@ moon.speed = 30;
 moon2 = moon.clone;
 moon2.name = 'moon2';
 moon2.xPosition = -14;
-moon2.speed = 15;
+moon2.speed = 18;
 
 boxt = imageStimulus('filePath','boxbottom.png','size',10);
 boxt.alpha = 1;
@@ -45,27 +46,43 @@ boxb.alpha = 1;
 boxb.xPosition = boxx;
 boxb.yPosition = boxy;
 
-floor = barStimulus('name','floor','alpha',0.2,'barWidth',sv.widthInDegrees,...
+boxtt = clone(boxt);
+boxtt.xPosition = boxx - box2offset;
+
+boxbb = clone(boxb);
+boxbb.xPosition = boxx - box2offset;
+
+floor = barStimulus('name','floor','colour',[0.8 0.4 0.4 0.2],'barWidth',sv.widthInDegrees,...
 	'barHeight',wallwidth,'yPosition',floorpos);
 
 ceiling = floor.clone;
 ceiling.name = 'ceiling';
 ceiling.yPosition = sv.topInDegrees;
 
-wall1 = barStimulus('name','wall1','alpha',0.2,'barWidth',wallwidth,'barHeight',...
+wall1 = barStimulus('name','wall1','colour',[0.4 0.8 0.4 0.2],'barWidth',wallwidth,'barHeight',...
 	sv.heightInDegrees,'xPosition',wall1pos);
+
+wall2 = clone(wall1);
+wall2.name = 'wall2';
+wall2.xPosition = wall2pos;
 
 wall2 = barStimulus('name','wall2','alpha',0.2,'barWidth',wallwidth,'barHeight',...
 	sv.heightInDegrees,'xPosition',wall2pos);
 
-sensor = barStimulus('name','sensor','alpha',0.05,'barWidth',4,...
-	'barHeight',12,'xPosition',boxx,'yPosition',boxy-5);
-edge1 = barStimulus('name','bxleft','alpha',0.05,'barWidth',0.1,...
-	'barHeight',4,'xPosition',boxx-3.2,'yPosition',floorpos-2.1);
-edge2 = barStimulus('name','bxright','alpha',0.05,'barWidth',0.1,...
-	'barHeight',4,'xPosition',boxx+3.7,'yPosition',floorpos-2.1);
+sensor = barStimulus('name','sensor','alpha',0.1,'barWidth',6,...
+	'barHeight',14,'xPosition',boxx,'yPosition',boxy-5);
+edge1 = barStimulus('name','bxleft','alpha',0.1,'barWidth',0.1,...
+	'barHeight',4,'xPosition',boxx-3.2,'yPosition',floorpos-2.2);
+edge2 = barStimulus('name','bxright','alpha',0.1,'barWidth',0.1,...
+	'barHeight',4,'xPosition',boxx+3.7,'yPosition',floorpos-2.2);
+edge3 = clone(edge1);
+edge3.name = 'bxleft2';
+edge3.xPosition = edge3.xPosition-box2offset;
+edge4 = clone(edge2);
+edge4.name = 'bxright2';
+edge4.xPosition = edge4.xPosition-box2offset;
 
-all = metaStimulus('stimuli',{floor,ceiling,wall1,wall2,boxb,moon,moon2,boxt,sensor,edge1,edge2});
+all = metaStimulus('stimuli',{floor,ceiling,wall1,wall2,boxb,boxbb,moon,moon2,boxt,boxtt});
 all.setup(s);
 
 % SETUP animationManager
@@ -78,16 +95,19 @@ anmtr.addBody(wall2,'Rectangle','infinite');
 anmtr.addBody(sensor,'Rectangle','sensor');
 anmtr.addBody(edge1,'Segment','infinite');
 anmtr.addBody(edge2,'Segment','infinite');
+anmtr.addBody(edge3,'Segment','infinite');
+anmtr.addBody(edge4,'Segment','infinite');
 anmtr.addBody(moon, 'Circle', 'normal', 10, 0.8, 0.8, moon.speed/2);
 anmtr.addBody(moon2, 'Circle', 'normal', 10, 0.8, 0.8, moon2.speed/2);
 setup(anmtr);
 
 % PREPARE FOR DRAWING LOOP
 RestrictKeysForKbCheck([KbName('LeftArrow') KbName('RightArrow') KbName('UpArrow') KbName('DownArrow') ...
-	KbName('1!') KbName('2@') KbName('3#') KbName('space') KbName('ESCAPE')]);
+	KbName('1!') KbName('2@') KbName('3#') KbName('4$') KbName('space') KbName('ESCAPE')]);
 
 Priority(1); commandwindow;
 [moonb, moonidx] = getBody(anmtr,'moon');
+[moonb2, moon2idx] = getBody(anmtr,'moon2');
 moonfx = getFixture(anmtr, 'moon');
 floorfx = getFixture(anmtr, 'floor');
 sensorb = getBody(anmtr,'sensor');
@@ -135,18 +155,22 @@ while true
 			moonb.setAtRest(false);
 			f = javaObject('org.dyn4j.geometry.Vector2', -40, 0);
 			moonb.applyImpulse(f);
+			moonb2.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'RightArrow')
 			moonb.setAtRest(false);
 			f = javaObject('org.dyn4j.geometry.Vector2', 40, 0);
 			moonb.applyImpulse(f);
+			moonb2.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'UpArrow')
 			moonb.setAtRest(false);
 			f = javaObject('org.dyn4j.geometry.Vector2', 0, 30);
 			moonb.applyImpulse(f);
+			moonb2.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'DownArrow')
 			moonb.setAtRest(false);
 			f = javaObject('org.dyn4j.geometry.Vector2', 0, -30);
 			moonb.applyImpulse(f);
+			moonb2.applyImpulse(f);
 		elseif strcmpi(KbName(keyCode),'1!')
 			moonb.setAtRest(false);
 			moonb.translateToOrigin();
@@ -154,10 +178,13 @@ while true
 			moonb.setAtRest(false);
 			if av > 0; av = -av; end
 			moonb.setAngularVelocity(av-1);
-		else
+		elseif strcmpi(KbName(keyCode),'3#')
 			moonb.setAtRest(false);
 			if av < 0; av = -av; end
 			moonb.setAngularVelocity(av+1);
+		elseif strcmpi(KbName(keyCode),'4$')
+			moonb.setAtRest(false);
+			anmtr.world.update(0);
 		end
 	end
 end
