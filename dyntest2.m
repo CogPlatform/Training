@@ -111,9 +111,10 @@ Priority(1); commandwindow;
 moonfx = getFixture(anmtr, 'moon');
 floorfx = getFixture(anmtr, 'floor');
 sensorb = getBody(anmtr,'sensor');
+world = anmtr.world;
 
 while true
-	step(anmtr,1,true);
+	step(anmtr, 1,true);
 	pos = moonb.getWorldCenter();
 	lv = anmtr.linearVelocity(moonidx,:);
 	av = anmtr.angularVelocity(moonidx);
@@ -121,23 +122,23 @@ while true
 
 	if inBox
 		if lv(1) < 0
-			lv(1) = lv(1) + 0.015;
+			lv(1) = lv(1) + 0.02;
 		elseif lv(1) > 0
-			lv(1) = lv(1) - 0.015;
+			lv(1) = lv(1) - 0.02;
 		end
 		%if vx < -0.001 || vx > 0.001; vx = 0; end
 		moonb.setLinearVelocity(lv(1), lv(2));
 		if av < 0
-			av = av + 0.01;
+			av = av + 0.03;
 		else
-			av = av - 0.01;
+			av = av - 0.03;
 		end
 		moonb.setAngularVelocity(av);
 		moonfx.setRestitution(0.1);
 		floorfx.setRestitution(0.1);
 	else
-		moonfx.setRestitution(0.7);
-		floorfx.setRestitution(0.7);
+		moonfx.setRestitution(0.8);
+		floorfx.setRestitution(0.8);
 	end
 
 	draw(all);
@@ -174,6 +175,8 @@ while true
 		elseif strcmpi(KbName(keyCode),'1!')
 			moonb.setAtRest(false);
 			moonb.translateToOrigin();
+			moonb2.translateToOrigin();
+			moonb2.translate(-10,0);
 		elseif strcmpi(KbName(keyCode),'2@')
 			moonb.setAtRest(false);
 			if av > 0; av = -av; end
