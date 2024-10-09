@@ -3,12 +3,12 @@ function dyntest2()
 %% Screen
 s = screenManager;
 if max(Screen('Screens')) == 0; s.windowed = [0 0 1200 800]; end
-s.movieSettings.record = false;
+s.movieSettings.record = true;
 s.movieSettings.type = 1;
 s.movieSettings.size = [];
 s.movieSettings.codec = [];
 sv = open(s);
-ifi = sv.ifi*1.5;
+ifi = sv.ifi * 1;
 
 %% DEFAULTS
 floorpos = sv.bottomInDegrees-2;
@@ -25,7 +25,7 @@ v = [8 9];
 gravity = [0 -9.6];
 
 % STIMULI
-moon=imageStimulus('name','moon','filePath','ball1.png','size',radius*2);
+moon=imageStimulus('name','moon','filePath','moon.png','size',radius*2);
 moon.xPosition = -10;
 moon.yPosition = -10;
 moon.angle = 45;
@@ -86,7 +86,7 @@ all = metaStimulus('stimuli',{floor,ceiling,wall1,wall2,boxb,boxbb,moon,moon2,bo
 all.setup(s);
 
 % SETUP animationManager
-anmtr = animationManager('timeDelta', sv.ifi, 'verbose', true);
+anmtr = animationManager('timeDelta', ifi, 'verbose', true);
 anmtr.rigidParams.gravity = gravity;
 anmtr.addBody(floor,'Rectangle','infinite');
 anmtr.addBody(ceiling,'Rectangle','infinite');
@@ -105,20 +105,28 @@ setup(anmtr);
 RestrictKeysForKbCheck([KbName('LeftArrow') KbName('RightArrow') KbName('UpArrow') KbName('DownArrow') ...
 	KbName('1!') KbName('2@') KbName('3#') KbName('4$') KbName('space') KbName('ESCAPE')]);
 
-Priority(1); commandwindow;
+Priority(1); 
 [moonb, moonidx] = getBody(anmtr,'moon');
 [moonb2, moon2idx] = getBody(anmtr,'moon2');
+moonb.setBullet(true);
+moonb2.setBullet(true);
 moonfx = getFixture(anmtr, 'moon');
 floorfx = getFixture(anmtr, 'floor');
 sensorb = getBody(anmtr,'sensor');
 world = anmtr.world;
+doBreak = false;
 
 while true
-	step(anmtr, 1,true);
+	step(anmtr, 1, true);
 	pos = moonb.getWorldCenter();
 	lv = anmtr.linearVelocity(moonidx,:);
 	av = anmtr.angularVelocity(moonidx);
 	inBox = sensorb.contains(pos);
+	[c,cb] = anmtr.isCollision(moonb);
+
+	if c
+		
+	end
 
 	if inBox
 		if lv(1) < 0
@@ -144,57 +152,63 @@ while true
 	draw(all);
 	drawGrid(s);
 	drawScreenCenter(s);
-	drawText(s,sprintf('RIGIDBODY PHYSICS ENGINE:\n X: %+0.2f  Y: %+0.2f VX: %+0.2f VY: %+0.2f A: %+0.2f INBOX: %i R: %-.2f',...
-		pos.x, pos.y, lv(1), lv(2), av, inBox, moonfx.getRestitution))
+	drawText(s,sprintf('RIGIDBODY PHYSICS ENGINE:\n X: %+0.2f  Y: %+0.2f VX: %+0.2f VY: %+0.2f A: %+0.2f INBOX: %i R: %-.2f COLLISION: %i',...
+		pos.x, pos.y, lv(1), lv(2), av, inBox, moonfx.getRestitution, c))
 	flip(s);
 	
-	[isKey,~,keyCode] = KbCheck(-1);
-	if isKey
-		if strcmpi(KbName(keyCode),'escape')
-			break;
-		elseif strcmpi(KbName(keyCode),'LeftArrow')
-			moonb.setAtRest(false);
-			f = javaObject('org.dyn4j.geometry.Vector2', -40, 0);
-			moonb.applyImpulse(f);
-			moonb2.applyImpulse(f);
-		elseif strcmpi(KbName(keyCode),'RightArrow')
-			moonb.setAtRest(false);
-			f = javaObject('org.dyn4j.geometry.Vector2', 40, 0);
-			moonb.applyImpulse(f);
-			moonb2.applyImpulse(f);
-		elseif strcmpi(KbName(keyCode),'UpArrow')
-			moonb.setAtRest(false);
-			f = javaObject('org.dyn4j.geometry.Vector2', 0, 30);
-			moonb.applyImpulse(f);
-			moonb2.applyImpulse(f);
-		elseif strcmpi(KbName(keyCode),'DownArrow')
-			moonb.setAtRest(false);
-			f = javaObject('org.dyn4j.geometry.Vector2', 0, -30);
-			moonb.applyImpulse(f);
-			moonb2.applyImpulse(f);
-		elseif strcmpi(KbName(keyCode),'1!')
-			moonb.setAtRest(false);
-			moonb.translateToOrigin();
-			moonb2.translateToOrigin();
-			moonb2.translate(-10,0);
-		elseif strcmpi(KbName(keyCode),'2@')
-			moonb.setAtRest(false);
-			if av > 0; av = -av; end
-			moonb.setAngularVelocity(av-1);
-		elseif strcmpi(KbName(keyCode),'3#')
-			moonb.setAtRest(false);
-			if av < 0; av = -av; end
-			moonb.setAngularVelocity(av+1);
-		elseif strcmpi(KbName(keyCode),'4$')
-			moonb.setAtRest(false);
-			anmtr.world.update(0);
-		end
-	end
+	checkKeys();
+	if doBreak; break; end
 end
+
 flip(s);
 WaitSecs(1);
 Priority(0);
 reset(all);
 close(s);
 RestrictKeysForKbCheck([]);
+
+	function checkKeys()
+		[isKey,~,keyCode] = KbCheck(-1);
+		if isKey
+			if strcmpi(KbName(keyCode),'escape')
+				doBreak = true;
+			elseif strcmpi(KbName(keyCode),'LeftArrow')
+				moonb.setAtRest(false);
+				f = javaObject('org.dyn4j.geometry.Vector2', -40, 0);
+				moonb.applyImpulse(f);
+				moonb2.applyImpulse(f);
+			elseif strcmpi(KbName(keyCode),'RightArrow')
+				moonb.setAtRest(false);
+				f = javaObject('org.dyn4j.geometry.Vector2', 40, 0);
+				moonb.applyImpulse(f);
+				moonb2.applyImpulse(f);
+			elseif strcmpi(KbName(keyCode),'UpArrow')
+				moonb.setAtRest(false);
+				f = javaObject('org.dyn4j.geometry.Vector2', 0, 30);
+				moonb.applyImpulse(f);
+				moonb2.applyImpulse(f);
+			elseif strcmpi(KbName(keyCode),'DownArrow')
+				moonb.setAtRest(false);
+				f = javaObject('org.dyn4j.geometry.Vector2', 0, -30);
+				moonb.applyImpulse(f);
+				moonb2.applyImpulse(f);
+			elseif strcmpi(KbName(keyCode),'1!')
+				moonb.setAtRest(false);
+				moonb.translateToOrigin();
+				moonb2.translateToOrigin();
+				moonb2.translate(-5,0);
+			elseif strcmpi(KbName(keyCode),'2@')
+				moonb.setAtRest(false);
+				if av > 0; av = -av; end
+				moonb.setAngularVelocity(av-1);
+			elseif strcmpi(KbName(keyCode),'3#')
+				moonb.setAtRest(false);
+				if av < 0; av = -av; end
+				moonb.setAngularVelocity(av+1);
+			elseif strcmpi(KbName(keyCode),'4$')
+				moonb.setAtRest(false);
+				anmtr.update();
+			end
+		end
+	end
 end
