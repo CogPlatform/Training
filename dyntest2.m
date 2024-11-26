@@ -3,7 +3,7 @@ function dyntest2()
 %% Screen
 s = screenManager;
 if max(Screen('Screens')) == 0; s.windowed = [0 0 1200 800]; end
-s.movieSettings.record = true;
+s.movieSettings.record = false;
 s.movieSettings.type = 1;
 s.movieSettings.size = [];
 s.movieSettings.codec = [];
@@ -14,7 +14,7 @@ ifi = sv.ifi * 1;
 floorpos = sv.bottomInDegrees-2;
 wall1pos = sv.leftInDegrees+1;
 wall2pos = sv.rightInDegrees-1;
-wallwidth = 0.25;
+wallwidth = 2;
 boxx = 11.5;
 boxy = floorpos-2.4;
 box2offset = 9;
@@ -24,7 +24,7 @@ gh = 8;
 v = [8 9];
 gravity = [0 -9.6];
 
-% STIMULI
+%% STIMULI
 moon=imageStimulus('name','moon','filePath','moon.png','size',radius*2);
 moon.xPosition = -10;
 moon.yPosition = -10;
@@ -57,17 +57,15 @@ floor = barStimulus('name','floor','colour',[0.8 0.4 0.4 0.2],'barWidth',sv.widt
 
 ceiling = floor.clone;
 ceiling.name = 'ceiling';
+celing.barHeight = 0.1;
 ceiling.yPosition = sv.topInDegrees;
 
-wall1 = barStimulus('name','wall1','colour',[0.4 0.8 0.4 0.2],'barWidth',wallwidth,'barHeight',...
+wall1 = barStimulus('name','wall1','colour',[0.8 0.4 0.4 0.2],'barWidth',wallwidth,'barHeight',...
 	sv.heightInDegrees,'xPosition',wall1pos);
 
 wall2 = clone(wall1);
 wall2.name = 'wall2';
 wall2.xPosition = wall2pos;
-
-wall2 = barStimulus('name','wall2','alpha',0.2,'barWidth',wallwidth,'barHeight',...
-	sv.heightInDegrees,'xPosition',wall2pos);
 
 sensor = barStimulus('name','sensor','alpha',0.1,'barWidth',6,...
 	'barHeight',14,'xPosition',boxx,'yPosition',boxy-5);

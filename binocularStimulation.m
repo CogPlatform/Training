@@ -56,7 +56,7 @@ fprintf('BINOCULAR MRI: Data: %s\n',[pwd filesep fname]);
 
 %===========================setup
 s = screenManager('backgroundColour', in.bg, ...
-	'distance', in.distance, 'pixelsPerCm', in.ppcm);
+	'distance', in.distance, 'pixelsPerCm', in.ppcm, 'antiAlias', 8);
 if ~mapping
 	s.stereoMode = in.stereoMode;
 	s.anaglyphLeft = in.left;
@@ -74,7 +74,7 @@ if IsOSX || IsWin || in.debug
 	s.disableSyncTests = true;
 end
 
-if in.debug
+if in.debug && max(Screen('Screens')) == 0
 	s.screen = 0;
 	s.windowed = [0 0 1200 800];
 	s.specialFlags = kPsychGUIWindow;
@@ -98,7 +98,7 @@ switch lower(in.type)
 		stim.contrast = 1;
 		stim.tf = in.tf;
 		stim.mask = false;
-		stim.size = 80;
+		stim.size = 100;
 	case 'spiral'
 		stim = polarGratingStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
 		stim.tf = in.tf;
@@ -108,7 +108,7 @@ switch lower(in.type)
 		stim.spiralFactor = 3;
 		stim.sigma = 0.1;
 		stim.mask = true;
-		stim.size = 70;
+		stim.size = 100;
 		in.anglemod = 0;
 	case 'radial'
 		stim = polarGratingStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
@@ -119,7 +119,7 @@ switch lower(in.type)
 		stim.spiralFactor = 3;
 		stim.sigma = 0.1;
 		stim.mask = true;
-		stim.size = 70;
+		stim.size = 100;
 		in.anglemod = 0;
 	case 'circular'
 		stim = polarGratingStimulus('sf',in.sf,'colour',[1 1 1],'colour2',[0 0 0]);
@@ -130,11 +130,11 @@ switch lower(in.type)
 		stim.spiralFactor = 3;
 		stim.sigma = 0.1;
 		stim.mask = true;
-		stim.size = 70;
+		stim.size = 100;
 		in.anglemod = 0;
 end
 
-dis0 = discStimulus('colour', [0 0 0], 'size', in.focusSize+0.2,'sigma',27);
+dis0 = discStimulus('colour', [0 0 0], 'size', in.focusSize+0.2,'sigma',25);
 dis1 = imageStimulus('size', in.focusSize, 'colour', [1 1 1],...
 	'filePath',[s.paths.root '/stimuli/star.png']);
 dis2 = imageStimulus('size', in.focusSize, 'colour', [1 1 1],...
@@ -147,6 +147,7 @@ dis = metaStimulus;
 dis{1} = dis0;
 dis{2} = dis1;
 dis{3} = dis2;
+show(dis, 1); show(dis, 2); hide(dis, 3);
 
 mridata.t = t;
 mridata.s = s;
@@ -185,17 +186,58 @@ upKey				= KbName('uparrow');
 downKey				= KbName('downarrow');
 leftKey				= KbName('leftarrow');
 rightKey			= KbName('rightarrow');
-oldr=RestrictKeysForKbCheck([stopKey triggerKey upKey downKey leftKey rightKey]);
+ssKey				= KbName('F1');
+oldr=RestrictKeysForKbCheck([stopKey triggerKey upKey downKey leftKey rightKey ssKey]);
 
+Priority(MaxPriority(s.win));
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%TEST STIMULUS
 if in.test
 	vbl = flip(s); startT = vbl;
 	a = 1;
 	tick = 1;
-	while vbl <= startT + in.times(1)
-		switchChannel(s,0);
-		draw(stim);
-		switchChannel(s,1);
-		draw(stim);
+	stimType = 1;
+	hide(dis,2); show(dis,3)
+	moddis = true;
+	while vbl <= startT + in.times(1)*1000
+		if mod(tick,120) == 0
+			stimType = stimType + 1;
+			if stimType > 4; stimType = 1;end
+		end
+		if mod(tick,60) == 0
+			moddis = ~moddis;
+			if moddis
+				hide(dis,2); show(dis,3);
+			else
+				hide(dis,3); show(dis,2);
+			end
+		end
+		switch stimType
+			case 1
+				switchChannel(s,0);
+				draw(stim); draw(dis);
+			case 2
+				switchChannel(s,1);
+				draw(stim); draw(dis);
+			case 3
+				switchChannel(s,0);
+				draw(stim); draw(dis);
+				switchChannel(s,1);
+				draw(stim);	draw(dis);
+			case 4
+				switchChannel(s,0);
+				if matches(in.fellowEye,'Left')
+					stim.contrastOut = in.fellowContrast;
+				end
+				draw(stim); draw(dis);
+				stim.contrastOut = 1.0;
+				switchChannel(s,1);
+				if matches(in.fellowEye,'Right')
+					stim.contrastOut = in.fellowContrast;
+				end
+				draw(stim);	draw(dis);
+				stim.contrastOut = 1.0;
+		end
 		animate(stim);
 		vbl = flip(s);
 		if ~isempty(sfs)
@@ -204,7 +246,10 @@ if in.test
 		if in.anglemod
 			stim.angleOut = stim.angleOut + in.anglemod;
 		end
-
+		[keyDown, ~, keyCode] = optickaCore.getKeys();
+		if keyDown
+			if keyCode(ssKey); captureScreen(s); end
+		end
 		tick = tick + 1;
 	end
 	RestrictKeysForKbCheck(oldr);ListenChar(0);Priority(0);ShowCursor;
@@ -212,10 +257,9 @@ if in.test
 	try reset(stim); end
 	return; 
 end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%TEST STIMULUS
 
-Priority(MaxPriority(s.win));
-
-if ~in.debug; ListenChar(-1); HideCursor; end
+if ~in.debug; ListenChar(-1); HideCursor(s.win); end
 
 WaitSecs(1);
 
@@ -229,6 +273,7 @@ while noStart || ~endExperiment
 	if keyDown
 		if keyCode(stopKey); endExperiment = true; break;
 		elseif keyCode(triggerKey); noStart = false; break;
+		elseif keyCode(ssKey); captureScreen(s);
 		end
 	end
 end
@@ -321,6 +366,14 @@ if mapping
 				draw(dis);
 				%drawText(s,num2str(vbl-startT));
 				vbl = flip(s, vbl+sv.halfisi);
+				if in.debug
+					[keyDown, ~, keyCode] = optickaCore.getKeys();
+					if keyDown
+						if keyCode(stopKey); endExperiment = true; break;
+						elseif keyCode(ssKey); captureScreen(s);
+						end
+					end
+				end
 				animate(stim);
 				disTime = vbl - focusT;
 				if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
@@ -400,6 +453,7 @@ if mapping
 				if keyDown
 					if keyCode(stopKey); endExperiment = true; break;
 					elseif keyCode(triggerKey); noStart = false; break;
+					elseif keyCode(ssKey); captureScreen(s);
 					end
 				end
 			end
@@ -451,7 +505,9 @@ else % binocular stimulation
 			vbl = flip(s, vbl+sv.halfisi);
 			[keyDown, ~, keyCode] = optickaCore.getKeys();
 			if keyDown
-				if keyCode(stopKey); endExperiment = true; break; end
+				if keyCode(stopKey); endExperiment = true; break;
+				elseif keyCode(ssKey); captureScreen(s);
+				end
 			end
 		end
 	
@@ -509,6 +565,10 @@ else % binocular stimulation
 			end
 			animate(stim);
 			vbl = flip(s, vbl+sv.halfisi);
+			if in.debug
+			[keyDown, ~, keyCode] = optickaCore.getKeys();
+			if keyDown; if keyCode(ssKey); captureScreen(s); end; end
+			end
 			disTime = vbl - focusT;
 			if disTime > in.focusTime(2) || (disTime > in.focusTime(1) && rand > 0.975)
 				sw = sw + 1; 
